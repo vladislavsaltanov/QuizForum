@@ -20,10 +20,7 @@ class SessionsController < ApplicationController
   end
 
   def google_oauth2
-    auth = request.env["omniauth.auth"]
-    return redirect_to new_session_path, alert: "Authentication failed. Try again." if auth.blank?
-
-    user = User.find_or_create_by_omniauth(auth)
+    user = User.find_or_create_by_omniauth(request.env["omniauth.auth"])
     start_new_session_for user
     redirect_to after_authentication_url
   end

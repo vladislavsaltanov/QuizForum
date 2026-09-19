@@ -8,7 +8,7 @@ class User < ApplicationRecord
   validates :email, presence: true, uniqueness: true
 
   def self.find_or_create_by_omniauth(auth)
-    email = auth.info.email&.strip&.downcase
+    email = auth.info.email.to_s.strip.downcase
     find_by(provider: auth.provider, uid: auth.uid) ||
       find_by(email: email)&.tap { |user| user.update!(provider: auth.provider, uid: auth.uid) } ||
       create!(name: auth.info.name, email: email, provider: auth.provider, uid: auth.uid,

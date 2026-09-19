@@ -60,5 +60,13 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
 
     follow_redirect!
     assert_redirected_to new_session_path
+    assert_nil cookies[:session_id]
+  end
+
+  test "authenticated page redirects unauthenticated visitor to sign in" do
+    sign_out
+    get edit_password_path("anything")
+
+    assert_redirected_to new_password_path
   end
 end
