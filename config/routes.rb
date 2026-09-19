@@ -1,5 +1,5 @@
 Rails.application.routes.draw do
-  root "sessions#new"
+  root "home#show"
   resource :session
   resources :registrations, only: %i[ new create ]
   resources :passwords, param: :token

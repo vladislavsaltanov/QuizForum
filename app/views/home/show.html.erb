@@ -1,0 +1,6 @@
+<h1>QuizForum</h1>
+
+<p>Signed in as <%= Current.session.user.email %></p>
+<p>Registered <time datetime="<%= Current.session.user.created_at.iso8601 %>"><%= Current.session.user.created_at %></time></p>
+
+<%= button_to "Sign out", session_path, method: :delete %>
