@@ -1,0 +1,14 @@
+<h1>Sign up</h1>
+
+<%= tag.div(flash[:alert], style: "color:red") if flash[:alert] %>
+
+<%= form_with model: @user, url: registrations_path do |form| %>
+  <%= form.text_field :name, required: true, autofocus: true, autocomplete: "name", placeholder: "Enter your name" %><br>
+  <%= form.email_field :email, required: true, autocomplete: "username", placeholder: "Enter your email address" %><br>
+  <%= form.password_field :password, required: true, autocomplete: "new-password", placeholder: "Choose a password", maxlength: 72 %><br>
+  <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", placeholder: "Repeat your password", maxlength: 72 %><br>
+  <%= form.submit "Sign up" %>
+<% end %>
+<br>
+
+<%= link_to "Sign in", new_session_path %>

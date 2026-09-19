@@ -19,8 +19,8 @@ One predefined choice in a choice-type Question. Its `is_correct` flag is hidden
 _Avoid_: answer variant, вариант
 
 **Tag**:
-A unique label used to filter Questions (subject, topic).
-_Avoid_: категория, subject
+A unique label used to filter Questions (subject, difficulty). A Question's status (open/closed) is derived from its Deadline, never from a tag.
+_Avoid_: категория, subject, difficulty (as a column)
 
 **Comment**:
 A short clarifying note on a Question. Premoderated: hidden by default until approved, or until the Deadline opens it.
@@ -29,7 +29,7 @@ _Avoid_: reply, discussion, уточнение
 ### Participation
 
 **Attempt**:
-A user's answer to a Question, immutable once created — no edits, no deletions by the respondent.
+A user's answer to a Question — exactly one per user per Question. Immutable once created — no edits, no deletions by the respondent.
 _Avoid_: ответ, submission, answer record
 
 **Verdict**:

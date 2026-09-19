@@ -1,4 +1,10 @@
 Rails.application.routes.draw do
+  root "sessions#new"
+  resource :session
+  resources :registrations, only: %i[ new create ]
+  resources :passwords, param: :token
+  post "/auth/google_oauth2/callback" => "sessions#google_oauth2"
+  get "/auth/failure" => "sessions#omniauth_failure"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
