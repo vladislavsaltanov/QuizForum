@@ -38,7 +38,7 @@ gem "kamal", require: false
 gem "thruster", require: false
 
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
-gem "image_processing", "~> 1.2"
+gem "image_processing", "~> 2.1"
 
 # JSON 3.x changed JSON.parse to kwargs-only; ActiveSupport 8.1.3.1 still
 # calls JSON.parse(json, options) positionally. Pin to 2.x until Rails fixes it.
