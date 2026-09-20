@@ -30,7 +30,7 @@ class ProfilesController < ApplicationController
     end
     @user.assign_attributes(credential_params)
     if @user.save
-      @user.sessions.where.not(id: Current.session&.id).destroy_all if @user.saved_change_to_password_digest?
+      @user.sessions.where.not(id: Current.session.id).destroy_all if @user.saved_change_to_password_digest?
       redirect_to profile_path, notice: "Профиль обновлён."
     else
       render :edit, status: :unprocessable_entity

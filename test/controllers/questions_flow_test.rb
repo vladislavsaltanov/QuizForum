@@ -187,4 +187,25 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     assert_equal 1, assert_select("h2", text: "Ответ автора").size
     assert_match(/Сжимающее отображение/, response.body)
   end
+
+  test "invalid comment redirects with alert" do
+    q = questions(:open_text)
+    assert_no_difference "Comment.count" do
+      post question_comments_path(q, tab: "comments"), params: { comment: { body: "" } }
+    end
+
+    assert_redirected_to question_path(q, tab: "comments")
+    follow_redirect!
+    assert_select ".qf-alert"
+  end
+
+  test "author approves comment" do
+    q = questions(:open_text)
+    comment = Comment.create!(question: q, user: users(:two), body: "please publish")
+    sign_in_as(@author)
+    patch approve_question_comment_path(q, comment)
+
+    assert_redirected_to question_path(q, tab: "comments")
+    assert_equal "approved", comment.reload.status
+  end
 end

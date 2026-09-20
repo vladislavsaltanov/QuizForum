@@ -46,4 +46,23 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select ".qf-card", count: 1
     assert_select ".qf-card-title", text: /подстроки/
   end
+
+  test "filters questions by author" do
+    user = users(:one)
+    sign_in_as(user)
+    get root_path, params: { author: "Two" }
+
+    assert_response :success
+    assert_select ".qf-card", count: 2
+  end
+
+  test "filters questions by topic" do
+    user = users(:one)
+    sign_in_as(user)
+    get root_path, params: { topic: "протоколы" }
+
+    assert_response :success
+    assert_select ".qf-card", count: 1
+    assert_select ".qf-card-title", text: /TCP/
+  end
 end

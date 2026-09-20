@@ -91,4 +91,21 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     assert @user.reload.authenticate("password")
   end
+
+  test "oauth user changes email without current password" do
+    oauth = User.create!(name: "Oa", email: "oa@example.com", provider: "google_oauth2", uid: "1",
+      password: "password12345678", password_confirmation: "password12345678")
+    sign_in_as(oauth)
+    patch profile_path, params: { user: { name: "Oa", email: "oa2@example.com" } }
+
+    assert_redirected_to profile_path
+    assert_equal "oa2@example.com", oauth.reload.email
+  end
+
+  test "duplicate email renders edit" do
+    patch profile_path, params: { user: { name: "One", email: "two@example.com", current_password: "password" } }
+
+    assert_response :unprocessable_entity
+    assert_equal "one@example.com", @user.reload.email
+  end
 end
