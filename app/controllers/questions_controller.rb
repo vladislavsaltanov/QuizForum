@@ -45,7 +45,7 @@ class QuestionsController < ApplicationController
     end
 
     def question_params
-      params.require(:question).permit(:title, :body, :answer_type, :deadline, :reference_answer)
+      params.require(:question).permit(:title, :body, :answer_type, :deadline, :reference_answer, :explanation)
     end
 
     # ponytail: blank rows dropped, correct flags bound by row index

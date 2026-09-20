@@ -79,4 +79,38 @@ class QuestionsCreationTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
   end
+
+  test "creates single choice without reference answer" do
+    post questions_path, params: { question: {
+      title: "Без эталона", body: "Условие", answer_type: "single_choice",
+      deadline: "2030-01-01T12:00",
+      options_text: [ "да", "нет" ], options_correct: [ "0" ]
+    } }
+
+    q = Question.find_by!(title: "Без эталона")
+
+    assert_equal "", q.reference_answer
+    assert_redirected_to question_path(q)
+  end
+
+  test "rejects text without reference answer" do
+    assert_no_difference "Question.count" do
+      post questions_path, params: { question: {
+        title: "Голый", body: "Условие", answer_type: "text",
+        deadline: "2030-01-01T12:00"
+      } }
+    end
+
+    assert_response :unprocessable_entity
+  end
+
+  test "stores explanation" do
+    post questions_path, params: { question: {
+      title: "С разбором", body: "Условие", answer_type: "text",
+      deadline: "2030-01-01T12:00", reference_answer: "Ответ",
+      explanation: "Потому что так."
+    } }
+
+    assert_equal "Потому что так.", Question.find_by!(title: "С разбором").explanation
+  end
 end

@@ -8,7 +8,8 @@ class Question < ApplicationRecord
   has_many :reports, dependent: :destroy
 
   validates :title, :deadline, presence: true
-  validates :body, :reference_answer, presence: true
+  validates :body, presence: true
+  validates :reference_answer, presence: true, unless: :choice?
   validates :answer_type, inclusion: { in: ANSWER_TYPES }
   before_validation :compact_options, if: :choice?
   validate :options_complete, if: :choice?

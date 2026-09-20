@@ -60,8 +60,8 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     assert_select ".qf-stat", text: /Почти, но нет/
     assert_select ".qf-stat", text: /Неправильно/
     assert_select ".qf-stat", text: /На проверке/, count: 0
-    assert_match(/\[0, 2, 4\]/, response.body)
-    assert_equal 1, assert_select("h2", text: "Ответ автора").size
+    assert_select "h2", text: "Ответ автора", count: 0
+    assert_select "h2", text: "Правильные варианты"
     assert_select "button", text: "Пожаловаться"
     assert_select "button", text: "Поделиться"
 
@@ -170,5 +170,21 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
 
     assert_select ".qf-notice", count: 0
     assert_select ".qf-badge-mute", text: "на модерации"
+  end
+
+  test "closed choice shows explanation without reference" do
+    q = questions(:closed_single)
+    q.update!(explanation: "Потому что range даёт 0, 1, 2.")
+    get question_path(q)
+
+    assert_no_match(/\[0, 2, 4\]\./, response.body)
+    assert_match(/Потому что range/, response.body)
+  end
+
+  test "closed text still shows author reference" do
+    get question_path(questions(:closed_text))
+
+    assert_equal 1, assert_select("h2", text: "Ответ автора").size
+    assert_match(/Сжимающее отображение/, response.body)
   end
 end

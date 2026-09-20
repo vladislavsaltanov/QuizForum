@@ -70,8 +70,21 @@
     <div class="qf-attempt"><%= render "attempt_body", attempt: @my_attempt %></div>
   <% end %>
 
-  <h2 class="qf-section-title">Ответ автора</h2>
-  <div class="qf-body qf-reference"><%= simple_format(@question.reference_answer) %></div>
+  <% unless @question.choice? %>
+    <h2 class="qf-section-title">Ответ автора</h2>
+    <div class="qf-body qf-reference"><%= simple_format(@question.reference_answer) %></div>
+  <% else %>
+    <h2 class="qf-section-title">Правильные варианты</h2>
+    <ul class="qf-picked">
+      <% @question.options.each do |opt| %>
+        <% if opt["correct"] %><li><%= opt["text"] %></li><% end %>
+      <% end %>
+    </ul>
+  <% end %>
+  <% if @question.explanation.present? %>
+    <h2 class="qf-section-title">Объяснение</h2>
+    <div class="qf-body"><%= simple_format(@question.explanation) %></div>
+  <% end %>
 
   <h2 class="qf-section-title">Все ответы · <%= @attempts.size %></h2>
   <% @attempts.each do |attempt| %>

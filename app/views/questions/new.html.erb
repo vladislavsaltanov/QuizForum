@@ -44,8 +44,13 @@
     <%= label_tag "question[tags_string]", "Теги через запятую", class: "qf-label" %>
     <%= text_field_tag "question[tags_string]", nil, class: "qf-input", placeholder: "программирование, среднее" %>
 
-    <%= f.label :reference_answer, "Правильный ответ (откроется после дедлайна)", class: "qf-label" %>
-    <%= f.text_area :reference_answer, rows: 4, required: true, class: "qf-input" %>
+    <div id="qf-reference-wrap">
+      <%= f.label :reference_answer, "Правильный ответ (откроется после дедлайна)", class: "qf-label" %>
+      <%= f.text_area :reference_answer, rows: 4, class: "qf-input" %>
+    </div>
+
+    <%= f.label :explanation, "Объяснение ответа (необязательно, откроется после дедлайна)", class: "qf-label" %>
+    <%= f.text_area :explanation, rows: 3, class: "qf-input", placeholder: "Почему так — разбор, подсказки…" %>
 
     <div class="qf-actions">
       <button type="submit" class="qf-apply">Опубликовать</button>
@@ -55,7 +60,8 @@
   <script>
     const qfType = document.getElementById("question_answer_type");
     const qfOpts = document.getElementById("qf-options");
-    const qfSync = () => { qfOpts.hidden = !(qfType.value === "single_choice" || qfType.value === "multiple_choice"); };
+    const qfRef = document.getElementById("qf-reference-wrap");
+    const qfSync = () => { const choice = qfType.value === "single_choice" || qfType.value === "multiple_choice"; qfOpts.hidden = !choice; qfRef.hidden = choice; };
     qfType.addEventListener("change", qfSync); qfSync();
   </script>
 
