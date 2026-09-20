@@ -1,0 +1,71 @@
+open_text:
+  title: Напишите алгоритм поиска подстроки
+  body: Опишите алгоритм за линейное время.
+  answer_type: text
+  reference_answer: КМП через префикс-функцию.
+  deadline: <%= 7.days.from_now %>
+  author: one
+  tags:
+    - программирование
+    - среднее
+    - алгоритмы
+
+closed_text:
+  title: Докажите сходимость метода простых итераций
+  body: Достаточное условие и доказательство.
+  answer_type: text
+  reference_answer: Сжимающее отображение.
+  deadline: <%= 30.days.ago %>
+  author: two
+  tags:
+    - математика
+    - сложное
+    - анализ
+
+closed_single:
+  title: Что выведет этот фрагмент на Python?
+  body: print([i * 2 for i in range(3)])
+  answer_type: single_choice
+  options:
+    - text: "[0, 2, 4]"
+      correct: true
+    - text: "[2, 4, 6]"
+      correct: false
+  reference_answer: "[0, 2, 4]."
+  deadline: <%= 30.days.ago %>
+  author: one
+  tags:
+    - программирование
+    - легкое
+    - python
+
+closed_multiple:
+  title: Объясните разницу между TCP и UDP
+  body: Когда какой протокол уместен?
+  answer_type: multiple_choice
+  options:
+    - text: TCP надёжный
+      correct: true
+    - text: UDP быстрый
+      correct: true
+    - text: UDP гарантирует порядок
+      correct: false
+  reference_answer: TCP — поток, UDP — дейтаграммы.
+  deadline: <%= 30.days.ago %>
+  author: one
+  tags:
+    - сети
+    - среднее
+    - протоколы
+
+open_code:
+  title: Найдите предел последовательности
+  body: a(n) = (1 + 1/n)^n.
+  answer_type: code
+  reference_answer: e.
+  deadline: <%= 7.days.from_now %>
+  author: two
+  tags:
+    - математика
+    - среднее
+    - анализ
