@@ -1,6 +1,10 @@
 class User < ApplicationRecord
   has_secure_password
+  attr_accessor :current_password
   has_many :sessions, dependent: :destroy
+  has_many :authored_questions, class_name: "Question", foreign_key: :author_id, dependent: :destroy
+  has_many :attempts, dependent: :destroy
+  has_many :comments, dependent: :destroy
 
   normalizes :email, with: ->(e) { e.strip.downcase }
 

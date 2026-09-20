@@ -1,0 +1,109 @@
+<% content_for :title, "UI-кит" %>
+<% content_for :head do %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<% end %>
+
+<%= render "shared/header", active: nil %>
+
+<main class="qf-main">
+  <p class="qf-kicker">Служебная страница · только по прямому адресу</p>
+  <h1 class="qf-hero">UI-кит</h1>
+
+  <h2 class="qf-section-title">Палитра — CSS-переменные из application.css</h2>
+  <div class="qf-swatches" aria-label="Палитра">
+    <span class="qf-swatch" style="background: var(--qf-paper)" title="--qf-paper">--qf-paper</span>
+    <span class="qf-swatch" style="background: var(--qf-outer)" title="--qf-outer">--qf-outer</span>
+    <span class="qf-swatch" style="background: var(--qf-inner)" title="--qf-inner">--qf-inner</span>
+    <span class="qf-swatch" style="background: var(--qf-border)" title="--qf-border">--qf-border</span>
+    <span class="qf-swatch qf-swatch-dark" style="background: var(--qf-ink)" title="--qf-ink">--qf-ink</span>
+    <span class="qf-swatch qf-swatch-dark" style="background: var(--qf-ink-soft)" title="--qf-ink-soft">--qf-ink-soft</span>
+    <span class="qf-swatch" style="background: var(--qf-mute)" title="--qf-mute">--qf-mute</span>
+  </div>
+  <p class="qf-hint">Фон — paper, карточки — outer, вложенные блоки — inner, рамки — border, текст — ink.</p>
+
+  <h2 class="qf-section-title">Типографика — grotesque для заголовков, mono для подписей</h2>
+  <p class="qf-kicker">Кикер · .qf-kicker</p>
+  <div class="qf-body">Основной текст serif 17px · .qf-body. Так выглядят описания, ответы и объяснения.</div>
+
+  <h2 class="qf-section-title">Кнопки — .qf-apply залитая, .qf-ghost контурная</h2>
+  <div class="qf-actions">
+    <button type="button" class="qf-apply">Отправить</button>
+    <button type="button" class="qf-ghost">Поделиться</button>
+  </div>
+
+  <h2 class="qf-section-title">Чипы — .qf-chip, вердикты красятся через .qf-verdict-*</h2>
+  <div class="qf-actions">
+    <span class="qf-chip">до 20.08 21:00</span>
+    <span class="qf-chip qf-verdict-correct">Правильно</span>
+    <span class="qf-chip qf-verdict-partial">Почти, но нет</span>
+    <span class="qf-chip qf-verdict-incorrect">Неправильно</span>
+    <span class="qf-chip qf-verdict-pending">На проверке</span>
+  </div>
+
+  <h2 class="qf-section-title">Карточка вопроса — .qf-card: шапка, заголовок, мета</h2>
+  <article class="qf-card">
+    <div class="qf-card-top">
+      <span class="qf-card-num">01</span>
+      <span class="qf-card-tags">#программирование #среднее</span>
+      <span class="qf-card-attempts">ответили: 14</span>
+    </div>
+    <h2 class="qf-card-title">Напишите алгоритм поиска подстроки</h2>
+    <div class="qf-card-meta">
+      <span class="qf-card-author">Иванов Иван Иванович • доцент кафедры</span>
+      <span class="qf-chip">до 20.08 21:00</span>
+    </div>
+  </article>
+
+  <h2 class="qf-section-title">Форма — .qf-label + .qf-input, подсказки .qf-hint</h2>
+  <div class="qf-form">
+    <span class="qf-label">Однострочное поле</span>
+    <input class="qf-input" placeholder="Текст…" aria-label="Демо-поле">
+    <span class="qf-label">Многострочное поле</span>
+    <textarea class="qf-input" rows="2" placeholder="Текст…" aria-label="Демо-текст"></textarea>
+    <span class="qf-label">Селект во всю ширину</span>
+    <select class="qf-input" aria-label="Демо-селект"><option>Вариант 1</option><option>Вариант 2</option></select>
+    <label class="qf-option"><input type="checkbox"> <span>Чекбокс-вариант</span></label>
+    <label class="qf-option"><input type="radio" name="qf-demo-radio"> <span>Радио-вариант</span></label>
+    <p class="qf-hint">Подсказка под полем — приглушённый 13px текст.</p>
+  </div>
+
+  <h2 class="qf-section-title">Статистика — строки .qf-stat с цветными цифрами</h2>
+  <div class="qf-stats">
+    <div class="qf-stat"><span>Правильно</span><b class="qf-verdict-correct">3</b></div>
+    <div class="qf-stat"><span>Почти, но нет</span><b class="qf-verdict-partial">1</b></div>
+    <div class="qf-stat"><span>Неправильно</span><b class="qf-verdict-incorrect">2</b></div>
+  </div>
+
+  <h2 class="qf-section-title">Аватары — инициалы, размеры sm / базовый / xl</h2>
+  <div class="qf-actions">
+    <span class="qf-avatar qf-avatar-sm" aria-hidden="true">ИС</span>
+    <span class="qf-avatar" aria-hidden="true">ИС</span>
+    <span class="qf-avatar qf-avatar-xl" aria-hidden="true">ИС</span>
+  </div>
+
+  <h2 class="qf-section-title">Сообщение чата — аватар + пузырь .qf-bubble</h2>
+  <div class="qf-msg">
+    <span class="qf-avatar qf-avatar-sm" aria-hidden="true">ПА</span>
+    <div class="qf-bubble">
+      <div class="qf-msg-head"><b>Петрова Анна Сергеевна</b><time>5 минут назад</time></div>
+      <p>А будет ли это работать на Python 2?</p>
+    </div>
+  </div>
+
+  <h2 class="qf-section-title">Тосты — всплывают снизу и гаснут сами</h2>
+  <div class="qf-demo-static">
+    <p class="qf-notice">Ответ отправлен на модерацию.</p>
+    <p class="qf-alert">Не удалось сохранить. Проверьте поля.</p>
+  </div>
+  <p class="qf-hint">На живых страницах тосты fixed снизу и исчезают через ~3 секунды; здесь анимация отключена, чтобы их было видно.</p>
+
+  <h2 class="qf-section-title">Пустое состояние — .qf-empty по центру</h2>
+  <p class="qf-empty">Вы пока ничего не опубликовали.</p>
+
+  <footer class="qf-footer">
+    <span>QuizForum</span>
+    <span>UI-кит</span>
+  </footer>
+</main>

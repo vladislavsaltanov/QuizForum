@@ -1,0 +1,40 @@
+<% content_for :title, "Профиль" %>
+<% content_for :head do %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<% end %>
+
+<%= render "shared/header", active: "profile" %>
+
+<main class="qf-main">
+  <p class="qf-kicker">Профиль</p>
+  <h1 class="qf-hero"><%= @user.name %></h1>
+
+  <div class="qf-card qf-id-card">
+    <span class="qf-avatar qf-avatar-xl" aria-hidden="true"><%= initials(@user.name) %></span>
+    <span class="qf-author-meta">
+      <b><%= @user.display_role.presence || "Участник" %></b>
+      <i><%= @user.email %> · на сайте с <%= @user.created_at.strftime("%d.%m.%Y") %></i>
+    </span>
+    <span class="qf-chip"><%= @rank ? "##{@rank} в рейтинге" : "#- вне таблицы" %></span>
+  </div>
+
+  <h2 class="qf-section-title">Статистика</h2>
+  <div class="qf-stats">
+    <div class="qf-stat"><span>Опубликовано вопросов</span><b><%= @published %></b></div>
+    <div class="qf-stat"><span>Дано ответов</span><b><%= @answered %></b></div>
+    <div class="qf-stat"><span>Верных ответов</span><b class="<%= verdict_class("correct") %>"><%= @score %></b></div>
+  </div>
+
+  <div class="qf-actions">
+    <%= link_to "Редактировать", edit_profile_path, class: "qf-ghost" %>
+    <%= link_to "Мои вопросы", my_questions_path, class: "qf-ghost" %>
+    <%= link_to "Таблица лидеров", leaderboard_path, class: "qf-ghost" %>
+  </div>
+
+  <footer class="qf-footer">
+    <span>QuizForum</span>
+    <span>Профиль</span>
+  </footer>
+</main>

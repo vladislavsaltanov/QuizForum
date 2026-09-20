@@ -1,0 +1,45 @@
+<% content_for :title, "Редактировать профиль" %>
+<% content_for :head do %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<% end %>
+
+<%= render "shared/header", active: "profile" %>
+
+<main class="qf-main">
+  <p class="qf-kicker">Профиль</p>
+  <h1 class="qf-hero">Редактировать</h1>
+
+  <%= form_with model: @user, url: profile_path, method: :patch, class: "qf-form" do |f| %>
+    <% if @user.errors.any? %>
+      <div class="qf-alert" role="alert"><%= @user.errors.full_messages.to_sentence %></div>
+    <% end %>
+
+    <%= f.label :name, "Имя", class: "qf-label" %>
+    <%= f.text_field :name, required: true, class: "qf-input" %>
+
+    <%= f.label :email, "Почта", class: "qf-label" %>
+    <%= f.email_field :email, required: true, class: "qf-input" %>
+
+    <%= f.label :password, "Новый пароль", class: "qf-label" %>
+    <%= f.password_field :password, autocomplete: "new-password", class: "qf-input", placeholder: "Оставьте пустым, чтобы не менять" %>
+
+    <%= f.label :password_confirmation, "Подтверждение", class: "qf-label" %>
+    <%= f.password_field :password_confirmation, autocomplete: "new-password", class: "qf-input" %>
+
+    <%= label_tag "user[current_password]", "Текущий пароль", class: "qf-label" %>
+    <%= password_field_tag "user[current_password]", nil, autocomplete: "current-password", class: "qf-input" %>
+    <p class="qf-hint">Текущий пароль нужен только для смены почты или пароля.</p>
+
+    <div class="qf-actions">
+      <button type="submit" class="qf-apply">Сохранить</button>
+      <%= link_to "Отмена", profile_path, class: "qf-ghost" %>
+    </div>
+  <% end %>
+
+  <footer class="qf-footer">
+    <span>QuizForum</span>
+    <span>Профиль</span>
+  </footer>
+</main>
