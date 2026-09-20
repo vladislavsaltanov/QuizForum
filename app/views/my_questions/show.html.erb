@@ -1,0 +1,40 @@
+<% content_for :title, "Мои вопросы" %>
+<% content_for :head do %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<% end %>
+
+<%= render "shared/header", active: "mine" %>
+
+<main class="qf-main">
+  <p class="qf-kicker">Опубликовано · <%= @questions.size %></p>
+  <h1 class="qf-hero">Мои вопросы</h1>
+
+  <section class="qf-cards" aria-label="Мои вопросы">
+    <% if @questions.empty? %>
+      <p class="qf-empty">Вы пока ничего не опубликовали.</p>
+    <% end %>
+    <% @questions.each_with_index do |question, i| %>
+      <%= link_to question_path(question), class: "qf-card-link" do %>
+        <article class="qf-card">
+          <div class="qf-card-top">
+            <span class="qf-card-num"><%= format("%02d", i + 1) %></span>
+            <span class="qf-card-tags"><%= question.tags.map { |t| "##{t}" }.join(" ") %></span>
+            <span class="qf-card-attempts">ответили: <%= question.attempts.size %></span>
+          </div>
+          <h2 class="qf-card-title"><%= question.title %></h2>
+          <div class="qf-card-meta">
+            <span class="qf-card-author"><%= question.open? ? "Открыт" : "Завершён" %></span>
+            <span class="qf-chip">до <%= question.deadline.strftime("%d.%m %H:%M") %></span>
+          </div>
+        </article>
+      <% end %>
+    <% end %>
+  </section>
+
+  <footer class="qf-footer">
+    <span>QuizForum</span>
+    <span><%= @questions.size %> вопросов</span>
+  </footer>
+</main>

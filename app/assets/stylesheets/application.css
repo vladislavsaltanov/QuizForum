@@ -151,7 +151,7 @@ body {
 .qf-reset { align-self: center; font-size: 13px; color: var(--qf-mute); }
 
 .qf-cards { display: grid; gap: 18px; }
-.qf-empty { text-align: center; color: var(--qf-mute); }
+.qf-empty { text-align: center; color: var(--qf-mute); margin-top: 48px; }
 
 /* Card: number + tags + attempts row, mono title, hairline meta row. */
 .qf-card {
