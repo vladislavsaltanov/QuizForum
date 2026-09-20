@@ -112,14 +112,14 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
 
   test "open choice questions render radio and checkbox inputs" do
     single = Question.create!(title: "t-single", body: "b", answer_type: "single_choice",
-      options: [ { "text" => "a", "correct" => true } ], reference_answer: "r",
+      options: [ { "text" => "a", "correct" => true }, { "text" => "b", "correct" => false } ], reference_answer: "r",
       deadline: 7.days.from_now, author: @author, tags: [])
     get question_path(single)
 
     assert_select "input[type=radio][name='attempt[selected][]']"
 
     multiple = Question.create!(title: "t-multi", body: "b", answer_type: "multiple_choice",
-      options: [ { "text" => "a", "correct" => true } ], reference_answer: "r",
+      options: [ { "text" => "a", "correct" => true }, { "text" => "b", "correct" => false } ], reference_answer: "r",
       deadline: 7.days.from_now, author: @author, tags: [])
     get question_path(multiple)
 

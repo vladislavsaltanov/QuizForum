@@ -27,7 +27,7 @@
 
     <fieldset id="qf-options">
       <legend class="qf-label">Варианты (только для типов с выбором)</legend>
-      <% 4.times do |i| %>
+      <% 6.times do |i| %>
         <div class="qf-opt-row">
           <%= text_field_tag "question[options_text][]", nil, class: "qf-input", placeholder: "Вариант #{i + 1}", "aria-label": "Вариант #{i + 1}" %>
           <label class="qf-check">
@@ -35,7 +35,7 @@
           </label>
         </div>
       <% end %>
-      <p class="qf-hint">Пустые строки отбрасываются. Для одиночного выбора отметьте ровно один.</p>
+      <p class="qf-hint">От 2 до 6 вариантов, пустые строки отбрасываются. Для одиночного выбора отметьте ровно один.</p>
     </fieldset>
 
     <%= f.label :deadline, "Дедлайн", class: "qf-label" %>

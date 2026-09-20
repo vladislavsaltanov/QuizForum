@@ -67,4 +67,16 @@ class QuestionsCreationTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
   end
+
+  test "rejects single option" do
+    assert_no_difference "Question.count" do
+      post questions_path, params: { question: {
+        title: "Мало", body: "Условие", answer_type: "single_choice",
+        deadline: "2030-01-01T12:00", reference_answer: "Ответ",
+        options_text: [ "да" ], options_correct: [ "0" ]
+      } }
+    end
+
+    assert_response :unprocessable_entity
+  end
 end
