@@ -37,3 +37,15 @@
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 
+# Ignore Pi agent session/task outputs (local-only).
+.pi/
+
+# Ignore macOS noise.
+.DS_Store
+
+# Ignore editor swap and project files.
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
