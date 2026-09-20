@@ -6,8 +6,16 @@
     <% else %>
       <%= link_to "Главный экран", root_path, class: "qf-nav-item qf-nav-link" %>
     <% end %>
-    <span class="qf-nav-item is-soon" title="Скоро">Мои вопросы</span>
-    <span class="qf-nav-item is-soon" title="Скоро">Таблица лидеров</span>
+    <% if local_assigns[:active] == "mine" %>
+      <span class="qf-nav-item is-active" aria-current="page">Мои вопросы</span>
+    <% else %>
+      <%= link_to "Мои вопросы", my_questions_path, class: "qf-nav-item qf-nav-link" %>
+    <% end %>
+    <% if local_assigns[:active] == "leaders" %>
+      <span class="qf-nav-item is-active" aria-current="page">Таблица лидеров</span>
+    <% else %>
+      <%= link_to "Таблица лидеров", leaderboard_path, class: "qf-nav-item qf-nav-link" %>
+    <% end %>
     <span class="qf-nav-item is-soon" title="Скоро">Профиль</span>
   </nav>
   <div class="qf-user">

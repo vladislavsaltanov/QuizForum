@@ -534,3 +534,16 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 .qf-apply:active, .qf-ghost:active { transform: scale(.96); }
 .qf-input, .qf-filter { transition: border-color .18s ease; }
 .qf-notice, .qf-alert { animation: qf-toast-in .22s ease-out, qf-toast-out .4s ease-in 2.8s forwards; }
+
+/* Leaderboard: plain rows, top-3 tinted, me pinned. */
+.qf-board { display: grid; gap: 8px; margin-top: 18px; }
+.qf-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--qf-inner); border: 1.5px solid var(--qf-border); border-radius: 14px; }
+.qf-row.is-top1 { border-color: #c9a227; background: #faf3dd; }
+.qf-row.is-top2 { border-color: #9aa1a8; background: #f1f2f4; }
+.qf-row.is-top3 { border-color: #b06a2a; background: #f7e8d8; }
+.qf-row.is-me { border-color: var(--qf-ink); border-width: 2px; }
+.qf-pos { font-family: var(--qf-mono); font-weight: 600; min-width: 3ch; color: var(--qf-mute); }
+.is-top1 .qf-pos, .is-top2 .qf-pos, .is-top3 .qf-pos { color: var(--qf-ink); }
+.qf-who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qf-score { font-family: var(--qf-mono); font-weight: 600; font-size: 18px; }
+.qf-me-card { margin-top: 14px; display: flex; gap: 12px; align-items: baseline; }

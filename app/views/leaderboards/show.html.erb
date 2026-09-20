@@ -1,0 +1,56 @@
+<% content_for :title, "Таблица лидеров" %>
+<% content_for :head do %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<% end %>
+
+<%= render "shared/header", active: "leaders" %>
+
+<main class="qf-main">
+  <p class="qf-kicker">Рейтинг · верные ответы после дедлайна</p>
+  <h1 class="qf-hero">Лидеры</h1>
+
+  <%= form_with url: leaderboard_path, method: :get, class: "qf-search", role: "search" do %>
+    <div class="qf-filters">
+      <%= select_tag :difficulty, options_for_select([ [ "Любая сложность", "" ] ] + Question::DIFFICULTIES.map { |d| [ d.capitalize, d ] }, @difficulty), class: "qf-filter", "aria-label": "Сложность" %>
+      <%= select_tag :topic, options_for_select([ [ "Все темы", "" ] ] + @topics.map { |t| [ "##{t}", t ] }, @topic), class: "qf-filter", "aria-label": "Тема" %>
+      <button type="submit" class="qf-apply">Показать</button>
+      <% if @difficulty.present? || @topic.present? %>
+        <%= link_to "Сбросить", leaderboard_path, class: "qf-reset" %>
+      <% end %>
+    </div>
+  <% end %>
+
+  <section class="qf-board" aria-label="Таблица лидеров">
+    <% if @top.empty? %>
+      <p class="qf-empty">Пока некому начислять баллы — отвечайте верно.</p>
+    <% end %>
+    <% @top.each_with_index do |(user, score), i| %>
+      <div class="qf-row<%= " is-top#{i + 1}" if i < 3 %><%= " is-me" if user.id == Current.user.id %>">
+        <span class="qf-pos"><%= i + 1 %></span>
+        <span class="qf-avatar qf-avatar-sm" aria-hidden="true"><%= initials(user.name) %></span>
+        <span class="qf-who"><%= user.name %></span>
+        <span class="qf-score"><%= score %></span>
+      </div>
+    <% end %>
+  </section>
+
+  <% unless @my_in_top %>
+    <div class="qf-card qf-me-card">
+      <% if @my_rank %>
+        <span class="qf-pos">#<%= @my_rank %></span>
+        <span class="qf-who">Вы</span>
+        <span class="qf-score"><%= @my_score %></span>
+      <% else %>
+        <span class="qf-pos">#-</span>
+        <span class="qf-who">Вы вне таблицы — отвечайте верно, чтобы попасть в неё</span>
+      <% end %>
+    </div>
+  <% end %>
+
+  <footer class="qf-footer">
+    <span>QuizForum</span>
+    <span>Топ-<%= LeaderboardsController::TOP_N %></span>
+  </footer>
+</main>
