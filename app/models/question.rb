@@ -8,7 +8,10 @@ class Question < ApplicationRecord
   has_many :reports, dependent: :destroy
 
   validates :title, :deadline, presence: true
+  validates :body, :reference_answer, presence: true
   validates :answer_type, inclusion: { in: ANSWER_TYPES }
+  before_validation :compact_options, if: :choice?
+  validate :options_complete, if: :choice?
 
   def open?
     deadline.future?
@@ -33,4 +36,21 @@ class Question < ApplicationRecord
   def correct_indices
     options.each_index.select { |i| options[i]["correct"] }.map(&:to_s)
   end
+
+  private
+    # ponytail: blank rows from the static form never reach grading
+    def compact_options
+      self.options = Array(options).filter_map do |o|
+        o = o.to_h
+        text = o["text"].to_s.strip
+        next if text.empty?
+        { "text" => text, "correct" => !!o["correct"] }
+      end
+    end
+
+    def options_complete
+      errors.add(:options, :blank) if options.empty?
+      errors.add(:options, :inclusion) if single_choice? && options.count { |o| o["correct"] } != 1
+      errors.add(:options, :inclusion) if multiple_choice? && options.none? { |o| o["correct"] }
+    end
 end

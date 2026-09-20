@@ -10,6 +10,21 @@ class QuestionsController < ApplicationController
     @stats = @question.attempts.group(:verdict).count if @question.closed? || @is_author
   end
 
+  def new
+    @question = Question.new(deadline: 7.days.from_now.change(sec: 0))
+  end
+
+  def create
+    @question = Current.user.authored_questions.build(question_params)
+    @question.tags = params[:question][:tags_string].to_s.split(",").map(&:strip).reject(&:empty?)
+    @question.options = parse_options if @question.choice?
+    if @question.save
+      redirect_to @question, notice: "Вопрос опубликован."
+    else
+      render :new, status: :unprocessable_entity
+    end
+  end
+
   private
     # Before deadline: identities only (author sees all). After: everything public.
     def visible_attempts
@@ -27,5 +42,20 @@ class QuestionsController < ApplicationController
       scope = @question.comments.includes(:user).order(:created_at)
       return scope if @question.closed? || @is_author
       scope.where(status: "approved").or(scope.where(user: Current.user))
+    end
+
+    def question_params
+      params.require(:question).permit(:title, :body, :answer_type, :deadline, :reference_answer)
+    end
+
+    # ponytail: blank rows dropped, correct flags bound by row index
+    def parse_options
+      texts = Array(params[:question][:options_text])
+      correct = Array(params[:question][:options_correct]).reject { |v| v.to_s.strip.empty? }.map(&:to_i)
+      texts.each_with_index.filter_map do |text, i|
+        text = text.to_s.strip
+        next if text.empty?
+        { "text" => text, "correct" => correct.include?(i) }
+      end
     end
 end

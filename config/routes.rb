@@ -3,7 +3,7 @@ Rails.application.routes.draw do
   resource :session
   resources :registrations, only: %i[ new create ]
   resources :passwords, param: :token
-  resources :questions, only: %i[ show ] do
+  resources :questions, only: %i[show new create] do
     resources :attempts, only: %i[ create ]
     resources :comments, only: %i[ create ] do
       patch :approve, on: :member

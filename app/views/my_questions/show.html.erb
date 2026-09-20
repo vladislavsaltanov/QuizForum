@@ -11,6 +11,10 @@
   <p class="qf-kicker">Опубликовано · <%= @questions.size %></p>
   <h1 class="qf-hero">Мои вопросы</h1>
 
+  <div class="qf-list-top">
+    <%= link_to "＋ Новый вопрос", new_question_path, class: "qf-apply qf-link-btn" %>
+  </div>
+
   <section class="qf-cards" aria-label="Мои вопросы">
     <% if @questions.empty? %>
       <p class="qf-empty">Вы пока ничего не опубликовали.</p>
