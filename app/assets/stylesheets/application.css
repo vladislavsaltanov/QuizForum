@@ -559,3 +559,15 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 .qf-who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qf-score { font-family: var(--qf-mono); font-weight: 600; font-size: 18px; }
 .qf-me-card { margin-top: 14px; display: flex; gap: 12px; align-items: baseline; }
+
+/* UI-kit showcase: swatches and static toasts. */
+.qf-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.qf-swatch { font-family: var(--qf-mono); font-size: 12px; padding: 10px 14px; border: 1.5px solid var(--qf-border); border-radius: 12px; }
+.qf-swatch-dark { color: var(--qf-paper); }
+.qf-demo-static { display: grid; gap: 8px; justify-items: start; }
+.qf-demo-static .qf-notice, .qf-demo-static .qf-alert { animation: none; }
+
+/* Profile: identity card with oversized avatar, stat rows. */
+.qf-id-card { display: flex; align-items: center; gap: 16px; }
+.qf-avatar-xl { width: 64px; height: 64px; font-size: 20px; }
+.qf-id-card .qf-chip { margin-left: auto; }

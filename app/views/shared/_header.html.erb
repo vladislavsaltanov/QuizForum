@@ -16,7 +16,11 @@
     <% else %>
       <%= link_to "Таблица лидеров", leaderboard_path, class: "qf-nav-item qf-nav-link" %>
     <% end %>
-    <span class="qf-nav-item is-soon" title="Скоро">Профиль</span>
+    <% if local_assigns[:active] == "profile" %>
+      <span class="qf-nav-item is-active" aria-current="page">Профиль</span>
+    <% else %>
+      <%= link_to "Профиль", profile_path, class: "qf-nav-item qf-nav-link" %>
+    <% end %>
   </nav>
   <div class="qf-user">
     <span class="qf-user-email"><%= Current.user.email %></span>

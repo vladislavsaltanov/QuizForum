@@ -12,6 +12,8 @@ Rails.application.routes.draw do
   end
   resource :leaderboard, only: %i[show]
   resource :my_questions, only: %i[show]
+  resource :profile, only: %i[show edit update]
+  get "ui-kit" => "ui_kit#show", as: :ui_kit
   post "/auth/google_oauth2/callback" => "sessions#google_oauth2"
   get "/auth/failure" => "sessions#omniauth_failure"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
