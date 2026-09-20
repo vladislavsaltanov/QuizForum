@@ -1,0 +1,19 @@
+<div class="qf-msg<%= ' is-author' if comment.question.author_id == comment.user_id %>" id="<%= dom_id(comment) %>">
+  <span class="qf-avatar qf-avatar-sm" aria-hidden="true"><%= initials(comment.user.name) %></span>
+  <div class="qf-bubble">
+    <div class="qf-msg-head">
+      <b><%= comment.user.name %></b>
+      <% if comment.question.author_id == comment.user_id %>
+        <em class="qf-badge">автор</em>
+      <% end %>
+      <time><%= ago_ru(comment.created_at) %></time>
+      <% unless comment.approved? %>
+        <em class="qf-badge qf-badge-mute">на модерации</em>
+      <% end %>
+    </div>
+    <p><%= comment.body %></p>
+    <% if !comment.approved? && comment.question.author == Current.user %>
+      <%= button_to "Опубликовать", approve_question_comment_path(comment.question, comment), method: :patch, class: "qf-ghost" %>
+    <% end %>
+  </div>
+</div>

@@ -1,6 +1,53 @@
-<h1>QuizForum</h1>
+<% content_for :title, "QuizForum — главный экран" %>
+<% content_for :head do %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<% end %>
 
-<p>Signed in as <%= @user.email %></p>
-<p>Registered <time datetime="<%= @user.created_at.iso8601 %>"><%= @user.created_at %></time></p>
+<%= render "shared/header", active: "main" %>
 
-<%= button_to "Sign out", session_path, method: :delete %>
+<main class="qf-main">
+  <p class="qf-kicker">Открытые вопросы · <%= @questions.size %></p>
+  <h1 class="qf-hero">Вопросы</h1>
+
+  <%= form_with url: root_path, method: :get, class: "qf-search", role: "search" do %>
+    <%= search_field_tag :q, @q, placeholder: "Найти вопрос…", class: "qf-search-input", "aria-label": "Поиск вопросов" %>
+    <div class="qf-filters">
+      <%= select_tag :author, options_for_select([ [ "Все авторы", "" ] ] + @authors.map { |a| [ a, a ] }, @author), class: "qf-filter", "aria-label": "Автор" %>
+      <%= select_tag :difficulty, options_for_select([ [ "Любая сложность", "" ] ] + Question::DIFFICULTIES.map { |d| [ d.capitalize, d ] }, @difficulty), class: "qf-filter", "aria-label": "Сложность" %>
+      <%= select_tag :topic, options_for_select([ [ "Все темы", "" ] ] + @topics.map { |t| [ "##{t}", t ] }, @topic), class: "qf-filter", "aria-label": "Тема" %>
+      <button type="submit" class="qf-apply">Найти</button>
+      <% if @q.present? || @author.present? || @difficulty.present? || @topic.present? %>
+        <%= link_to "Сбросить", root_path, class: "qf-reset" %>
+      <% end %>
+    </div>
+  <% end %>
+
+  <section class="qf-cards" aria-label="Вопросы">
+    <% if @questions.empty? %>
+      <p class="qf-empty">Ничего не найдено. Попробуйте смягчить фильтры.</p>
+    <% end %>
+    <% @questions.each_with_index do |question, i| %>
+      <%= link_to question_path(question), class: "qf-card-link" do %>
+        <article class="qf-card">
+          <div class="qf-card-top">
+            <span class="qf-card-num"><%= format("%02d", i + 1) %></span>
+            <span class="qf-card-tags"><%= question.tags.map { |t| "##{t}" }.join(" ") %></span>
+            <span class="qf-card-attempts">ответили: <%= question.attempts.size %></span>
+          </div>
+          <h2 class="qf-card-title"><%= question.title %></h2>
+          <div class="qf-card-meta">
+            <span class="qf-card-author"><%= question.author.name %><%= " • #{question.author.display_role}" if question.author.display_role.present? %></span>
+            <span class="qf-chip">до <%= question.deadline.strftime("%d.%m %H:%M") %></span>
+          </div>
+        </article>
+      <% end %>
+    <% end %>
+  </section>
+
+  <footer class="qf-footer">
+    <span>QuizForum</span>
+    <span><%= @questions.size %> открытых вопросов</span>
+  </footer>
+</main>

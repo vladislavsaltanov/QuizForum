@@ -1,0 +1,91 @@
+<% if @question.open? %>
+  <p class="qf-count">Всего ответов: <%= @question.attempts.size %></p>
+
+  <% if @is_author %>
+    <% if @attempts.empty? %>
+      <p class="qf-empty">Пока никто не ответил.</p>
+    <% end %>
+    <% @attempts.each do |attempt| %>
+      <div class="qf-attempt">
+        <div class="qf-attempt-head">
+          <span><%= attempt.user.name %></span>
+          <span class="qf-chip"><%= verdict_label("pending") %></span>
+        </div>
+        <%= render "attempt_body", attempt: attempt %>
+      </div>
+    <% end %>
+  <% elsif @my_attempt %>
+    <div class="qf-attempt">
+      <div class="qf-attempt-head">
+        <span>Ваш ответ</span>
+        <span class="qf-chip"><%= verdict_label("pending") %></span>
+      </div>
+      <%= render "attempt_body", attempt: @my_attempt %>
+    </div>
+    <p class="qf-hint">Ответ отправлен, изменить его нельзя.</p>
+    <% if @respondent_names.any? %>
+      <p class="qf-hint">Также ответили: <%= @respondent_names.join(", ") %></p>
+    <% end %>
+  <% else %>
+    <%= form_with url: question_attempts_path(@question), class: "qf-form" do |f| %>
+      <% case @question.answer_type %>
+      <% when "text" %>
+        <%= text_area_tag "attempt[body]", nil, rows: 10, placeholder: "Ваш ответ…", class: "qf-input qf-answer-area", "aria-label": "Ответ" %>
+      <% when "code" %>
+        <%= select_tag "attempt[language]", options_for_select(Attempt::LANGUAGES), class: "qf-filter", "aria-label": "Язык" %>
+        <%= text_area_tag "attempt[body]", nil, rows: 12, placeholder: "Ваш код…", class: "qf-input qf-code qf-answer-area", "aria-label": "Код" %>
+      <% when "single_choice" %>
+        <% @question.options.each_with_index do |opt, i| %>
+          <label class="qf-option">
+            <%= radio_button_tag "attempt[selected][]", i, false, required: true %>
+            <span><%= opt["text"] %></span>
+          </label>
+        <% end %>
+      <% when "multiple_choice" %>
+        <% @question.options.each_with_index do |opt, i| %>
+          <label class="qf-option">
+            <%= check_box_tag "attempt[selected][]", i %>
+            <span><%= opt["text"] %></span>
+          </label>
+        <% end %>
+      <% end %>
+      <div class="qf-actions">
+        <button type="submit" class="qf-apply">Отправить</button>
+        <button type="button" class="qf-ghost" onclick="navigator.clipboard.writeText(location.href)">Поделиться</button>
+      </div>
+    <% end %>
+    <% if @respondent_names.any? %>
+      <p class="qf-hint">Уже ответили: <%= @respondent_names.join(", ") %></p>
+    <% end %>
+  <% end %>
+<% else %>
+  <div class="qf-stats">
+    <div class="qf-stat"><span>Правильно</span><b class="<%= verdict_class("correct") %>"><%= @stats.fetch("correct", 0) %></b></div>
+    <div class="qf-stat"><span>Почти, но нет</span><b class="<%= verdict_class("partial") %>"><%= @stats.fetch("partial", 0) %></b></div>
+    <div class="qf-stat"><span>Неправильно</span><b class="<%= verdict_class("incorrect") %>"><%= @stats.fetch("incorrect", 0) %></b></div>
+  </div>
+
+  <% if @my_attempt %>
+    <h2 class="qf-section-title">Ваш ответ · <span class="qf-chip <%= verdict_class(@my_attempt.verdict) %>"><%= verdict_label(@my_attempt.verdict) %></span></h2>
+    <div class="qf-attempt"><%= render "attempt_body", attempt: @my_attempt %></div>
+  <% end %>
+
+  <h2 class="qf-section-title">Ответ автора</h2>
+  <div class="qf-body qf-reference"><%= simple_format(@question.reference_answer) %></div>
+
+  <h2 class="qf-section-title">Все ответы · <%= @attempts.size %></h2>
+  <% @attempts.each do |attempt| %>
+    <div class="qf-attempt">
+      <div class="qf-attempt-head">
+        <span><%= attempt.user.name %></span>
+        <span class="qf-chip <%= verdict_class(attempt.verdict) %>"><%= verdict_label(attempt.verdict) %></span>
+      </div>
+      <%= render "attempt_body", attempt: attempt %>
+    </div>
+  <% end %>
+
+  <div class="qf-actions">
+    <%= button_to "Пожаловаться", question_reports_path(@question), class: "qf-ghost" %>
+    <button type="button" class="qf-ghost" onclick="navigator.clipboard.writeText(location.href)">Поделиться</button>
+  </div>
+<% end %>

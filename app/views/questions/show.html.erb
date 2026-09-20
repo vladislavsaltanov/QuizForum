@@ -1,0 +1,71 @@
+<% content_for :title, @question.title %>
+<% content_for :head do %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<% end %>
+
+<%= render "shared/header", active: nil %>
+
+<main class="qf-main qf-main-wide">
+  <%= link_to "← Все вопросы", root_path, class: "qf-back" %>
+  <p class="qf-kicker">
+    <%= @question.open? ? "До дедлайна · #{time_left(@question.deadline)}" : "Завершён #{@question.deadline.strftime("%d.%m %H:%M")}" %>
+    · <%= @question.tags.map { |t| "##{t}" }.join(" ") %>
+  </p>
+  <h1 class="qf-qtitle"><%= @question.title %></h1>
+
+  <div class="qf-panes">
+    <section class="qf-pane" aria-label="Детали вопроса">
+      <div class="qf-card qf-author-card">
+        <span class="qf-avatar" aria-hidden="true"><%= initials(@question.author.name) %></span>
+        <span class="qf-author-meta">
+          <b><%= @question.author.name %></b>
+          <% if @question.author.display_role.present? %>
+            <i><%= @question.author.display_role %></i>
+          <% end %>
+        </span>
+        <span class="qf-card-attempts">ответили: <%= @question.attempts.size %></span>
+        <span class="qf-chip">до <%= @question.deadline.strftime("%d.%m %H:%M") %></span>
+      </div>
+
+      <h2 class="qf-section-title">Описание</h2>
+      <div class="qf-body"><%= simple_format(@question.body) %></div>
+
+      <% if @question.open? && @is_author %>
+        <h2 class="qf-section-title">Ответ автора</h2>
+        <div class="qf-body qf-reference"><%= simple_format(@question.reference_answer) %></div>
+      <% end %>
+    </section>
+
+    <section class="qf-pane" aria-label="Ответы и комментарии">
+      <div class="qf-tabs" role="tablist">
+        <%= link_to "Ответы", question_path(@question), class: "qf-tab#{' is-active' if @tab == 'answers'}", role: "tab" %>
+        <%= link_to "Комментарии", question_path(@question, tab: "comments"), class: "qf-tab#{' is-active' if @tab == 'comments'}", role: "tab" %>
+      </div>
+
+      <% if @tab == "answers" %>
+        <%= render "answers" %>
+      <% else %>
+        <p class="qf-count">Обсуждение · <%= @comments.size %></p>
+        <%= turbo_stream_from @question %>
+        <div id="comments" class="qf-chat">
+          <% if @comments.empty? %>
+            <p class="qf-empty">Пока тихо — начните обсуждение первым.</p>
+          <% end %>
+          <%= render @comments %>
+        </div>
+        <%= form_with url: question_comments_path(@question), class: "qf-chatbar" do |f| %>
+          <%= text_area_tag "comment[body]", nil, rows: 1, placeholder: "Написать сообщение…", class: "qf-chat-input", "aria-label": "Новый комментарий", onkeydown: "if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.requestSubmit()}" %>
+          <button type="submit" class="qf-send" aria-label="Отправить">↑</button>
+        <% end %>
+        <p class="qf-hint">Сообщения проходят модерацию и открываются всем после дедлайна.</p>
+      <% end %>
+    </section>
+  </div>
+
+  <footer class="qf-footer">
+    <span>QuizForum</span>
+    <span><%= @question.open? ? "Открыт" : "Завершён" %></span>
+  </footer>
+</main>

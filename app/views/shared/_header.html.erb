@@ -1,0 +1,17 @@
+<header class="qf-header">
+  <span class="qf-logo">QuizForum</span>
+  <nav class="qf-nav" aria-label="Основная навигация">
+    <% if local_assigns[:active] == "main" %>
+      <span class="qf-nav-item is-active" aria-current="page">Главный экран</span>
+    <% else %>
+      <%= link_to "Главный экран", root_path, class: "qf-nav-item qf-nav-link" %>
+    <% end %>
+    <span class="qf-nav-item is-soon" title="Скоро">Мои вопросы</span>
+    <span class="qf-nav-item is-soon" title="Скоро">Таблица лидеров</span>
+    <span class="qf-nav-item is-soon" title="Скоро">Профиль</span>
+  </nav>
+  <div class="qf-user">
+    <span class="qf-user-email"><%= Current.user.email %></span>
+    <%= button_to "Выйти", session_path, method: :delete, class: "qf-signout" %>
+  </div>
+</header>

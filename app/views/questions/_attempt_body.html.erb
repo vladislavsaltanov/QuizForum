@@ -1,0 +1,12 @@
+<% if attempt.question.choice? %>
+  <ul class="qf-picked">
+    <% attempt.selected.each do |i| %>
+      <li><%= attempt.question.options[i.to_i]["text"] %></li>
+    <% end %>
+  </ul>
+<% else %>
+  <% if attempt.language.present? %>
+    <p class="qf-lang"><%= attempt.language %></p>
+  <% end %>
+  <div class="qf-body<%= ' qf-code' if attempt.language.present? %>"><%= simple_format(attempt.body) %></div>
+<% end %>
