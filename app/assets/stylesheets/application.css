@@ -158,6 +158,8 @@ a.qf-apply { text-decoration: none; display: inline-block; }
 #qf-options { border: none; padding: 0; margin: 0; display: grid; gap: 10px; }
 #qf-options > legend.qf-label { margin-bottom: 12px; }
 #qf-options[hidden] { display: none; }
+#qf-reference-wrap[hidden] { display: none; }
+#qf-reference-wrap { display: grid; gap: 10px; }
 .qf-opt-row { display: flex; gap: 10px; align-items: center; }
 .qf-opt-row .qf-input { flex: 1; }
 .qf-check { display: flex; gap: 6px; align-items: center; font-size: 14px; white-space: nowrap; cursor: pointer; }
