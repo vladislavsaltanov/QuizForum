@@ -32,7 +32,7 @@
       <% when "text" %>
         <%= text_area_tag "attempt[body]", nil, rows: 10, placeholder: "Ваш ответ…", class: "qf-input qf-answer-area", "aria-label": "Ответ" %>
       <% when "code" %>
-        <%= select_tag "attempt[language]", options_for_select(Attempt::LANGUAGES), class: "qf-filter", "aria-label": "Язык" %>
+        <%= select_tag "attempt[language]", options_for_select(Attempt::LANGUAGES), class: "qf-input", "aria-label": "Язык" %>
         <%= text_area_tag "attempt[body]", nil, rows: 12, placeholder: "Ваш код…", class: "qf-input qf-code qf-answer-area", "aria-label": "Код" %>
       <% when "single_choice" %>
         <% @question.options.each_with_index do |opt, i| %>
@@ -75,11 +75,13 @@
     <div class="qf-body qf-reference"><%= simple_format(@question.reference_answer) %></div>
   <% else %>
     <h2 class="qf-section-title">Правильные варианты</h2>
+    <div class="qf-body">
     <ul class="qf-picked">
       <% @question.options.each do |opt| %>
         <% if opt["correct"] %><li><%= opt["text"] %></li><% end %>
       <% end %>
     </ul>
+    </div>
   <% end %>
   <% if @question.explanation.present? %>
     <h2 class="qf-section-title">Объяснение</h2>

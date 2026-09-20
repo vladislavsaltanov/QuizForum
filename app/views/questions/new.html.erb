@@ -23,7 +23,7 @@
     <%= f.text_area :body, rows: 5, required: true, class: "qf-input", placeholder: "Условие, контекст, примеры…" %>
 
     <%= f.label :answer_type, "Тип ответа", class: "qf-label" %>
-    <%= f.select :answer_type, [[ "Свободный текст", "text" ], [ "Код", "code" ], [ "Один вариант", "single_choice" ], [ "Несколько вариантов", "multiple_choice" ]], {}, class: "qf-filter", id: "question_answer_type" %>
+    <%= f.select :answer_type, [[ "Свободный текст", "text" ], [ "Код", "code" ], [ "Один вариант", "single_choice" ], [ "Несколько вариантов", "multiple_choice" ]], {}, class: "qf-input", id: "question_answer_type" %>
 
     <fieldset id="qf-options">
       <legend class="qf-label">Варианты (только для типов с выбором)</legend>
