@@ -2,6 +2,10 @@ Rails.application.routes.draw do
   root "home#show"
   resource :session
   resources :registrations, only: %i[ new create ]
+  resources :confirmations, param: :token, only: %i[ new create ] do
+    get :sent, on: :collection
+    get :accept, on: :member
+  end
   resources :passwords, param: :token do
     get :sent, on: :collection
   end

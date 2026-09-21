@@ -5,7 +5,7 @@ class SignInFlowTest < ApplicationSystemTestCase
     visit new_session_url
 
     fill_in "email", with: "one@example.com"
-    fill_in "password", with: "password"
+    fill_in "password", with: "password-12-plus"
     click_on "Войти"
 
     assert_current_path root_path

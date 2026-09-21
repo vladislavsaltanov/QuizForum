@@ -1,0 +1,25 @@
+<% content_for :title, "Подтверждение почты" %>
+<% content_for :head do %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<% end %>
+
+<main class="qf-main qf-auth">
+  <p class="qf-kicker">QuizForum</p>
+  <h1 class="qf-hero">Подтверждение почты</h1>
+
+  <div class="qf-body">
+    <p>Не пришло письмо? Введите почту — отправим ссылку ещё раз.</p>
+  </div>
+
+  <%= form_with url: confirmations_path, class: "qf-form" do |form| %>
+    <%= form.label :email, "Почта", class: "qf-label" %>
+    <%= form.email_field :email, required: true, autofocus: true, autocomplete: "username", class: "qf-input" %>
+    <button type="submit" class="qf-apply qf-wide">Отправить ссылку</button>
+  <% end %>
+
+  <div class="qf-actions">
+    <%= link_to "Вернуться ко входу", new_session_path, class: "qf-ghost" %>
+  </div>
+</main>

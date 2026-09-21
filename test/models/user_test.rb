@@ -7,7 +7,18 @@ class UserTest < ActiveSupport::TestCase
   end
 
   test "requires name" do
-    assert_not User.new(email: "a@example.com", password: "password").valid?
+    assert_not User.new(email: "a@example.com", password: "password-12-plus").valid?
+  end
+
+  test "rejects short passwords" do
+    user = User.new(name: "Short", email: "short@example.com", password: "short", password_confirmation: "short")
+    assert_not user.valid?
+    assert_includes user.errors[:password], "is too short (minimum is 12 characters)"
+  end
+
+  test "confirmed? reflects email_confirmed_at" do
+    assert users(:one).confirmed?
+    assert_not User.new.confirmed?
   end
 
   test "find_or_create_by_omniauth creates a new user from auth hash" do
