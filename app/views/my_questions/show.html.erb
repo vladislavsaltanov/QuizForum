@@ -24,7 +24,7 @@
         <article class="qf-card">
           <div class="qf-card-top">
             <span class="qf-card-num"><%= format("%02d", i + 1) %></span>
-            <span class="qf-card-tags"><%= question.tags.map { |t| "##{t}" }.join(" ") %></span>
+            <span class="qf-card-tags"><%= question.tags.map { "##{it}" }.join(" ") %></span>
             <span class="qf-card-attempts">ответили: <%= question.attempts.size %></span>
           </div>
           <h2 class="qf-card-title"><%= question.title %></h2>

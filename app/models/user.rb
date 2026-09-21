@@ -6,7 +6,7 @@ class User < ApplicationRecord
   has_many :attempts, dependent: :destroy
   has_many :comments, dependent: :destroy
 
-  normalizes :email, with: ->(e) { e.strip.downcase }
+  normalizes :email, with: -> { it.strip.downcase }
 
   generates_token_for :email_confirmation, expires_in: 3.days do
     email
@@ -15,6 +15,7 @@ class User < ApplicationRecord
   validates :name, presence: true
   validates :email, presence: true, uniqueness: true
   validates :password, length: { minimum: 12 }, allow_nil: true
+  validates :display_role, length: { maximum: 50 }, allow_nil: true
 
   def confirmed?
     email_confirmed_at.present?
@@ -35,7 +36,7 @@ class User < ApplicationRecord
   def self.find_or_create_by_omniauth(auth)
     email = auth.info.email.to_s.strip.downcase
     find_by(provider: auth.provider, uid: auth.uid) ||
-      find_by(email: email)&.tap { |user| user.update!(provider: auth.provider, uid: auth.uid, email_confirmed_at: Time.current) } ||
+      find_by(email: email)&.tap { it.update!(provider: auth.provider, uid: auth.uid, email_confirmed_at: Time.current) } ||
       create!(name: auth.info.name, email: email, provider: auth.provider, uid: auth.uid,
               password: SecureRandom.hex(32), email_confirmed_at: Time.current)
   end

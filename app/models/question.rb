@@ -35,7 +35,7 @@ class Question < ApplicationRecord
   end
 
   def correct_indices
-    options.each_index.select { |i| options[i]["correct"] }.map(&:to_s)
+    options.each_index.select { options[it]["correct"] }.map(&:to_s)
   end
 
   private
@@ -52,7 +52,7 @@ class Question < ApplicationRecord
     def options_complete
       errors.add(:options, :blank) if options.size < 2
       errors.add(:options, "must have at most 6 items") if options.size > 6
-      errors.add(:options, :inclusion) if single_choice? && options.count { |o| o["correct"] } != 1
-      errors.add(:options, :inclusion) if multiple_choice? && options.none? { |o| o["correct"] }
+      errors.add(:options, :inclusion) if single_choice? && options.count { it["correct"] } != 1
+      errors.add(:options, :inclusion) if multiple_choice? && options.none? { it["correct"] }
     end
 end

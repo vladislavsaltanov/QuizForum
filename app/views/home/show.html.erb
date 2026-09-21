@@ -14,9 +14,9 @@
   <%= form_with url: root_path, method: :get, class: "qf-search", role: "search" do %>
     <%= search_field_tag :q, @q, placeholder: "Найти вопрос…", class: "qf-search-input", "aria-label": "Поиск вопросов" %>
     <div class="qf-filters">
-      <%= select_tag :author, options_for_select([ [ "Все авторы", "" ] ] + @authors.map { |a| [ a, a ] }, @author), class: "qf-filter", "aria-label": "Автор" %>
-      <%= select_tag :difficulty, options_for_select([ [ "Любая сложность", "" ] ] + Question::DIFFICULTIES.map { |d| [ d.capitalize, d ] }, @difficulty), class: "qf-filter", "aria-label": "Сложность" %>
-      <%= select_tag :topic, options_for_select([ [ "Все темы", "" ] ] + @topics.map { |t| [ "##{t}", t ] }, @topic), class: "qf-filter", "aria-label": "Тема" %>
+      <%= select_tag :author, options_for_select([ [ "Все авторы", "" ] ] + @authors.map { [ it, it ] }, @author), class: "qf-filter", "aria-label": "Автор" %>
+      <%= select_tag :difficulty, options_for_select([ [ "Любая сложность", "" ] ] + Question::DIFFICULTIES.map { [ it.capitalize, it ] }, @difficulty), class: "qf-filter", "aria-label": "Сложность" %>
+      <%= select_tag :topic, options_for_select([ [ "Все темы", "" ] ] + @topics.map { [ "##{it}", it ] }, @topic), class: "qf-filter", "aria-label": "Тема" %>
       <button type="submit" class="qf-apply">Найти</button>
       <% if @q.present? || @author.present? || @difficulty.present? || @topic.present? %>
         <%= link_to "Сбросить", root_path, class: "qf-reset" %>
@@ -33,7 +33,7 @@
         <article class="qf-card">
           <div class="qf-card-top">
             <span class="qf-card-num"><%= format("%02d", i + 1) %></span>
-            <span class="qf-card-tags"><%= question.tags.map { |t| "##{t}" }.join(" ") %></span>
+            <span class="qf-card-tags"><%= question.tags.map { "##{it}" }.join(" ") %></span>
             <span class="qf-card-attempts">ответили: <%= question.attempts.size %></span>
           </div>
           <h2 class="qf-card-title"><%= question.title %></h2>

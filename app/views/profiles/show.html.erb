@@ -15,7 +15,7 @@
     <span class="qf-avatar qf-avatar-xl" aria-hidden="true"><%= initials(@user.name) %></span>
     <span class="qf-author-meta">
       <b><%= @user.display_role.presence || "Участник" %></b>
-      <i><%= @user.email %> · на сайте с <%= @user.created_at.strftime("%d.%m.%Y") %></i>
+      <i>ID <%= @user.id %> · <%= @user.email %> · на сайте с <%= @user.created_at.strftime("%d.%m.%Y") %></i>
     </span>
     <span class="qf-chip"><%= @rank ? "##{@rank} в рейтинге" : "#- вне таблицы" %></span>
   </div>
@@ -32,6 +32,19 @@
     <%= link_to "Мои вопросы", my_questions_path, class: "qf-ghost" %>
     <%= link_to "Таблица лидеров", leaderboard_path, class: "qf-ghost" %>
   </div>
+
+  <% if Current.user.admin? %>
+    <h2 class="qf-section-title">Администрирование</h2>
+    <%= form_with url: grant_role_profile_path, method: :patch, class: "qf-form" do %>
+      <%= label_tag "user_id", "ID пользователя", class: "qf-label" %>
+      <%= number_field_tag "user_id", nil, required: true, min: 1, class: "qf-input" %>
+      <%= label_tag "display_role", "Роль (пусто — снять роль)", class: "qf-label" %>
+      <%= text_field_tag "display_role", nil, maxlength: 50, class: "qf-input", placeholder: "доцент кафедры" %>
+      <div class="qf-actions">
+        <button type="submit" class="qf-apply">Выдать роль</button>
+      </div>
+    <% end %>
+  <% end %>
 
   <footer class="qf-footer">
     <span>QuizForum</span>

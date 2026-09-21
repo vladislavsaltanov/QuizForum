@@ -18,7 +18,9 @@ Rails.application.routes.draw do
   end
   resource :leaderboard, only: %i[show]
   resource :my_questions, only: %i[show]
-  resource :profile, only: %i[show edit update]
+  resource :profile, only: %i[show edit update] do
+    patch :grant_role, on: :member
+  end
   get "ui-kit" => "ui_kit#show", as: :ui_kit
   match "/auth/google_oauth2/callback" => "sessions#google_oauth2", via: %i[get post]
   get "/auth/failure" => "sessions#omniauth_failure"

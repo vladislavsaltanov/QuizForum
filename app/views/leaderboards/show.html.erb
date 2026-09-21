@@ -13,8 +13,8 @@
 
   <%= form_with url: leaderboard_path, method: :get, class: "qf-search", role: "search" do %>
     <div class="qf-filters">
-      <%= select_tag :difficulty, options_for_select([ [ "Любая сложность", "" ] ] + Question::DIFFICULTIES.map { |d| [ d.capitalize, d ] }, @difficulty), class: "qf-filter", "aria-label": "Сложность" %>
-      <%= select_tag :topic, options_for_select([ [ "Все темы", "" ] ] + @topics.map { |t| [ "##{t}", t ] }, @topic), class: "qf-filter", "aria-label": "Тема" %>
+      <%= select_tag :difficulty, options_for_select([ [ "Любая сложность", "" ] ] + Question::DIFFICULTIES.map { [ it.capitalize, it ] }, @difficulty), class: "qf-filter", "aria-label": "Сложность" %>
+      <%= select_tag :topic, options_for_select([ [ "Все темы", "" ] ] + @topics.map { [ "##{it}", it ] }, @topic), class: "qf-filter", "aria-label": "Тема" %>
       <button type="submit" class="qf-apply">Показать</button>
       <% if @difficulty.present? || @topic.present? %>
         <%= link_to "Сбросить", leaderboard_path, class: "qf-reset" %>

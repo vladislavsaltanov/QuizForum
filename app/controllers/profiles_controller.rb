@@ -28,7 +28,8 @@ class ProfilesController < ApplicationController
       @user.errors.add(:current_password, :invalid)
       return render :edit, status: :unprocessable_entity
     end
-    @user.assign_attributes(credential_params)
+    # ponytail: expect raises on empty filter — skip when nothing credential-like sent
+    @user.assign_attributes(credential_params) if credentials_requested?
     if @user.save
       @user.sessions.where.not(id: Current.session.id).destroy_all if @user.saved_change_to_password_digest?
       redirect_to profile_path, notice: "Профиль обновлён."
@@ -37,18 +38,31 @@ class ProfilesController < ApplicationController
     end
   end
 
+  # ponytail: admin-only role grant — explicit attribute, never mass-assigned
+  def grant_role
+    return head(:forbidden) unless Current.user&.admin?
+    target = User.find_by(id: params[:user_id].to_s.to_i)
+    return redirect_to profile_path, alert: "Пользователь не найден." unless target
+    role = params[:display_role].to_s.strip
+    if role.length > 50
+      return redirect_to profile_path, alert: "Роль слишком длинная (максимум 50 символов)."
+    end
+    target.update!(display_role: role.presence)
+    redirect_to profile_path, notice: "Роль пользователя ##{target.id} обновлена."
+  end
+
   private
     def set_user
       @user = Current.user
     end
 
-    # ponytail: display_role is admin-set (seeds/console) — never user-editable
+    # ponytail: display_role is admin-set via grant_role panel — never user-editable via update
     def profile_params
-      params.require(:user).permit(:name)
+      params.expect(user: [ :name ])
     end
 
     def credential_params
-      params.require(:user).permit(:email, :password, :password_confirmation)
+      params.expect(user: [ :email, :password, :password_confirmation ])
     end
 
     def credentials_requested?

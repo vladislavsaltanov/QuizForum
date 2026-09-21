@@ -56,6 +56,7 @@ class QuestionsController < ApplicationController
     def privileged?(question)
       question.author == Current.user || Current.user&.admin?
     end
+
     # Before deadline: identities only (author sees all). After: everything public.
     def visible_attempts
       scope = @question.attempts.includes(:user).order(:created_at)
@@ -75,13 +76,13 @@ class QuestionsController < ApplicationController
     end
 
     def question_params
-      params.require(:question).permit(:title, :body, :answer_type, :deadline, :reference_answer, :explanation)
+      params.expect(question: [ :title, :body, :answer_type, :deadline, :reference_answer, :explanation ])
     end
 
     # ponytail: blank rows dropped, correct flags bound by row index
     def parse_options
       texts = Array(params[:question][:options_text])
-      correct = Array(params[:question][:options_correct]).reject { |v| v.to_s.strip.empty? }.map(&:to_i)
+      correct = Array(params[:question][:options_correct]).reject { it.to_s.strip.empty? }.map(&:to_i)
       texts.each_with_index.filter_map do |text, i|
         text = text.to_s.strip
         next if text.empty?

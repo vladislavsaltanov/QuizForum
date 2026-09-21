@@ -2,7 +2,7 @@
   <span class="qf-avatar qf-avatar-sm" aria-hidden="true"><%= initials(comment.user.name) %></span>
   <div class="qf-bubble">
     <div class="qf-msg-head">
-      <b><%= comment.user.name %></b>
+      <b><%= comment.user.name %></b><% if comment.user.display_role.present? %> <b class="qf-dot" aria-hidden="true">·</b> <%= comment.user.display_role %><% end %>
       <% if comment.question.author_id == comment.user_id %>
         <em class="qf-badge">автор</em>
       <% end %>

@@ -11,6 +11,6 @@ class AttemptsController < ApplicationController
 
   private
     def attempt_params
-      params.require(:attempt).permit(:body, :language, selected: [])
+      params.expect(attempt: [ :body, :language, { selected: [] } ])
     end
 end

@@ -17,7 +17,7 @@
   <% end %>
   <p class="qf-kicker">
     <%= @question.open? ? "До дедлайна · #{time_left(@question.deadline)}" : "Завершён #{@question.deadline.strftime("%d.%m %H:%M")}" %>
-    · <%= @question.tags.map { |t| "##{t}" }.join(" ") %>
+    · <%= @question.tags.map { "##{it}" }.join(" ") %>
   </p>
   <h1 class="qf-qtitle"><%= @question.title %></h1>
 
