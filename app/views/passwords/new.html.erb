@@ -1,8 +1,21 @@
-<h1>Forgot your password?</h1>
-
-<%= tag.div(flash[:alert], style: "color:red") if flash[:alert] %>
-
-<%= form_with url: passwords_path do |form| %>
-  <%= form.email_field :email, required: true, autofocus: true, autocomplete: "username", placeholder: "Enter your email address", value: params[:email] %><br>
-  <%= form.submit "Email reset instructions" %>
+<% content_for :title, "Сброс пароля" %>
+<% content_for :head do %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
 <% end %>
+
+<main class="qf-main qf-auth">
+  <p class="qf-kicker">QuizForum</p>
+  <h1 class="qf-hero">Сброс пароля</h1>
+
+  <%= form_with url: passwords_path, class: "qf-form" do |form| %>
+    <%= form.label :email, "Почта", class: "qf-label" %>
+    <%= form.email_field :email, required: true, autofocus: true, autocomplete: "username", class: "qf-input", value: params[:email] %>
+    <button type="submit" class="qf-apply qf-wide">Отправить письмо</button>
+  <% end %>
+
+  <div class="qf-auth-links">
+    <%= link_to "Вернуться ко входу", new_session_path %>
+  </div>
+</main>

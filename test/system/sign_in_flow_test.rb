@@ -6,7 +6,7 @@ class SignInFlowTest < ApplicationSystemTestCase
 
     fill_in "email", with: "one@example.com"
     fill_in "password", with: "password"
-    click_on "Sign in"
+    click_on "Войти"
 
     assert_current_path root_path
   end

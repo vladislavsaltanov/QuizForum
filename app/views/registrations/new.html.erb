@@ -1,14 +1,34 @@
-<h1>Sign up</h1>
-
-<%= tag.div(flash[:alert], style: "color:red") if flash[:alert] %>
-
-<%= form_with model: @user, url: registrations_path do |form| %>
-  <%= form.text_field :name, required: true, autofocus: true, autocomplete: "name", placeholder: "Enter your name" %><br>
-  <%= form.email_field :email, required: true, autocomplete: "username", placeholder: "Enter your email address" %><br>
-  <%= form.password_field :password, required: true, autocomplete: "new-password", placeholder: "Choose a password", maxlength: 72 %><br>
-  <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", placeholder: "Repeat your password", maxlength: 72 %><br>
-  <%= form.submit "Sign up" %>
+<% content_for :title, "Регистрация" %>
+<% content_for :head do %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
 <% end %>
-<br>
 
-<%= link_to "Sign in", new_session_path %>
+<main class="qf-main qf-auth">
+  <p class="qf-kicker">QuizForum</p>
+  <h1 class="qf-hero">Регистрация</h1>
+
+  <%= form_with model: @user, url: registrations_path, class: "qf-form" do |form| %>
+    <% if @user.errors.any? %>
+      <div class="qf-alert" role="alert"><%= @user.errors.full_messages.to_sentence %></div>
+    <% end %>
+
+    <%= form.label :name, "Имя", class: "qf-label" %>
+    <%= form.text_field :name, required: true, autofocus: true, autocomplete: "name", class: "qf-input" %>
+    <%= form.label :email, "Почта", class: "qf-label" %>
+    <%= form.email_field :email, required: true, autocomplete: "username", class: "qf-input" %>
+    <%= form.label :password, "Пароль", class: "qf-label" %>
+    <%= form.password_field :password, required: true, autocomplete: "new-password", class: "qf-input", maxlength: 72 %>
+    <%= form.label :password_confirmation, "Подтверждение", class: "qf-label" %>
+    <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", class: "qf-input", maxlength: 72 %>
+    <button type="submit" class="qf-apply qf-wide">Создать аккаунт</button>
+  <% end %>
+
+  <div class="qf-auth-links">
+    <%= link_to "Уже есть аккаунт? Войти", new_session_path %>
+  </div>
+
+  <p class="qf-or"><span>или</span></p>
+  <%= button_to "Продолжить через Google", "/auth/google_oauth2", data: { turbo: false }, class: "qf-ghost qf-wide" %>
+</main>

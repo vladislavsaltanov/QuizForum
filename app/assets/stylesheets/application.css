@@ -571,3 +571,11 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 .qf-id-card { display: flex; align-items: center; gap: 16px; }
 .qf-avatar-xl { width: 64px; height: 64px; font-size: 20px; }
 .qf-id-card .qf-chip { margin-left: auto; }
+
+/* Auth: narrow centered column, full-width actions, divider. */
+.qf-auth { max-width: 440px; }
+.qf-wide { width: 100%; display: block; }
+.qf-or { display: flex; align-items: center; gap: 12px; color: var(--qf-mute); font-size: 13px; margin: 8px 0; }
+.qf-or::before, .qf-or::after { content: ""; flex: 1; border-top: 1px solid var(--qf-border); }
+.qf-auth-links { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; margin-top: 4px; }
+.qf-auth-links a { color: var(--qf-ink-soft); }

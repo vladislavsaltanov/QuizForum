@@ -1,17 +1,27 @@
-<%= tag.div(flash[:alert], style: "color:red") if flash[:alert] %>
-<%= tag.div(flash[:notice], style: "color:green") if flash[:notice] %>
-
-<%= form_with url: session_path do |form| %>
-  <%= form.email_field :email, required: true, autofocus: true, autocomplete: "username", placeholder: "Enter your email address", value: params[:email] %><br>
-  <%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: "Enter your password", maxlength: 72 %><br>
-  <%= form.submit "Sign in" %>
+<% content_for :title, "Вход" %>
+<% content_for :head do %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
 <% end %>
-<br>
 
-<%= link_to "Forgot password?", new_password_path %>
-<br>
+<main class="qf-main qf-auth">
+  <p class="qf-kicker">QuizForum</p>
+  <h1 class="qf-hero">Вход</h1>
 
-<%= button_to "Sign in with Google", "/auth/google_oauth2", data: { turbo: false } %>
-<br>
+  <%= form_with url: session_path, class: "qf-form" do |form| %>
+    <%= form.label :email, "Почта", class: "qf-label" %>
+    <%= form.email_field :email, required: true, autofocus: true, autocomplete: "username", class: "qf-input", value: params[:email] %>
+    <%= form.label :password, "Пароль", class: "qf-label" %>
+    <%= form.password_field :password, required: true, autocomplete: "current-password", class: "qf-input", maxlength: 72 %>
+    <button type="submit" class="qf-apply qf-wide">Войти</button>
+  <% end %>
 
-<%= link_to "Sign up", new_registration_path %>
+  <div class="qf-auth-links">
+    <%= link_to "Забыли пароль?", new_password_path %>
+    <%= link_to "Нет аккаунта? Зарегистрироваться", new_registration_path %>
+  </div>
+
+  <p class="qf-or"><span>или</span></p>
+  <%= button_to "Продолжить через Google", "/auth/google_oauth2", data: { turbo: false }, class: "qf-ghost qf-wide" %>
+</main>

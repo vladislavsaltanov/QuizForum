@@ -11,19 +11,26 @@ class PasswordsControllerTest < ActionDispatch::IntegrationTest
   test "create" do
     post passwords_path, params: { email: @user.email }
     assert_enqueued_email_with PasswordsMailer, :reset, args: [ @user ]
-    assert_redirected_to new_session_path
+    assert_redirected_to sent_passwords_path
 
     follow_redirect!
-    assert_notice "reset instructions sent"
+    assert_select "h1", "Проверьте почту"
   end
 
   test "create for an unknown user redirects but sends no mail" do
     post passwords_path, params: { email: "missing-user@example.com" }
     assert_enqueued_emails 0
-    assert_redirected_to new_session_path
+    assert_redirected_to sent_passwords_path
 
     follow_redirect!
-    assert_notice "reset instructions sent"
+    assert_select "h1", "Проверьте почту"
+  end
+
+  test "sent explains the email without leaking user existence" do
+    get sent_passwords_path
+
+    assert_response :success
+    assert_match(/Если пользователь с таким адресом существует/, response.body)
   end
 
   test "edit" do
