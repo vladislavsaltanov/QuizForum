@@ -6,13 +6,14 @@ class RegistrationsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "create with valid params creates user and signs in" do
+  test "create with valid params creates unconfirmed user and sends confirmation mail" do
     assert_difference("User.count") do
-      post registrations_path, params: { user: { name: "New", email: "new@example.com", password: "password", password_confirmation: "password" } }
+      post registrations_path, params: { user: { name: "New", email: "new@example.com", password: "password-12-plus", password_confirmation: "password-12-plus" } }
     end
 
-    assert_redirected_to root_path
-    assert cookies[:session_id]
+    assert_redirected_to sent_confirmations_path
+    assert_nil cookies[:session_id]
+    assert_enqueued_email_with RegistrationMailer, :confirmation
   end
 
   test "create with invalid params renders new" do

@@ -9,7 +9,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "create with valid credentials" do
-    post session_path, params: { email: @user.email, password: "password" }
+    post session_path, params: { email: @user.email, password: "password-12-plus" }
 
     assert_redirected_to root_path
     assert cookies[:session_id]
@@ -19,6 +19,16 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     post session_path, params: { email: @user.email, password: "wrong" }
 
     assert_redirected_to new_session_path
+    assert_nil cookies[:session_id]
+  end
+
+  test "create with unconfirmed email redirects to confirmation" do
+    User.create!(name: "Un", email: "unconfirmed-login@example.com",
+      password: "password-12-plus", password_confirmation: "password-12-plus")
+
+    post session_path, params: { email: "unconfirmed-login@example.com", password: "password-12-plus" }
+
+    assert_redirected_to new_confirmation_path
     assert_nil cookies[:session_id]
   end
 
@@ -34,7 +44,9 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
   test "google_oauth2 creates user from auth hash and signs in" do
     OmniAuth.config.test_mode = true
     OmniAuth.config.mock_auth[:google_oauth2] = OmniAuth::AuthHash.new(
-      provider: "google_oauth2", uid: "777", info: { name: "Google", email: "google@example.com" }
+      provider: "google_oauth2", uid: "777",
+      info: { name: "Google", email: "google@example.com" },
+      extra: { raw_info: { email_verified: true } }
     )
 
     assert_difference("User.count") do
@@ -43,6 +55,25 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to root_path
     assert cookies[:session_id]
+  ensure
+    OmniAuth.config.mock_auth[:google_oauth2] = nil
+    OmniAuth.config.test_mode = false
+  end
+
+  test "google_oauth2 rejects unverified email" do
+    OmniAuth.config.test_mode = true
+    OmniAuth.config.mock_auth[:google_oauth2] = OmniAuth::AuthHash.new(
+      provider: "google_oauth2", uid: "778",
+      info: { name: "Unverified", email: "unverified@example.com" },
+      extra: { raw_info: { email_verified: false } }
+    )
+
+    assert_no_difference("User.count") do
+      post "/auth/google_oauth2/callback"
+    end
+
+    assert_redirected_to new_session_path
+    assert_nil cookies[:session_id]
   ensure
     OmniAuth.config.mock_auth[:google_oauth2] = nil
     OmniAuth.config.test_mode = false
