@@ -164,6 +164,7 @@ body {
 
 .qf-apply {
   min-block-size: 2.75rem;
+  white-space: nowrap;
   padding-block: 0.5rem;
   padding-inline: 1.25rem;
   font-family: var(--qf-mono);
