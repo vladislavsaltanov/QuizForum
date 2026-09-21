@@ -11,7 +11,7 @@ class CommentsController < ApplicationController
 
   def approve
     @comment = Comment.find(params[:id])
-    return head(:forbidden) unless @comment.question.author == Current.user
+    return head(:forbidden) unless @comment.question.author == Current.user || Current.user&.admin?
     @comment.update!(status: "approved")
     redirect_to question_path(@comment.question, tab: "comments"), notice: "Комментарий опубликован."
   end

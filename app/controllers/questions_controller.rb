@@ -1,7 +1,8 @@
 class QuestionsController < ApplicationController
   def show
     @question = Question.find(params[:id])
-    @is_author = @question.author == Current.user
+    # ponytail: admin sees everything author sees (answers, reference, comments)
+    @is_author = @question.author == Current.user || Current.user&.admin?
     @tab = params[:tab] == "comments" ? "comments" : "answers"
     @my_attempt = @question.attempts.find_by(user: Current.user)
     @attempts = visible_attempts
@@ -25,7 +26,36 @@ class QuestionsController < ApplicationController
     end
   end
 
+  def edit
+    @question = Question.find(params[:id])
+    head(:forbidden) unless privileged?(@question)
+  end
+
+  def update
+    @question = Question.find(params[:id])
+    return head(:forbidden) unless privileged?(@question)
+    @question.assign_attributes(question_params)
+    @question.tags = params[:question][:tags_string].to_s.split(",").map(&:strip).reject(&:empty?)
+    @question.options = parse_options if @question.choice?
+    if @question.save
+      redirect_to @question, notice: "Вопрос обновлён."
+    else
+      render :edit, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    @question = Question.find(params[:id])
+    return head(:forbidden) unless privileged?(@question)
+    @question.destroy!
+    redirect_to root_path, notice: "Вопрос удалён."
+  end
+
   private
+    # ponytail: single gate for author-or-admin; views reuse @is_author, no extra branches
+    def privileged?(question)
+      question.author == Current.user || Current.user&.admin?
+    end
     # Before deadline: identities only (author sees all). After: everything public.
     def visible_attempts
       scope = @question.attempts.includes(:user).order(:created_at)

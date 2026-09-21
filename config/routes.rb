@@ -9,7 +9,7 @@ Rails.application.routes.draw do
   resources :passwords, param: :token do
     get :sent, on: :collection
   end
-  resources :questions, only: %i[show new create] do
+  resources :questions, only: %i[show new create edit update destroy] do
     resources :attempts, only: %i[ create ]
     resources :comments, only: %i[ create ] do
       patch :approve, on: :member
@@ -20,7 +20,7 @@ Rails.application.routes.draw do
   resource :my_questions, only: %i[show]
   resource :profile, only: %i[show edit update]
   get "ui-kit" => "ui_kit#show", as: :ui_kit
-  post "/auth/google_oauth2/callback" => "sessions#google_oauth2"
+  match "/auth/google_oauth2/callback" => "sessions#google_oauth2", via: %i[get post]
   get "/auth/failure" => "sessions#omniauth_failure"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

@@ -1,0 +1,21 @@
+<% content_for :title, "Редактировать вопрос" %>
+<% content_for :head do %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<% end %>
+
+<%= render "shared/header", active: nil %>
+
+<main class="qf-main">
+  <%= link_to "← К вопросу", question_path(@question), class: "qf-back" %>
+  <p class="qf-kicker">Редактирование</p>
+  <h1 class="qf-hero">Редактировать вопрос</h1>
+
+  <%= render "form", question: @question, submit_label: "Сохранить" %>
+
+  <footer class="qf-footer">
+    <span>QuizForum</span>
+    <span>Редактирование</span>
+  </footer>
+</main>

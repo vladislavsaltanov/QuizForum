@@ -9,6 +9,12 @@
 
 <main class="qf-main qf-main-wide">
   <%= link_to "← Все вопросы", root_path, class: "qf-back" %>
+  <% if @is_author %>
+    <div class="qf-actions">
+      <%= link_to "Редактировать", edit_question_path(@question), class: "qf-ghost" %>
+      <%= button_to "Удалить", question_path(@question), method: :delete, class: "qf-ghost", form: { data: { turbo_confirm: "Удалить вопрос со всеми ответами?" } } %>
+    </div>
+  <% end %>
   <p class="qf-kicker">
     <%= @question.open? ? "До дедлайна · #{time_left(@question.deadline)}" : "Завершён #{@question.deadline.strftime("%d.%m %H:%M")}" %>
     · <%= @question.tags.map { |t| "##{t}" }.join(" ") %>

@@ -12,7 +12,7 @@
       <% end %>
     </div>
     <p><%= comment.body %></p>
-    <% if !comment.approved? && comment.question.author == Current.user %>
+    <% if !comment.approved? && (comment.question.author == Current.user || Current.user&.admin?) %>
       <%= button_to "Опубликовать", approve_question_comment_path(comment.question, comment), method: :patch, class: "qf-ghost" %>
     <% end %>
   </div>

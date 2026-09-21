@@ -1,0 +1,54 @@
+<%= form_with model: question, class: "qf-form" do |f| %>
+  <% if question.errors.any? %>
+    <div class="qf-alert" role="alert"><%= question.errors.full_messages.to_sentence %></div>
+  <% end %>
+
+  <%= f.label :title, "Заголовок", class: "qf-label" %>
+  <%= f.text_field :title, required: true, class: "qf-input", placeholder: "О чём спрашиваете?" %>
+
+  <%= f.label :body, "Описание", class: "qf-label" %>
+  <%= f.text_area :body, rows: 5, required: true, class: "qf-input", placeholder: "Условие, контекст, примеры…" %>
+
+  <%= f.label :answer_type, "Тип ответа", class: "qf-label" %>
+  <%= f.select :answer_type, [[ "Свободный текст", "text" ], [ "Код", "code" ], [ "Один вариант", "single_choice" ], [ "Несколько вариантов", "multiple_choice" ]], {}, class: "qf-input", id: "question_answer_type" %>
+
+  <fieldset id="qf-options">
+    <legend class="qf-label">Варианты (только для типов с выбором)</legend>
+    <% 6.times do |i| %>
+      <% opt = question.options[i] || {} %>
+      <div class="qf-opt-row">
+        <%= text_field_tag "question[options_text][]", opt["text"], class: "qf-input", placeholder: "Вариант #{i + 1}", "aria-label": "Вариант #{i + 1}" %>
+        <label class="qf-check">
+          <%= check_box_tag "question[options_correct][]", i, opt["correct"] %> верный
+        </label>
+      </div>
+    <% end %>
+    <p class="qf-hint">От 2 до 6 вариантов, пустые строки отбрасываются. Для одиночного выбора отметьте ровно один.</p>
+  </fieldset>
+
+  <%= f.label :deadline, "Дедлайн", class: "qf-label" %>
+  <%= f.datetime_field :deadline, required: true, class: "qf-input" %>
+
+  <%= label_tag "question[tags_string]", "Теги через запятую", class: "qf-label" %>
+  <%= text_field_tag "question[tags_string]", question.tags.join(", "), class: "qf-input", placeholder: "программирование, среднее" %>
+
+  <div id="qf-reference-wrap">
+    <%= f.label :reference_answer, "Правильный ответ (откроется после дедлайна)", class: "qf-label" %>
+    <%= f.text_area :reference_answer, rows: 4, class: "qf-input" %>
+  </div>
+
+  <%= f.label :explanation, "Объяснение ответа (необязательно, откроется после дедлайна)", class: "qf-label" %>
+  <%= f.text_area :explanation, rows: 3, class: "qf-input", placeholder: "Почему так — разбор, подсказки…" %>
+
+  <div class="qf-actions">
+    <button type="submit" class="qf-apply"><%= submit_label %></button>
+  </div>
+<% end %>
+
+<script>
+  const qfType = document.getElementById("question_answer_type");
+  const qfOpts = document.getElementById("qf-options");
+  const qfRef = document.getElementById("qf-reference-wrap");
+  const qfSync = () => { const choice = qfType.value === "single_choice" || qfType.value === "multiple_choice"; qfOpts.hidden = !choice; qfRef.hidden = choice; };
+  qfType.addEventListener("change", qfSync); qfSync();
+</script>
