@@ -1,6 +1,7 @@
 class SessionsController < ApplicationController
   allow_unauthenticated_access only: %i[ new create google_oauth2 omniauth_failure ]
   rate_limit to: 10, within: 3.minutes, only: %i[ create google_oauth2 ], with: -> { redirect_to new_session_path, alert: "Try again later." }
+  before_action :redirect_if_authenticated, only: :new
 
   def new
   end

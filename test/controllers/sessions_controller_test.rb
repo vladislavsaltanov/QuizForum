@@ -8,6 +8,14 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "new redirects signed-in users to root" do
+    sign_in_as(@user)
+
+    get new_session_path
+
+    assert_redirected_to root_path
+  end
+
   test "create with valid credentials" do
     post session_path, params: { email: @user.email, password: "password-12-plus" }
 

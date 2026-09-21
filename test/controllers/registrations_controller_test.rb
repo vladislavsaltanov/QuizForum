@@ -6,6 +6,14 @@ class RegistrationsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "new redirects signed-in users to root" do
+    sign_in_as(users(:one))
+
+    get new_registration_path
+
+    assert_redirected_to root_path
+  end
+
   test "create with valid params creates unconfirmed user and sends confirmation mail" do
     assert_difference("User.count") do
       post registrations_path, params: { user: { name: "New", email: "new@example.com", password: "password-12-plus", password_confirmation: "password-12-plus" } }
