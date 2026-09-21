@@ -18,10 +18,10 @@
     <%= form.text_field :name, required: true, autofocus: true, autocomplete: "name", class: "qf-input" %>
     <%= form.label :email, "Почта", class: "qf-label" %>
     <%= form.email_field :email, required: true, autocomplete: "username", class: "qf-input" %>
-    <%= form.label :password, "Пароль", class: "qf-label" %>
-    <%= form.password_field :password, required: true, autocomplete: "new-password", class: "qf-input", maxlength: 72 %>
+    <%= form.label :password, "Пароль (минимум 12 символов)", class: "qf-label" %>
+    <%= form.password_field :password, required: true, autocomplete: "new-password", class: "qf-input", minlength: 12, maxlength: 72 %>
     <%= form.label :password_confirmation, "Подтверждение", class: "qf-label" %>
-    <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", class: "qf-input", maxlength: 72 %>
+    <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", class: "qf-input", minlength: 12, maxlength: 72 %>
     <button type="submit" class="qf-apply qf-wide">Создать аккаунт</button>
   <% end %>
 

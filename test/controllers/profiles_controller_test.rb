@@ -63,7 +63,7 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "changes email with current password" do
-    patch profile_path, params: { user: { name: "One", email: "new@example.com", current_password: "password" } }
+    patch profile_path, params: { user: { name: "One", email: "new@example.com", current_password: "password-12-plus" } }
 
     assert_redirected_to profile_path
     assert_equal "new@example.com", @user.reload.email
@@ -78,7 +78,7 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
 
   test "changes password and kills other sessions" do
     @user.sessions.create!
-    patch profile_path, params: { user: { name: "One", password: "newpassword123", password_confirmation: "newpassword123", current_password: "password" } }
+    patch profile_path, params: { user: { name: "One", password: "newpassword123", password_confirmation: "newpassword123", current_password: "password-12-plus" } }
 
     assert_redirected_to profile_path
     assert @user.reload.authenticate("newpassword123")
@@ -89,7 +89,7 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     patch profile_path, params: { user: { name: "One", password: "newpassword123", password_confirmation: "newpassword123" } }
 
     assert_response :unprocessable_entity
-    assert @user.reload.authenticate("password")
+    assert @user.reload.authenticate("password-12-plus")
   end
 
   test "oauth user changes email without current password" do
@@ -103,7 +103,7 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "duplicate email renders edit" do
-    patch profile_path, params: { user: { name: "One", email: "two@example.com", current_password: "password" } }
+    patch profile_path, params: { user: { name: "One", email: "two@example.com", current_password: "password-12-plus" } }
 
     assert_response :unprocessable_entity
     assert_equal "one@example.com", @user.reload.email

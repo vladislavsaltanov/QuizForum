@@ -7,8 +7,12 @@ class SessionsController < ApplicationController
 
   def create
     if user = User.authenticate_by(params.permit(:email, :password))
-      start_new_session_for user
-      redirect_to after_authentication_url
+      if user.confirmed?
+        start_new_session_for user
+        redirect_to after_authentication_url
+      else
+        redirect_to new_confirmation_path, alert: "Подтвердите почту — мы отправили вам письмо со ссылкой."
+      end
     else
       redirect_to new_session_path, alert: "Try another email address or password."
     end
@@ -20,7 +24,13 @@ class SessionsController < ApplicationController
   end
 
   def google_oauth2
-    user = User.find_or_create_by_omniauth(request.env["omniauth.auth"])
+    auth = request.env["omniauth.auth"]
+    unless auth&.uid.present? && auth.info.email.present? &&
+        auth.dig(:extra, :raw_info, :email_verified) == true
+      return redirect_to new_session_path, alert: "Authentication failed. Try again."
+    end
+
+    user = User.find_or_create_by_omniauth(auth)
     start_new_session_for user
     redirect_to after_authentication_url
   end

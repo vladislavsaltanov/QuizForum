@@ -48,6 +48,6 @@ class ConfirmationsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_confirmation_path
 
     follow_redirect!
-    assert_match(/invalid|expired/i, response.body)
+    assert_match(/недействительна|истекла/, response.body)
   end
 end

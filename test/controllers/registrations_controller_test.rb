@@ -13,7 +13,7 @@ class RegistrationsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to sent_confirmations_path
     assert_nil cookies[:session_id]
-    assert_enqueued_email_with RegistrationMailer, :confirmation
+    assert_enqueued_email_with RegistrationMailer, :confirmation, args: [ User.find_by!(email: "new@example.com") ]
   end
 
   test "create with invalid params renders new" do

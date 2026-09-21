@@ -57,7 +57,7 @@ class PasswordsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "update with non matching passwords" do
-    token = [ @user.password_reset_token, "invalid" ].join
+    token = @user.password_reset_token
     assert_no_changes -> { @user.reload.password_digest } do
       put password_path(token), params: { password: "no", password_confirmation: "match" }
       assert_redirected_to edit_password_path(token)

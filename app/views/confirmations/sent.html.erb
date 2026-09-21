@@ -1,0 +1,20 @@
+<% content_for :title, "Проверьте почту" %>
+<% content_for :head do %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<% end %>
+
+<main class="qf-main qf-auth">
+  <p class="qf-kicker">Регистрация</p>
+  <h1 class="qf-hero">Проверьте почту</h1>
+
+  <div class="qf-body">
+    <p>Если пользователь с таким адресом существует, мы уже отправили письмо со ссылкой для подтверждения.</p>
+    <p>Ссылка действует ограниченное время. Не нашли письмо — загляните в спам.</p>
+  </div>
+
+  <div class="qf-actions">
+    <%= link_to "Вернуться ко входу", new_session_path, class: "qf-ghost" %>
+  </div>
+</main>
