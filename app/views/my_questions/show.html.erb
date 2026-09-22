@@ -37,13 +37,11 @@
     <% end %>
   </section>
 
+  <% unless @trustee_questions.empty? %>
   <hr class="qf-divider">
 
   <h2 class="qf-section-title">Наблюдаю · <%= @trustee_questions.size %></h2>
   <section class="qf-cards" aria-label="Наблюдаемые вопросы">
-    <% if @trustee_questions.empty? %>
-      <p class="qf-empty">Вас пока не назначили наблюдателем.</p>
-    <% end %>
     <% @trustee_questions.each_with_index do |question, i| %>
       <%= link_to question_path(question), class: "qf-card-link" do %>
         <article class="qf-card">
@@ -61,6 +59,7 @@
       <% end %>
     <% end %>
   </section>
+  <% end %>
 
   <footer class="qf-footer">
     <span>QuizForum</span>

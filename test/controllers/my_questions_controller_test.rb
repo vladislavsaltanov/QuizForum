@@ -40,11 +40,12 @@ class MyQuestionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "section[aria-label='Наблюдаемые вопросы'] .qf-card-link[href=?]", question_path(other)
   end
 
-  test "trustee empty state when no grants" do
+  test "trustee section hidden when no grants" do
     get my_questions_path
 
     assert_response :success
-    assert_select "section[aria-label='Наблюдаемые вопросы'] .qf-empty", text: /не назначили наблюдателем/
+    assert_select "hr.qf-divider", count: 0
+    assert_select "section[aria-label='Наблюдаемые вопросы']", count: 0
   end
 
   test "revoked grant disappears from trustee section" do
