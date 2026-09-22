@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_21_220000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_22_080000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -37,6 +37,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_21_220000) do
     t.bigint "user_id", null: false
     t.index ["question_id"], name: "index_comments_on_question_id"
     t.index ["user_id"], name: "index_comments_on_user_id"
+  end
+
+  create_table "question_trustees", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "question_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["question_id", "user_id"], name: "index_question_trustees_on_question_id_and_user_id", unique: true
+    t.index ["question_id"], name: "index_question_trustees_on_question_id"
+    t.index ["user_id"], name: "index_question_trustees_on_user_id"
   end
 
   create_table "questions", force: :cascade do |t|
@@ -92,6 +102,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_21_220000) do
   add_foreign_key "attempts", "users"
   add_foreign_key "comments", "questions"
   add_foreign_key "comments", "users"
+  add_foreign_key "question_trustees", "questions"
+  add_foreign_key "question_trustees", "users"
   add_foreign_key "questions", "users", column: "author_id"
   add_foreign_key "reports", "questions"
   add_foreign_key "reports", "users"

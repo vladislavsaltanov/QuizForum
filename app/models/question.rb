@@ -6,6 +6,8 @@ class Question < ApplicationRecord
   has_many :attempts, dependent: :destroy
   has_many :comments, dependent: :destroy
   has_many :reports, dependent: :destroy
+  has_many :question_trustees, dependent: :destroy
+  has_many :trustees, through: :question_trustees, source: :user
 
   validates :title, :deadline, presence: true
   validates :body, presence: true
@@ -36,6 +38,15 @@ class Question < ApplicationRecord
 
   def correct_indices
     options.each_index.select { options[it]["correct"] }.map(&:to_s)
+  end
+
+  # ponytail: single gate for author-or-trustee-or-admin; controllers and views reuse it
+  def privileged?(user)
+    author == user || user&.admin? || trustee?(user)
+  end
+
+  def trustee?(user)
+    user.present? && trustees.exists?(user.id)
   end
 
   private

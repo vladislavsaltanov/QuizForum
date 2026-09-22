@@ -2,7 +2,7 @@ class QuestionsController < ApplicationController
   def show
     @question = Question.find(params[:id])
     # ponytail: admin sees everything author sees (answers, reference, comments)
-    @is_author = @question.author == Current.user || Current.user&.admin?
+    @is_author = @question.privileged?(Current.user)
     @tab = params[:tab] == "comments" ? "comments" : "answers"
     @my_attempt = @question.attempts.find_by(user: Current.user)
     @attempts = visible_attempts
@@ -54,7 +54,7 @@ class QuestionsController < ApplicationController
   private
     # ponytail: single gate for author-or-admin; views reuse @is_author, no extra branches
     def privileged?(question)
-      question.author == Current.user || Current.user&.admin?
+      question.privileged?(Current.user)
     end
 
     # Before deadline: identities only (author sees all). After: everything public.

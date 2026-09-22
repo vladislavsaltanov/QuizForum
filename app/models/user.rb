@@ -5,6 +5,8 @@ class User < ApplicationRecord
   has_many :authored_questions, class_name: "Question", foreign_key: :author_id, dependent: :destroy
   has_many :attempts, dependent: :destroy
   has_many :comments, dependent: :destroy
+  has_many :question_trustees, dependent: :destroy
+  has_many :trusted_questions, through: :question_trustees, source: :question
 
   normalizes :email, with: -> { it.strip.downcase }
 
