@@ -49,12 +49,23 @@ class Question < ApplicationRecord
     user.present? && trustees.exists?(user.id)
   end
 
-  # ponytail: one email-grant path for the form and TrusteesController; [ok, message]
-  def grant_trustee_by_email(email)
-    user = User.find_by(email: email.to_s.strip.downcase)
-    return [ false, "Пользователь не найден." ] unless user
-    grant = question_trustees.build(user: user)
-    grant.save ? [ true, nil ] : [ false, grant.errors.full_messages.to_sentence ]
+  # ponytail: grant management is author-or-admin only; trustees never manage
+  def managed_by?(user)
+    author == user || user&.admin?
+  end
+
+  # ponytail: comma-separated emails are the whole desired set; [ok, alert_or_nil]
+  def sync_trustees_by_emails(raw)
+    emails = raw.to_s.split(",").map { it.strip.downcase }.reject(&:empty?).uniq
+    users = User.where(email: emails).index_by(&:email)
+    missing = emails - users.keys
+    question_trustees.where.not(user_id: users.values.map(&:id)).destroy_all
+    invalid = users.values.filter_map do |u|
+      grant = question_trustees.find_or_initialize_by(user: u)
+      grant.save ? nil : grant.errors.full_messages.to_sentence
+    end
+    problems = missing.map { "Пользователь не найден: #{it}" } + invalid
+    problems.empty? ? [ true, nil ] : [ false, problems.to_sentence ]
   end
 
   private

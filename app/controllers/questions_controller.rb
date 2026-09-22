@@ -3,7 +3,6 @@ class QuestionsController < ApplicationController
     @question = Question.find(params[:id])
     # ponytail: admin sees everything author sees (answers, reference, comments)
     @is_author = @question.privileged?(Current.user)
-    @can_manage = @question.author == Current.user || Current.user&.admin?
     @tab = params[:tab] == "comments" ? "comments" : "answers"
     @my_attempt = @question.attempts.find_by(user: Current.user)
     @attempts = visible_attempts
@@ -21,7 +20,7 @@ class QuestionsController < ApplicationController
     @question.tags = params[:question][:tags_string].to_s.split(",").map(&:strip).reject(&:empty?)
     @question.options = parse_options if @question.choice?
     if @question.save
-      _, trustee_alert = @question.grant_trustee_by_email(params[:question][:trustee_email]) if params[:question][:trustee_email].present?
+      _, trustee_alert = @question.sync_trustees_by_emails(params[:question][:trustee_emails]) if params[:question].key?(:trustee_emails)
       redirect_to @question, notice: "Вопрос опубликован.", alert: trustee_alert
     else
       render :new, status: :unprocessable_entity
@@ -31,6 +30,7 @@ class QuestionsController < ApplicationController
   def edit
     @question = Question.find(params[:id])
     head(:forbidden) unless privileged?(@question)
+    @can_manage_trustees = @question.managed_by?(Current.user)
   end
 
   def update
@@ -40,9 +40,12 @@ class QuestionsController < ApplicationController
     @question.tags = params[:question][:tags_string].to_s.split(",").map(&:strip).reject(&:empty?)
     @question.options = parse_options if @question.choice?
     if @question.save
-      _, trustee_alert = @question.grant_trustee_by_email(params[:question][:trustee_email]) if params[:question][:trustee_email].present?
+      if params[:question].key?(:trustee_emails) && @question.managed_by?(Current.user)
+        _, trustee_alert = @question.sync_trustees_by_emails(params[:question][:trustee_emails])
+      end
       redirect_to @question, notice: "Вопрос обновлён.", alert: trustee_alert
     else
+      @can_manage_trustees = @question.managed_by?(Current.user)
       render :edit, status: :unprocessable_entity
     end
   end

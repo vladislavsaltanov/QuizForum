@@ -11,7 +11,7 @@
   <p class="qf-kicker">Публикация</p>
   <h1 class="qf-hero">Новый вопрос</h1>
 
-  <%= render "form", question: @question, submit_label: "Опубликовать" %>
+  <%= render "form", question: @question, submit_label: "Опубликовать", can_manage_trustees: true %>
 
   <footer class="qf-footer">
     <span>QuizForum</span>
