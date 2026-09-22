@@ -3,6 +3,7 @@ class QuestionsController < ApplicationController
     @question = Question.find(params[:id])
     # ponytail: admin sees everything author sees (answers, reference, comments)
     @is_author = @question.privileged?(Current.user)
+    @can_manage = @question.author == Current.user || Current.user&.admin?
     @tab = params[:tab] == "comments" ? "comments" : "answers"
     @my_attempt = @question.attempts.find_by(user: Current.user)
     @attempts = visible_attempts

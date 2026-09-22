@@ -15,6 +15,29 @@
       <%= button_to "Удалить", question_path(@question), method: :delete, class: "qf-ghost", form: { data: { turbo_confirm: "Удалить вопрос со всеми ответами?" } } %>
     </div>
   <% end %>
+  <% if @can_manage %>
+    <section class="qf-pane" aria-label="Наблюдатели">
+      <h2 class="qf-section-title">Наблюдатели</h2>
+      <% grants = @question.question_trustees.includes(:user) %>
+      <% if grants.empty? %>
+        <p class="qf-empty">Нет наблюдателей.</p>
+      <% end %>
+      <% grants.each do |grant| %>
+        <div class="qf-attempt">
+          <div class="qf-attempt-head">
+            <span><%= grant.user.name %></span>
+            <%= button_to "Отозвать", question_trustee_path(@question, grant), method: :delete, class: "qf-ghost" %>
+          </div>
+        </div>
+      <% end %>
+      <%= form_with url: question_trustees_path(@question), class: "qf-form" do %>
+        <%= email_field_tag :email, nil, placeholder: "Email наблюдателя…", class: "qf-input", "aria-label": "Email наблюдателя" %>
+        <div class="qf-actions">
+          <button type="submit" class="qf-apply">Добавить</button>
+        </div>
+      <% end %>
+    </section>
+  <% end %>
   <p class="qf-kicker">
     <%= @question.open? ? "До дедлайна · #{time_left(@question.deadline)}" : "Завершён #{@question.deadline.strftime("%d.%m %H:%M")}" %>
     · <%= @question.tags.map { "##{it}" }.join(" ") %>

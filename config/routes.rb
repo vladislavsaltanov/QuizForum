@@ -15,6 +15,7 @@ Rails.application.routes.draw do
       patch :approve, on: :member
     end
     resources :reports, only: %i[ create ]
+    resources :trustees, only: %i[ create destroy ]
   end
   resource :leaderboard, only: %i[show]
   resource :my_questions, only: %i[show]
