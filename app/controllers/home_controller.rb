@@ -1,4 +1,6 @@
+# Landing: searchable, filterable question index.
 class HomeController < ApplicationController
+  # Collects filter params and the filtered question list for the index view.
   def show
     @user = Current.user
     @q = params[:q].to_s.strip
@@ -11,6 +13,7 @@ class HomeController < ApplicationController
   end
 
   private
+    # Narrows questions by text, author, difficulty, topic; empty filters are skipped.
     def filter_questions
       scope = Question.order(:id)
       scope = scope.where("title ILIKE ?", "%#{@q}%") if @q.present?

@@ -1,3 +1,4 @@
+# Short clarifying note on a question; hidden until approved or revealed.
 class Comment < ApplicationRecord
   STATUSES = %w[pending approved].freeze
 
@@ -9,12 +10,13 @@ class Comment < ApplicationRecord
 
   broadcasts_to :question, inserts_by: :append, target: "comments", if: :visible_live?
 
+  # Approved comments are visible to everyone.
   def approved?
     status == "approved"
   end
 
   private
-    # ponytail: realtime only for comments everyone may see; the rest render on reload.
+    # Broadcast only comments everyone may already see.
     def visible_live?
       approved? || question.closed?
     end

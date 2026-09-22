@@ -1,4 +1,6 @@
+# One immutable attempt per user per question; choice grading happens in the model.
 class AttemptsController < ApplicationController
+  # Records the current user's attempt; model validations reject doubles and late posts.
   def create
     @question = Question.find(params[:question_id])
     @attempt = @question.attempts.build(attempt_params.merge(user: Current.user))
@@ -10,6 +12,7 @@ class AttemptsController < ApplicationController
   end
 
   private
+    # Whitelisted attempt form fields.
     def attempt_params
       params.expect(attempt: [ :body, :language, { selected: [] } ])
     end
