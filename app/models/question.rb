@@ -6,6 +6,8 @@ class Question < ApplicationRecord
   has_many :attempts, dependent: :destroy
   has_many :comments, dependent: :destroy
   has_many :reports, dependent: :destroy
+  has_many :question_trustees, dependent: :destroy
+  has_many :trustees, through: :question_trustees, source: :user
 
   validates :title, :deadline, presence: true
   validates :body, presence: true
@@ -36,6 +38,34 @@ class Question < ApplicationRecord
 
   def correct_indices
     options.each_index.select { options[it]["correct"] }.map(&:to_s)
+  end
+
+  # ponytail: single gate for author-or-trustee-or-admin; controllers and views reuse it
+  def privileged?(user)
+    author == user || user&.admin? || trustee?(user)
+  end
+
+  def trustee?(user)
+    user.present? && trustees.exists?(user.id)
+  end
+
+  # ponytail: grant management is author-or-admin only; trustees never manage
+  def managed_by?(user)
+    author == user || user&.admin?
+  end
+
+  # ponytail: comma-separated emails are the whole desired set; [ok, alert_or_nil]
+  def sync_trustees_by_emails(raw)
+    emails = raw.to_s.split(",").map { it.strip.downcase }.reject(&:empty?).uniq
+    users = User.where(email: emails).index_by(&:email)
+    missing = emails - users.keys
+    question_trustees.where.not(user_id: users.values.map(&:id)).destroy_all
+    invalid = users.values.filter_map do |u|
+      grant = question_trustees.find_or_initialize_by(user: u)
+      grant.save ? nil : grant.errors.full_messages.to_sentence
+    end
+    problems = missing.map { "Пользователь не найден: #{it}" } + invalid
+    problems.empty? ? [ true, nil ] : [ false, problems.to_sentence ]
   end
 
   private

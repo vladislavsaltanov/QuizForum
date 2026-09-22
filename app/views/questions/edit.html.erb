@@ -12,7 +12,7 @@
   <p class="qf-kicker">Редактирование</p>
   <h1 class="qf-hero">Редактировать вопрос</h1>
 
-  <%= render "form", question: @question, submit_label: "Сохранить" %>
+  <%= render "form", question: @question, submit_label: "Сохранить", can_manage_trustees: @can_manage_trustees %>
 
   <footer class="qf-footer">
     <span>QuizForum</span>

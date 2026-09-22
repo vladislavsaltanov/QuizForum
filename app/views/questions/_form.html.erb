@@ -40,6 +40,12 @@
   <%= f.label :explanation, "Объяснение ответа (необязательно, откроется после дедлайна)", class: "qf-label" %>
   <%= f.text_area :explanation, rows: 3, class: "qf-input", placeholder: "Почему так — разбор, подсказки…" %>
 
+  <% if can_manage_trustees %>
+    <%= label_tag "question[trustee_emails]", "Наблюдатели (email через запятую, необязательно)", class: "qf-label" %>
+    <%= text_field_tag "question[trustee_emails]", params.dig(:question, :trustee_emails) || question.trustees.order(:id).map(&:email).join(", "), class: "qf-input", placeholder: "a@example.com, b@example.com" %>
+    <p class="qf-hint">Доступ уровня автора до дедлайна. Убрали email из списка — отозвали доступ.</p>
+  <% end %>
+
   <div class="qf-actions">
     <button type="submit" class="qf-apply"><%= submit_label %></button>
   </div>

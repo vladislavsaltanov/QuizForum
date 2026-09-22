@@ -28,6 +28,35 @@ class MyQuestionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".qf-card-link[href=?]", question_path(questions(:open_text))
   end
 
+  test "trustee questions appear after divider with author name" do
+    other = questions(:closed_text) # author: users(:two)
+    other.question_trustees.create!(user: @user)
+    get my_questions_path
+
+    assert_response :success
+    assert_select "hr.qf-divider", count: 1
+    assert_select "section[aria-label='Наблюдаемые вопросы'] .qf-card-title", text: other.title
+    assert_select "section[aria-label='Наблюдаемые вопросы'] .qf-card-author", text: "Two"
+    assert_select "section[aria-label='Наблюдаемые вопросы'] .qf-card-link[href=?]", question_path(other)
+  end
+
+  test "trustee section hidden when no grants" do
+    get my_questions_path
+
+    assert_response :success
+    assert_select "hr.qf-divider", count: 0
+    assert_select "section[aria-label='Наблюдаемые вопросы']", count: 0
+  end
+
+  test "revoked grant disappears from trustee section" do
+    other = questions(:closed_text)
+    grant = other.question_trustees.create!(user: @user)
+    grant.destroy!
+    get my_questions_path
+
+    assert_select "section[aria-label='Наблюдаемые вопросы'] .qf-card", count: 0
+  end
+
   test "empty state for fresh user" do
     fresh = User.create!(name: "Fresh", email: "fresh@example.com",
                          password: "password12345678", password_confirmation: "password12345678")
