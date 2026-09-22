@@ -1,6 +1,7 @@
+# One user's answer to a question; immutable after create.
 class Attempt < ApplicationRecord
   VERDICTS = %w[pending correct partial incorrect].freeze
-  # ponytail: bigtech-style list; values double as labels
+  # Code-answer languages; values double as select labels.
   LANGUAGES = %w[bash c c# c++ elixir go haskell java javascript kotlin php python ruby rust scala sql swift typescript].freeze
 
   belongs_to :question
@@ -13,6 +14,7 @@ class Attempt < ApplicationRecord
   before_create :grade_choice!
 
   private
+    # Choice answers need selected options, text answers need a body.
     def answer_present
       if question.choice?
         errors.add(:selected, :blank) if selected.blank?
@@ -21,7 +23,7 @@ class Attempt < ApplicationRecord
       end
     end
 
-    # ponytail: choice verdicts derived inline; text/code stay pending for the Jury.
+    # Choice verdicts derived at create; text/code stay pending for the Jury.
     def grade_choice!
       return unless question.choice?
       picked = Array(selected).map(&:to_s)

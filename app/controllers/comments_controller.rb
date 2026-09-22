@@ -1,4 +1,6 @@
+# Premoderated comments; hidden until approved or opened by the deadline.
 class CommentsController < ApplicationController
+  # Posts a comment as pending; stays hidden until approval or reveal.
   def create
     @question = Question.find(params[:question_id])
     @comment = @question.comments.build(body: params.dig(:comment, :body), user: Current.user)
@@ -9,6 +11,7 @@ class CommentsController < ApplicationController
     end
   end
 
+  # Publishes a comment; author, trustee, or admin only.
   def approve
     @comment = Comment.find(params[:id])
     return head(:forbidden) unless @comment.question.privileged?(Current.user)

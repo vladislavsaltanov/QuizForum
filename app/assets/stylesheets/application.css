@@ -19,7 +19,7 @@
   --qf-border: #d8ac7f;
   --qf-ink: #19232f;
   --qf-ink-soft: #24303e;
-  /* ponytail: затемнён с #8a7a63 — мелкий текст проходит 4.5:1 на всех поверхностях */
+  /* Darkened from #8a7a63: small text still passes 4.5:1 */
   --qf-mute: #6e5f4c;
   --qf-mono: "IBM Plex Mono", ui-monospace, monospace;
   --qf-container: 64rem;

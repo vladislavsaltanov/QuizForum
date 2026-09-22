@@ -1,3 +1,4 @@
+# View helpers: verdict labels, avatars, Russian time phrases.
 module ApplicationHelper
   VERDICT_LABELS = {
     "pending" => "На проверке",
@@ -6,21 +7,22 @@ module ApplicationHelper
     "incorrect" => "Неправильно"
   }.freeze
 
+  # Human-readable verdict name.
   def verdict_label(verdict)
     VERDICT_LABELS.fetch(verdict.to_s, verdict.to_s)
   end
 
-  # ponytail: color hook for verdict badges; unknown verdicts render neutral
+  # CSS hook for verdict badges.
   def verdict_class(verdict)
     "qf-verdict-#{verdict}"
   end
 
-  # ponytail: two-letter avatar initials, no image pipeline needed
+  # Two-letter avatar initials.
   def initials(name)
     name.to_s.split.first(2).map(&:first).join.upcase
   end
 
-  # ponytail: hand-rolled ru countdown; rails-i18n gem would be a new dep for one line
+  # Russian countdown to the deadline; rails-i18n would be a new dep for one line.
   def time_left(deadline)
     secs = (deadline - Time.current).to_i
     return "завершён" if secs <= 0
@@ -31,6 +33,7 @@ module ApplicationHelper
     plural_ru(secs / 86400, "день", "дня", "дней")
   end
 
+  # Russian relative timestamp.
   def ago_ru(time)
     secs = (Time.current - time).to_i
     return "только что" if secs < 60
@@ -41,6 +44,7 @@ module ApplicationHelper
   end
 
   private
+    # Russian plural form picker.
     def plural_ru(n, one, few, many)
       m10 = n % 10
       m100 = n % 100

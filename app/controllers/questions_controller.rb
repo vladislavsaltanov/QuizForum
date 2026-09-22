@@ -1,7 +1,9 @@
+# Public question pages with deadline-based visibility of answers and comments.
 class QuestionsController < ApplicationController
+  # Assembles one question page; what respondents see depends on the deadline.
   def show
     @question = Question.find(params[:id])
-    # ponytail: admin sees everything author sees (answers, reference, comments)
+    # Privileged viewers (author, trustee, admin) see answers, reference, and comments.
     @is_author = @question.privileged?(Current.user)
     @tab = params[:tab] == "comments" ? "comments" : "answers"
     @my_attempt = @question.attempts.find_by(user: Current.user)
@@ -11,10 +13,12 @@ class QuestionsController < ApplicationController
     @stats = @question.attempts.group(:verdict).count if @question.closed? || @is_author
   end
 
+  # Blank form prefilled with a one-week deadline.
   def new
     @question = Question.new(deadline: 7.days.from_now.change(sec: 0))
   end
 
+  # Publishes a question; trustee list syncs only when the form sent the field.
   def create
     @question = Current.user.authored_questions.build(question_params)
     @question.tags = params[:question][:tags_string].to_s.split(",").map(&:strip).reject(&:empty?)
@@ -27,12 +31,14 @@ class QuestionsController < ApplicationController
     end
   end
 
+  # Edit form; the trustee block renders for author/admin only.
   def edit
     @question = Question.find(params[:id])
     head(:forbidden) unless privileged?(@question)
     @can_manage_trustees = @question.managed_by?(Current.user)
   end
 
+  # Saves edits; only author/admin may change the trustee list.
   def update
     @question = Question.find(params[:id])
     return head(:forbidden) unless privileged?(@question)
@@ -50,6 +56,7 @@ class QuestionsController < ApplicationController
     end
   end
 
+  # Deletes the question with its attempts and comments.
   def destroy
     @question = Question.find(params[:id])
     return head(:forbidden) unless privileged?(@question)
@@ -58,34 +65,37 @@ class QuestionsController < ApplicationController
   end
 
   private
-    # ponytail: single gate for author-or-admin; views reuse @is_author, no extra branches
+    # Author-or-trustee-or-admin gate shared by the write actions.
     def privileged?(question)
       question.privileged?(Current.user)
     end
 
-    # Before deadline: identities only (author sees all). After: everything public.
+    # Strangers see only their own attempts before the deadline; full list after reveal.
     def visible_attempts
       scope = @question.attempts.includes(:user).order(:created_at)
       return scope if @question.closed? || @is_author
       scope.where(user: Current.user)
     end
 
+    # Names of other respondents shown pre-deadline in place of answer texts.
     def respondent_names
       return [] if @question.closed? || @is_author
       @question.attempts.joins(:user).where.not(user: Current.user).distinct.pluck("users.name")
     end
 
+    # Approved plus own comments pre-deadline; everything after reveal.
     def visible_comments
       scope = @question.comments.includes(:user).order(:created_at)
       return scope if @question.closed? || @is_author
       scope.where(status: "approved").or(scope.where(user: Current.user))
     end
 
+    # Whitelisted question form fields.
     def question_params
       params.expect(question: [ :title, :body, :answer_type, :deadline, :reference_answer, :explanation ])
     end
 
-    # ponytail: blank rows dropped, correct flags bound by row index
+    # Zips parallel text/correct form arrays into option hashes, skipping blank rows.
     def parse_options
       texts = Array(params[:question][:options_text])
       correct = Array(params[:question][:options_correct]).reject { it.to_s.strip.empty? }.map(&:to_i)
