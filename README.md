@@ -79,13 +79,6 @@ bin/bundler-audit check
 | `SMTP_LOGIN` / `GMAIL_APP_PASSWORD` | Письма подтверждения и сброса пароля |
 | `APP_HOST` | Имя хоста в ссылках из писем |
 
-## Словарь предметной области
-
-Полный глоссарий — в `CONTEXT.md`. Использовать его термины: Вопрос (Question), Эталонный ответ (Reference Answer), Вариант (Option), Попытка (Attempt), Вердикт (Verdict), Ответивший (Respondent), Автор (Author), Наблюдатель (Trustee), Дедлайн (Deadline), Раскрытие (Reveal), Модерация (Moderation), Жюри (Jury), Таблица лидеров (Leaderboard). Избегать синонимов: квиз, сабмишен, оценка, рейтинг.
-
-## Задачи
-
-Задачи живут в `.scratch/<фича>/`, зеркалируются в GitHub Issues (`gh`). См. `docs/agents/issue-tracker.md`.
 
 ## Лицензия
 
