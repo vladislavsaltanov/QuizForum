@@ -201,7 +201,7 @@ body {
   text-wrap: pretty;
   color: var(--qf-mute);
 }
-.qf-section-title + .qf-cards { margin-top: 8px; }
+.qf-section-title + .qf-cards { margin-top: 16px; }
 .qf-divider { margin: 44px 0 0; }
 .qf-list-top { margin-bottom: 20px; }
 a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
