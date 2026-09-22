@@ -3,14 +3,11 @@ class TrusteesController < ApplicationController
 
   def create
     return head(:forbidden) unless manager?
-    user = User.find_by(email: params[:email].to_s.strip.downcase)
-    grant = @question.question_trustees.build(user: user) if user
-    if user && grant.save
+    ok, message = @question.grant_trustee_by_email(params[:email])
+    if ok
       redirect_to @question, notice: "Наблюдатель добавлен."
-    elsif user.nil?
-      redirect_to @question, alert: "Пользователь не найден."
     else
-      redirect_to @question, alert: grant.errors.full_messages.to_sentence
+      redirect_to @question, alert: message
     end
   end
 

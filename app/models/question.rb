@@ -49,6 +49,14 @@ class Question < ApplicationRecord
     user.present? && trustees.exists?(user.id)
   end
 
+  # ponytail: one email-grant path for the form and TrusteesController; [ok, message]
+  def grant_trustee_by_email(email)
+    user = User.find_by(email: email.to_s.strip.downcase)
+    return [ false, "Пользователь не найден." ] unless user
+    grant = question_trustees.build(user: user)
+    grant.save ? [ true, nil ] : [ false, grant.errors.full_messages.to_sentence ]
+  end
+
   private
     # ponytail: blank rows from the static form never reach grading
     def compact_options

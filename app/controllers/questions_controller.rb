@@ -21,7 +21,8 @@ class QuestionsController < ApplicationController
     @question.tags = params[:question][:tags_string].to_s.split(",").map(&:strip).reject(&:empty?)
     @question.options = parse_options if @question.choice?
     if @question.save
-      redirect_to @question, notice: "Вопрос опубликован."
+      _, trustee_alert = @question.grant_trustee_by_email(params[:question][:trustee_email]) if params[:question][:trustee_email].present?
+      redirect_to @question, notice: "Вопрос опубликован.", alert: trustee_alert
     else
       render :new, status: :unprocessable_entity
     end
@@ -39,7 +40,8 @@ class QuestionsController < ApplicationController
     @question.tags = params[:question][:tags_string].to_s.split(",").map(&:strip).reject(&:empty?)
     @question.options = parse_options if @question.choice?
     if @question.save
-      redirect_to @question, notice: "Вопрос обновлён."
+      _, trustee_alert = @question.grant_trustee_by_email(params[:question][:trustee_email]) if params[:question][:trustee_email].present?
+      redirect_to @question, notice: "Вопрос обновлён.", alert: trustee_alert
     else
       render :edit, status: :unprocessable_entity
     end

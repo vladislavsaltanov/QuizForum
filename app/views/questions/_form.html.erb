@@ -40,6 +40,14 @@
   <%= f.label :explanation, "Объяснение ответа (необязательно, откроется после дедлайна)", class: "qf-label" %>
   <%= f.text_area :explanation, rows: 3, class: "qf-input", placeholder: "Почему так — разбор, подсказки…" %>
 
+  <%= label_tag "question[trustee_email]", "Наблюдатель (email, необязательно)", class: "qf-label" %>
+  <%= email_field_tag "question[trustee_email]", params.dig(:question, :trustee_email), class: "qf-input", placeholder: "colleague@example.com" %>
+  <% if question.persisted? && question.trustees.any? %>
+    <p class="qf-hint">Текущие наблюдатели: <%= question.trustees.map(&:name).join(", ") %>. Управление списком — на странице вопроса.</p>
+  <% else %>
+    <p class="qf-hint">Доступ уровня автора до дедлайна. Управление списком — на странице вопроса.</p>
+  <% end %>
+
   <div class="qf-actions">
     <button type="submit" class="qf-apply"><%= submit_label %></button>
   </div>
