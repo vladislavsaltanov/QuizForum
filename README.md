@@ -1,61 +1,67 @@
 # QuizForum
 
-Open question bank. Any user publishes a Question with a hidden Reference Answer and a Deadline. Others answer blind. After the Deadline, the Question opens: reference material, all Attempts, Verdicts, Comments.
+Открытый банк вопросов. Любой пользователь публикует Вопрос со скрытым Эталонным ответом и Дедлайном. Остальные отвечают вслепую. После Дедлайна Вопрос раскрывается: эталонный материал, все Попытки, Вердикты, Комментарии.
 
-## How it works
+## Как это работает
 
-- Author publishes a Question: title, body, answer type, Deadline, tags.
-- Each user submits one Attempt per Question. Attempts are immutable.
-- Before the Deadline: only Respondent identities are visible. Texts and Verdicts stay hidden.
-- After the Deadline (Reveal): everything becomes public. No manual action required.
-- Trustee gets Author-level view on one Question, before the Deadline.
+- Автор публикует Вопрос: заголовок, текст, тип ответа, Дедлайн, теги.
+- Каждый пользователь отправляет одну Попытку на Вопрос. Попытка неизменяема.
+- До Дедлайна видны только личности Ответивших. Тексты и Вердикты скрыты.
+- После Дедлайна (Раскрытие) всё становится публичным. Ручных действий не требуется.
+- Наблюдатель (Trustee) получает доступ уровня Автора к одному Вопросу до Дедлайна.
 
-## Answer types and Verdicts
+## Типы вопросов и Вердикты
 
-Answer types: `text`, `code` (with language), `single_choice`, `multiple_choice`.
+Типы ответа: `text`, `code` (с языком), `single_choice`, `multiple_choice`.
 
-Verdicts: `pending`, `correct`, `partial`, `incorrect`.
+Вердикты: `pending`, `correct`, `partial`, `incorrect`.
 
-- Choice Questions grade at once from Option correctness. Exact match gives `correct`. Partly right gives `partial`.
-- Text and code Attempts stay `pending`. External Jury grades them later.
+- Вопросы с выбором оцениваются сразу по правильности Вариантов. Точное совпадение — `correct`. Частично верный набор — `partial`.
+- Попытки `text` и `code` остаются `pending`. Их оценивает внешнее Жюри (модель openjev, отдельный инференс-сервис, не Rails-процесс).
 
-## Roles
+## Роли
 
-- Any registered user can publish a Question. Teacher and student are personas, not privileges.
-- Trustee: per-Question access grant, not a global role.
-- `display_role` is a cosmetic label. It grants no access.
-- Admin flag exists for site administration only.
+- Публиковать Вопросы может любой зарегистрированный пользователь. «Преподаватель» и «студент» — персоны, не привилегии.
+- Trustee — доступ к одному Вопросу, не глобальная роль.
+- `display_role` — декоративная подпись («доцент кафедры»). Доступа не даёт.
+- Флаг admin — только администрирование сайта.
 
-## Comments and Moderation
+## Вход и подтверждение почты
 
-Comments are premoderated. A Comment stays hidden until the Author approves it or until the Deadline opens it.
+- Регистрация с подтверждением почты: строгий гейт — вход блокируется до подтверждения, есть повторная отправка письма.
+- Пароль минимум 12 символов, без правил сложности.
+- Вход через Google OAuth2. Неподтверждённые (`email_verified=false`) отклоняются. Привязка существующего аккаунта по email — только при подтверждённом адресе.
 
-## Leaderboard
+## Комментарии и Модерация
 
-Ranking by count of `correct` Verdicts on revealed Questions.
+Комментарии премодерируются. Комментарий скрыт, пока Автор его не одобрит или пока не наступит Дедлайн.
 
-## Stack
+## Таблица лидеров
+
+Рейтинг по числу Вердиктов `correct` на раскрытых Вопросах.
+
+## Стек
 
 - Ruby 4.0.7, Rails 8.1.3.1, PostgreSQL, Hotwire (Turbo + Stimulus), Importmap
-- Auth: `bcrypt` sessions, Google OAuth (`omniauth-google-oauth2`), email confirmation
-- Background: Solid Cache / Queue / Cable. Assets: Propshaft. Deploy: Kamal, Thruster, Docker
+- Аутентификация: сессии `bcrypt`, Google OAuth (`omniauth-google-oauth2`), подтверждение email
+- Фон: Solid Cache / Queue / Cable. Ассеты: Propshaft. Деплой: Kamal, Thruster, Docker
 
-## Quick start
+## Быстрый старт
 
 ```bash
 bin/setup
-bin/rails db:seed   # demo bank: 3 users, 7 questions
-bin/dev             # app on http://localhost:3000
+bin/rails db:seed   # демо-банк: 3 пользователя, 7 вопросов
+bin/dev             # приложение на http://localhost:3000
 ```
 
-Run tests:
+Тесты:
 
 ```bash
 bin/rails test
 bin/rails test:system
 ```
 
-Lint and security:
+Линт и безопасность:
 
 ```bash
 bin/rubocop
@@ -63,24 +69,24 @@ bin/brakeman
 bin/bundler-audit check
 ```
 
-## Configuration
+## Конфигурация
 
-Copy `.env.example` to `.env`. Required keys:
+Скопировать `.env.example` в `.env`. Нужные ключи:
 
-| Key | Purpose |
-| --- | ------- |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth |
-| `SMTP_LOGIN` / `GMAIL_APP_PASSWORD` | Confirmation and password mail |
-| `APP_HOST` | Host name used in email links |
+| Ключ | Назначение |
+| --- | --- |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Вход через Google |
+| `SMTP_LOGIN` / `GMAIL_APP_PASSWORD` | Письма подтверждения и сброса пароля |
+| `APP_HOST` | Имя хоста в ссылках из писем |
 
-## Domain language
+## Словарь предметной области
 
-Full glossary lives in `CONTEXT.md`. Use its terms: Question, Reference Answer, Option, Attempt, Verdict, Respondent, Author, Trustee, Deadline, Reveal, Moderation, Jury, Leaderboard. Avoid synonyms: quiz, submission, score, rating.
+Полный глоссарий — в `CONTEXT.md`. Использовать его термины: Вопрос (Question), Эталонный ответ (Reference Answer), Вариант (Option), Попытка (Attempt), Вердикт (Verdict), Ответивший (Respondent), Автор (Author), Наблюдатель (Trustee), Дедлайн (Deadline), Раскрытие (Reveal), Модерация (Moderation), Жюри (Jury), Таблица лидеров (Leaderboard). Избегать синонимов: квиз, сабмишен, оценка, рейтинг.
 
-## Issues
+## Задачи
 
-Issues live in `.scratch/<feature>/`, mirrored to GitHub Issues (`gh`). See `docs/agents/issue-tracker.md`.
+Задачи живут в `.scratch/<фича>/`, зеркалируются в GitHub Issues (`gh`). См. `docs/agents/issue-tracker.md`.
 
-## License
+## Лицензия
 
-MIT. See `LICENSE`.
+MIT. См. `LICENSE`.
