@@ -17,5 +17,8 @@ class RegistrationsController < ApplicationController
     else
       render :new, status: :unprocessable_entity
     end
+  rescue ActiveRecord::RecordNotUnique
+    @user.errors.add(:base, "Такое имя или email уже занят.")
+    render :new, status: :unprocessable_entity
   end
 end

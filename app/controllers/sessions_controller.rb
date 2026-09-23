@@ -36,7 +36,11 @@ class SessionsController < ApplicationController
       return redirect_to new_session_path, alert: "Authentication failed. Try again."
     end
 
-    user = User.find_or_create_by_omniauth(auth)
+    begin
+      user = User.find_or_create_by_omniauth(auth)
+    rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique
+      return redirect_to new_session_path, alert: "Вход не удался. Попробуйте позже."
+    end
     start_new_session_for user
     redirect_to after_authentication_url
   end

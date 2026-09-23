@@ -12,10 +12,10 @@
       <% end %>
     </div>
     <p><%= comment.body %></p>
-    <% if !comment.approved? && (comment.question.author == Current.user || Current.user&.admin?) %>
+    <% if !comment.approved? && comment.question.privileged?(Current.user) %>
       <%= button_to "Опубликовать", approve_question_comment_path(comment.question, comment), method: :patch, class: "qf-ghost" %>
     <% end %>
-    <% if comment.question.author == Current.user || Current.user&.admin? %>
+    <% if comment.question.privileged?(Current.user) %>
       <%= button_to "Удалить", question_comment_path(comment.question, comment), method: :delete, class: "qf-ghost" %>
     <% end %>
   </div>
