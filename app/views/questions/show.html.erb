@@ -50,16 +50,20 @@
       <% end %>
     </section>
 
-    <section class="qf-pane" aria-label="Ответы и комментарии">
-      <div class="qf-tabs" role="tablist">
-        <%= link_to "Ответы", question_path(@question), class: "qf-tab#{' is-active' if @tab == 'answers'}", role: "tab" %>
-        <%= link_to "Комментарии", question_path(@question, tab: "comments"), class: "qf-tab#{' is-active' if @tab == 'comments'}", role: "tab" %>
+    <section class="qf-pane<%= " is-comments" if @tab == "comments" %>" aria-label="Ответы и комментарии">
+      <div class="qf-list-head">
+        <div class="qf-tabs" role="tablist">
+          <%= link_to "Ответы", question_path(@question), class: "qf-tab#{' is-active' if @tab == 'answers'}", role: "tab" %>
+          <%= link_to "Комментарии", question_path(@question, tab: "comments"), class: "qf-tab#{' is-active' if @tab == 'comments'}", role: "tab" %>
+        </div>
+        <% unless @tab == "answers" %>
+          <p class="qf-count">Обсуждение · <%= @comments.size %></p>
+        <% end %>
       </div>
 
       <% if @tab == "answers" %>
         <%= render "answers" %>
       <% else %>
-        <p class="qf-count">Обсуждение · <%= @comments.size %></p>
         <%= turbo_stream_from @question %>
         <div id="comments" class="qf-chat">
           <% if @comments.empty? %>
@@ -74,6 +78,10 @@
               const qfBottom = () => qfChat.scrollTo({ top: qfChat.scrollHeight });
               qfBottom();
               new MutationObserver(qfBottom).observe(qfChat, { childList: true });
+              const qfPane = qfChat.closest("section");
+              const qfFade = () => qfPane.classList.toggle("is-scrolled", qfChat.scrollTop > 8);
+              qfChat.addEventListener("scroll", qfFade, { passive: true });
+              qfFade();
             }
           }
         </script>
