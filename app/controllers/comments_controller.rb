@@ -32,4 +32,12 @@ class CommentsController < ApplicationController
     @comment.update!(status: "approved")
     redirect_to question_path(@comment.question, tab: "comments"), notice: "Комментарий опубликован."
   end
+
+  # Deletes a comment; author, trustee, or admin only.
+  def destroy
+    @comment = Comment.find(params[:id])
+    return head(:forbidden) unless @comment.question.privileged?(Current.user)
+    @comment.destroy!
+    redirect_to question_path(@comment.question, tab: "comments"), notice: "Комментарий удалён."
+  end
 end
