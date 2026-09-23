@@ -12,7 +12,7 @@
           <span><%= attempt.user.name %></span>
           <span class="qf-chip <%= verdict_class(attempt.verdict) %>"><%= verdict_label(attempt.verdict) %></span>
         </div>
-        <span class="qf-hint">Ответ дан: <%= local_time_tag(attempt.created_at) %></span>
+        <span class="qf-hint qf-answered-at">Ответ дан: <%= local_time_tag(attempt.created_at) %></span>
         <%= render "attempt_body", attempt: attempt %>
         <%= render "jury_block", attempt: attempt %>
       </div>
@@ -102,7 +102,7 @@
         <span class="qf-chip <%= verdict_class(attempt.verdict) %>"><%= verdict_label(attempt.verdict) %></span>
       </div>
       <% if @is_author %>
-        <span class="qf-hint">Ответ дан: <%= local_time_tag(attempt.created_at) %></span>
+        <span class="qf-hint qf-answered-at">Ответ дан: <%= local_time_tag(attempt.created_at) %></span>
       <% end %>
       <%= render "attempt_body", attempt: attempt %>
       <%= render "jury_block", attempt: attempt %>
