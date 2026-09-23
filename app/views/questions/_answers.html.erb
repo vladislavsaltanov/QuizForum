@@ -5,15 +5,19 @@
     <% if @attempts.empty? %>
       <p class="qf-empty">Пока никто не ответил.</p>
     <% end %>
+    <div class="qf-chat">
     <% @attempts.each do |attempt| %>
       <div class="qf-attempt">
         <div class="qf-attempt-head">
           <span><%= attempt.user.name %></span>
-          <span class="qf-chip"><%= verdict_label("pending") %></span>
+          <span class="qf-chip <%= verdict_class(attempt.verdict) %>"><%= verdict_label(attempt.verdict) %></span>
         </div>
+        <span class="qf-hint qf-answered-at">Ответ дан: <%= local_time_tag(attempt.created_at) %></span>
         <%= render "attempt_body", attempt: attempt %>
+        <%= render "jury_block", attempt: attempt %>
       </div>
     <% end %>
+    </div>
   <% elsif @my_attempt %>
     <div class="qf-attempt">
       <div class="qf-attempt-head">
@@ -68,6 +72,7 @@
   <% if @my_attempt %>
     <h2 class="qf-section-title">Ваш ответ · <span class="qf-chip <%= verdict_class(@my_attempt.verdict) %>"><%= verdict_label(@my_attempt.verdict) %></span></h2>
     <div class="qf-attempt"><%= render "attempt_body", attempt: @my_attempt %></div>
+    <%= render "jury_block", attempt: @my_attempt %>
   <% end %>
 
   <% unless @question.choice? %>
@@ -89,15 +94,21 @@
   <% end %>
 
   <h2 class="qf-section-title">Все ответы · <%= @attempts.size %></h2>
+  <div class="qf-chat">
   <% @attempts.each do |attempt| %>
     <div class="qf-attempt">
       <div class="qf-attempt-head">
         <span><%= attempt.user.name %></span>
         <span class="qf-chip <%= verdict_class(attempt.verdict) %>"><%= verdict_label(attempt.verdict) %></span>
       </div>
+      <% if @is_author %>
+        <span class="qf-hint qf-answered-at">Ответ дан: <%= local_time_tag(attempt.created_at) %></span>
+      <% end %>
       <%= render "attempt_body", attempt: attempt %>
+      <%= render "jury_block", attempt: attempt %>
     </div>
   <% end %>
+  </div>
 
   <div class="qf-actions">
     <%= button_to "Пожаловаться", question_reports_path(@question), class: "qf-ghost" %>

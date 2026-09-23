@@ -10,13 +10,17 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_23_143000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_23_214946) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
   create_table "attempts", force: :cascade do |t|
     t.text "body", default: "", null: false
     t.datetime "created_at", null: false
+    t.string "jury_label"
+    t.boolean "jury_needs_review"
+    t.text "jury_reasons"
+    t.float "jury_score"
     t.string "language"
     t.bigint "question_id", null: false
     t.jsonb "selected", default: [], null: false

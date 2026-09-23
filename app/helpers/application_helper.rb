@@ -7,6 +7,30 @@ module ApplicationHelper
     "incorrect" => "Неправильно"
   }.freeze
 
+  JURY_LABELS = {
+    "positive" => "похоже на верный",
+    "partial" => "частично",
+    "false" => "похоже на неверный"
+  }.freeze
+
+  # Human-readable jury suggestion name.
+  def jury_label(label)
+    JURY_LABELS.fetch(label.to_s, label.to_s)
+  end
+
+  # Jury suggestion as one line, or a stub when the check hasn't finished.
+  def jury_summary(attempt)
+    return "проверка не завершена" if attempt.jury_label.blank?
+    "#{jury_label(attempt.jury_label)}#{attempt.jury_score ? " · #{attempt.jury_score}" : ""}"
+  end
+
+  # Absolute wall time, browser-local via the layout script; UTC text as no-JS fallback.
+  def local_time_tag(time, date_only: false)
+    format = date_only ? "%d.%m.%Y" : "%d.%m %H:%M"
+    tag.time(time.utc.strftime(format), datetime: time.utc.iso8601,
+      data: { local_time: date_only ? "date" : "time" })
+  end
+
   # Human-readable verdict name.
   def verdict_label(verdict)
     VERDICT_LABELS.fetch(verdict.to_s, verdict.to_s)

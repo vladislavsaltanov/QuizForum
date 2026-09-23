@@ -714,3 +714,15 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 /* Auth-ритм: отделение кнопки от полей и ссылок под ней. */
 .qf-auth .qf-form { gap: 0.875rem; }
 .qf-auth .qf-form > .qf-apply { margin-block-start: 0.5rem; }
+
+/* Verdict confirm: native details modal, fullscreen veil, no JS. */
+.qf-verdict-confirm > summary { display: inline-block; list-style: none; }
+.qf-verdict-confirm > summary::-webkit-details-marker { display: none; }
+.qf-verdict-confirm > summary::marker { content: ""; }
+.qf-verdict-confirm[open] > .qf-modal-veil { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgb(0 0 0 / .45); }
+.qf-modal-card { background: var(--qf-paper); border: 1.5px solid var(--qf-border); border-radius: var(--qf-radius-lg); padding: 20px 22px; width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; }
+.qf-modal-card .qf-actions { margin-top: 16px; }
+.qf-modal-card .qf-actions > :last-child { margin-left: auto; }
+.qf-modal-card .qf-section-title { margin-top: 13px; }
+.qf-jury > .qf-hint { display: block; margin: 14px 0 12px; }
+.qf-answered-at { display: block; margin: -3px 0 14px; } /* именной оверрайт: половина зазора шапки (8px − 3px) */

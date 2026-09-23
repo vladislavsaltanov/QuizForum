@@ -15,7 +15,7 @@
     <span class="qf-avatar qf-avatar-xl" aria-hidden="true"><%= initials(@user.name) %></span>
     <span class="qf-author-meta">
       <b><%= @user.display_role.presence || "Участник" %></b>
-      <i>ID <%= @user.id %> · <%= @user.email %> · на сайте с <%= @user.created_at.strftime("%d.%m.%Y") %></i>
+      <i>ID <%= @user.id %> · <%= @user.email %> · на сайте с <%= local_time_tag(@user.created_at, date_only: true) %></i>
     </span>
     <span class="qf-chip"><%= @rank ? "##{@rank} в рейтинге" : "#- вне таблицы" %></span>
   </div>
