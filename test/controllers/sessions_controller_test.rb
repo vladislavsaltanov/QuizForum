@@ -87,6 +87,27 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     OmniAuth.config.test_mode = false
   end
 
+  test "google_oauth2 redirects with alert when sidecar is down" do
+    OmniAuth.config.test_mode = true
+    OmniAuth.config.mock_auth[:google_oauth2] = OmniAuth::AuthHash.new(
+      provider: "google_oauth2", uid: "down-1",
+      info: { name: "FreshDown", email: "fresh-down@example.com" },
+      extra: { raw_info: { email_verified: true } }
+    )
+
+    with_verdict(:try_later, "недоступна") do
+      assert_no_difference("User.count") do
+        post "/auth/google_oauth2/callback"
+      end
+    end
+
+    assert_redirected_to new_session_path
+    assert_nil cookies[:session_id]
+  ensure
+    OmniAuth.config.mock_auth[:google_oauth2] = nil
+    OmniAuth.config.test_mode = false
+  end
+
   test "omniauth_failure redirects to sign in" do
     get "/auth/failure"
 

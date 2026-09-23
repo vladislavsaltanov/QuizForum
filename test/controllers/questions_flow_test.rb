@@ -82,7 +82,9 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
 
   test "comments need approval, strangers do not see pending" do
     q = questions(:open_text)
-    post question_comments_path(q, tab: "comments"), params: { comment: { body: "когда дедлайн?" } }
+    with_verdict(:review) do
+      post question_comments_path(q, tab: "comments"), params: { comment: { body: "когда дедлайн?" } }
+    end
 
     assert_redirected_to question_path(q, tab: "comments")
     assert_equal "pending", q.comments.find_by(user: @user).status
@@ -98,6 +100,42 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     get question_path(q, tab: "comments")
 
     assert_match(/когда дедлайн/, response.body)
+  end
+
+  test "author deletes comment" do
+    q = questions(:open_text)
+    comment = Comment.create!(question: q, user: @user, body: "удали меня")
+    sign_in_as(@author)
+
+    assert_difference("Comment.count", -1) do
+      delete question_comment_path(q, comment)
+    end
+
+    assert_redirected_to question_path(q, tab: "comments")
+  end
+
+  test "stranger cannot delete comment" do
+    q = questions(:open_text)
+    Comment.create!(question: q, user: @user, body: "не тронь")
+
+    assert_no_difference("Comment.count") do
+      delete question_comment_path(q, Comment.last)
+    end
+
+    assert_response :forbidden
+  end
+
+  test "trustee deletes comment" do
+    q = questions(:open_text)
+    comment = Comment.create!(question: q, user: @user, body: "лишний")
+    trustee = User.create!(name: "TrusteeDel", email: "trusteedel@example.com",
+                           password: "password12345678", password_confirmation: "password12345678")
+    q.question_trustees.create!(user: trustee)
+    sign_in_as(trustee)
+
+    assert_difference("Comment.count", -1) do
+      delete question_comment_path(q, comment)
+    end
   end
 
   test "non-author cannot approve comments" do
@@ -165,7 +203,9 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
   end
 
   test "comment create shows no flash, only message status" do
-    post question_comments_path(questions(:open_text), tab: "comments"), params: { comment: { body: "тихий вопрос" } }
+    with_verdict(:review) do
+      post question_comments_path(questions(:open_text), tab: "comments"), params: { comment: { body: "тихий вопрос" } }
+    end
     follow_redirect!
 
     assert_select ".qf-notice", count: 0

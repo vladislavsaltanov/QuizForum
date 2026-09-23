@@ -31,4 +31,21 @@ class RegistrationsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
   end
+
+  test "duplicate name race renders taken instead of 500" do
+    User.create!(name: "Занято", email: "taken-race@example.com",
+                 password: "password-12-plus", password_confirmation: "password-12-plus")
+    original = ActiveRecord::Relation.instance_method(:exists?)
+    ActiveRecord::Relation.define_method(:exists?) { |*_| false }
+    begin
+      assert_no_difference("User.count") do
+        post registrations_path, params: { user: { name: "занято", email: "fresh-race@example.com",
+          password: "password-12-plus", password_confirmation: "password-12-plus" } }
+      end
+    ensure
+      ActiveRecord::Relation.define_method(:exists?, original)
+    end
+
+    assert_response :unprocessable_entity
+  end
 end

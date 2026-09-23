@@ -58,6 +58,25 @@ class UserTest < ActiveSupport::TestCase
     assert_equal existing.id, user.id
   end
 
+  test "rejects toxic name from moderation" do
+    ModerationClient.define_singleton_method(:check) do |*_, **_|
+      ModerationClient::Result.new(:reject, "оскорбление")
+    end
+    user = User.new(name: "Токсичный", email: "tox@example.com", password: "password-12-plus")
+
+    assert_not user.valid?
+  end
+
+  test "rejects duplicate name case-insensitively" do
+    ModerationClient.define_singleton_method(:check) do |*_, **_|
+      ModerationClient::Result.new(:pass, "")
+    end
+    user = User.new(name: users(:one).name.upcase, email: "dup@example.com", password: "password-12-plus")
+
+    assert_not user.valid?
+    assert_includes user.errors[:name], "has already been taken"
+  end
+
   private
     def omniauth_hash(provider:, uid:, name:, email:)
       OmniAuth::AuthHash.new(provider: provider, uid: uid, info: { name: name, email: email })

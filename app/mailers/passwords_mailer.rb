@@ -1,3 +1,4 @@
+# Mailer for password resets.
 class PasswordsMailer < ApplicationMailer
   # Password-reset email.
   def reset(user)

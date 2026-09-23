@@ -39,4 +39,13 @@ class TrusteeGateTest < ActionDispatch::IntegrationTest
       @question.question_trustees.create!(user: @trustee)
     end
   end
+
+  test "trustee sees publish and delete buttons on pending comment" do
+    Comment.create!(question: @question, user: users(:one), body: "на модерации")
+    sign_in_as(@trustee)
+    get question_path(@question, tab: "comments")
+
+    assert_select "button", text: "Опубликовать"
+    assert_select "button", text: "Удалить"
+  end
 end

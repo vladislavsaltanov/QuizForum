@@ -51,7 +51,7 @@
 ```bash
 bin/setup
 bin/rails db:seed   # демо-банк: 3 пользователя, 7 вопросов
-bin/dev             # приложение на http://localhost:3000
+bin/dev             # приложение (:3000) + Laya sidecar (:8000)
 ```
 
 Тесты:

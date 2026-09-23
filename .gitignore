@@ -49,3 +49,7 @@
 *~
 .idea/
 .vscode/
+/.scratch
+sidecar/.venv/
+weights/
+sidecar/__pycache__/

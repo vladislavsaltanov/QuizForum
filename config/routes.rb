@@ -11,7 +11,7 @@ Rails.application.routes.draw do
   end
   resources :questions, only: %i[show new create edit update destroy] do
     resources :attempts, only: %i[ create ]
-    resources :comments, only: %i[ create ] do
+    resources :comments, only: %i[create destroy] do
       patch :approve, on: :member
     end
     resources :reports, only: %i[ create ]
