@@ -51,6 +51,12 @@ class ModerationClientTest < ActiveSupport::TestCase
     assert_equal "нарушение", result.category
   end
 
+  test "non-hash payload fails closed" do
+    result = check_with("\"just a string\"")
+
+    assert_equal :try_later, result.verdict
+  end
+
   test "same text yields same idempotency key" do
     assert_equal capture_key("привет"), capture_key("привет")
     assert_not_equal capture_key("привет"), capture_key("другой")
