@@ -77,6 +77,73 @@ def normalize(s):
     s = re.sub(r"[^\w\s]", " ", s, flags=re.UNICODE)
     return re.sub(r"\s+", " ", s).strip()
 
+# Словарные числительные -> цифры. NLI в упор не видит, что "24" и "двадцать
+# четыре" одно и то же (bwd contradiction 0.995 на живом прогоне), а contra —
+# единственный тихий авто-false. Поэтому каноникализация детерминирована и до модели.
+# Только именительный падеж + тысяча/миллион в обычных формах; порядковые ("первый"),
+# дроби и "минус" не покрыты — их решает модель как раньше.
+NUM_WORDS = {
+    "ноль": 0,
+    "один": 1, "одна": 1, "одно": 1, "одну": 1,
+    "два": 2, "две": 2,
+    "три": 3, "четыре": 4, "пять": 5, "шесть": 6, "семь": 7,
+    "восемь": 8, "девять": 9,
+    "десять": 10, "одиннадцать": 11, "двенадцать": 12, "тринадцать": 13,
+    "четырнадцать": 14, "пятнадцать": 15, "шестнадцать": 16, "семнадцать": 17,
+    "восемнадцать": 18, "девятнадцать": 19,
+    "двадцать": 20, "тридцать": 30, "сорок": 40, "пятьдесят": 50,
+    "шестьдесят": 60, "семьдесят": 70, "восемьдесят": 80, "девяносто": 90,
+    "сто": 100, "двести": 200, "триста": 300, "четыреста": 400, "пятьсот": 500,
+    "шестьсот": 600, "семьсот": 700, "восемьсот": 800, "девятьсот": 900,
+    "тысяча": 1000, "тысячи": 1000, "тысяч": 1000,
+    "миллион": 1000000, "миллиона": 1000000, "миллионов": 1000000,
+    "миллиард": 1000000000, "миллиарда": 1000000000, "миллиардов": 1000000000,
+}
+_SCALES = (1000, 1000000, 1000000000)
+
+
+def _compose_numerals(values):
+    total, current = 0, 0
+    for v in values:
+        if v in _SCALES:
+            total += (current or 1) * v
+            current = 0
+        elif v == 100:
+            current = (current or 1) * 100
+        else:
+            current += v
+    return total + current
+
+
+def normalize_numerals(text):
+    """Заменяет русские числительные словами на цифры ('двадцать четыре' -> '24').
+
+    Без числовых слов возвращает текст как есть — для остальных входов нулевой дрейф.
+    """
+    parts = re.split(r"(\W+)", text, flags=re.UNICODE)
+    out, run, gap = [], [], []
+    for tok in parts:
+        v = NUM_WORDS.get(tok.lower())
+        if v is not None:
+            run.append(v)
+            gap = []
+            continue
+        if tok.strip() == "":
+            # пробел внутри числительного ("двадцать четыре") не разрывает серию
+            gap.append(tok)
+            continue
+        if run:
+            out.append(str(_compose_numerals(run)))
+            run = []
+        out.extend(gap)
+        gap = []
+        out.append(tok)
+    if run:
+        out.append(str(_compose_numerals(run)))
+    else:
+        out.extend(gap)
+    return "".join(out)
+
 ADVERSATIVE = re.compile(
     r"(?:,\s*|\s+)(?=(?:хотя|но|однако|зато|while|but|although|however)\b)",
     flags=re.IGNORECASE,
@@ -479,6 +546,10 @@ def grade_v2(reference, answer, points_text=""):
     Измеренный конвейер grade_answer() остаётся нетронутым и работает как первый судья.
     """
     reference, answer = reference.strip(), answer.strip()
+    # Числительные словами и цифрами — одно написание до всех слоёв.
+    reference = normalize_numerals(reference)
+    answer = normalize_numerals(answer)
+    points_text = normalize_numerals(points_text)
     pre_notes = []
     reference = _truncate(reference, pre_notes)
     answer = _truncate(answer, pre_notes)
