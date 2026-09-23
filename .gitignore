@@ -49,3 +49,6 @@
 *~
 .idea/
 .vscode/
+/.scratch
+sidecar/.venv/
+weights/
