@@ -102,6 +102,42 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     assert_match(/когда дедлайн/, response.body)
   end
 
+  test "author deletes comment" do
+    q = questions(:open_text)
+    comment = Comment.create!(question: q, user: @user, body: "удали меня")
+    sign_in_as(@author)
+
+    assert_difference("Comment.count", -1) do
+      delete question_comment_path(q, comment)
+    end
+
+    assert_redirected_to question_path(q, tab: "comments")
+  end
+
+  test "stranger cannot delete comment" do
+    q = questions(:open_text)
+    Comment.create!(question: q, user: @user, body: "не тронь")
+
+    assert_no_difference("Comment.count") do
+      delete question_comment_path(q, Comment.last)
+    end
+
+    assert_response :forbidden
+  end
+
+  test "trustee deletes comment" do
+    q = questions(:open_text)
+    comment = Comment.create!(question: q, user: @user, body: "лишний")
+    trustee = User.create!(name: "TrusteeDel", email: "trusteedel@example.com",
+                           password: "password12345678", password_confirmation: "password12345678")
+    q.question_trustees.create!(user: trustee)
+    sign_in_as(trustee)
+
+    assert_difference("Comment.count", -1) do
+      delete question_comment_path(q, comment)
+    end
+  end
+
   test "non-author cannot approve comments" do
     q = questions(:open_text)
     comment = Comment.create!(question: q, user: @user, body: "hi")
