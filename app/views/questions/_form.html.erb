@@ -58,3 +58,21 @@
   const qfSync = () => { const choice = qfType.value === "single_choice" || qfType.value === "multiple_choice"; qfOpts.hidden = !choice; qfRef.hidden = choice; };
   qfType.addEventListener("change", qfSync); qfSync();
 </script>
+<script>
+  {
+    // datetime-local carries no zone; server speaks UTC. Show local wall, send UTC wall back.
+    const qfDeadline = document.querySelector('input[name="question[deadline]"]');
+    if (qfDeadline && qfDeadline.value) {
+      const asUTC = new Date(qfDeadline.value.replace(/:\d{2}$/, "") + ":00Z");
+      if (!isNaN(asUTC)) {
+        const pad = (n) => String(n).padStart(2, "0");
+        const wall = (d, utc) => `${utc ? d.getUTCFullYear() : d.getFullYear()}-${pad(utc ? d.getUTCMonth() + 1 : d.getMonth() + 1)}-${pad(utc ? d.getUTCDate() : d.getDate())}T${pad(utc ? d.getUTCHours() : d.getHours())}:${pad(utc ? d.getUTCMinutes() : d.getMinutes())}`;
+        qfDeadline.value = wall(asUTC, false);
+        qfDeadline.form.addEventListener("submit", () => {
+          const local = new Date(qfDeadline.value);
+          if (!isNaN(local)) { qfDeadline.value = wall(local, true); }
+        });
+      }
+    }
+  }
+</script>

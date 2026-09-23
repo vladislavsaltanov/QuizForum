@@ -39,7 +39,7 @@
           <h2 class="qf-card-title"><%= question.title %></h2>
           <div class="qf-card-meta">
             <span class="qf-card-author"><%= question.author.name %><%= " • #{question.author.display_role}" if question.author.display_role.present? %></span>
-            <span class="qf-chip">до <%= question.deadline.strftime("%d.%m %H:%M") %></span>
+            <span class="qf-chip">до <%= local_time_tag(question.deadline) %></span>
           </div>
         </article>
       <% end %>
