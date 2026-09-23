@@ -71,7 +71,7 @@ class QuestionModerationTest < ActionDispatch::IntegrationTest
     post questions_path, params: { question: {
       title: "Мирный вопрос", body: "Мирное условие", answer_type: "single_choice",
       deadline: "2030-01-01T12:00", reference_answer: "",
-      options_text: ["вариант-один", "вариант-два"], options_correct: ["0"]
+      options_text: [ "вариант-один", "вариант-два" ], options_correct: [ "0" ]
     } }
 
     assert_includes seen, "вариант-один"
