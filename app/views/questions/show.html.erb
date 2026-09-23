@@ -67,6 +67,14 @@
           <% end %>
           <%= render @comments %>
         </div>
+        <script>
+          const qfChat = document.getElementById("comments");
+          if (qfChat) {
+            const qfBottom = () => qfChat.scrollTo({ top: qfChat.scrollHeight });
+            qfBottom();
+            new MutationObserver(qfBottom).observe(qfChat, { childList: true });
+          }
+        </script>
         <%= form_with url: question_comments_path(@question), class: "qf-chatbar" do |f| %>
           <%= text_area_tag "comment[body]", nil, rows: 1, placeholder: "Написать сообщение…", class: "qf-chat-input", "aria-label": "Новый комментарий", onkeydown: "if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.requestSubmit()}" %>
           <button type="submit" class="qf-send" aria-label="Отправить">↑</button>
