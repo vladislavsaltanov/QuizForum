@@ -1,2 +1,14 @@
-#!/usr/bin/env ruby
-exec "./bin/rails", "server", *ARGV
+#!/bin/sh
+# One command: stub sidecar (:8000) + Rails. Real sidecar wins when set.
+set -u
+cd "$(dirname "$0")/.."
+
+if [ "${LAYA_SIDECAR_URL:-}" = "" ]; then
+  python3 bin/sidecar-stub 8000 >log/sidecar.log 2>&1 &
+  SIDECAR_PID=$!
+  export LAYA_SIDECAR_URL=http://localhost:8000
+  sleep 1
+fi
+
+trap 'kill ${SIDECAR_PID:-} 2>/dev/null' EXIT INT TERM
+./bin/rails server "$@"
