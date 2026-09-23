@@ -16,15 +16,4 @@ class CommentModerationTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to question_path(@question, tab: "comments")
   end
-
-  private
-    # Temporarily replaces the Laya verdict without touching IO.
-    def with_verdict(verdict, category)
-      ModerationClient.define_singleton_method(:check) do |*_, **_|
-        ModerationClient::Result.new(verdict, category)
-      end
-      yield
-    ensure
-      ModerationClient.singleton_class.remove_method(:check)
-    end
 end

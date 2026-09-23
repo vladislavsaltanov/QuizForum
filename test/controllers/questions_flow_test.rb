@@ -82,7 +82,9 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
 
   test "comments need approval, strangers do not see pending" do
     q = questions(:open_text)
-    post question_comments_path(q, tab: "comments"), params: { comment: { body: "когда дедлайн?" } }
+    with_verdict(:pass) do
+      post question_comments_path(q, tab: "comments"), params: { comment: { body: "когда дедлайн?" } }
+    end
 
     assert_redirected_to question_path(q, tab: "comments")
     assert_equal "pending", q.comments.find_by(user: @user).status
@@ -165,7 +167,9 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
   end
 
   test "comment create shows no flash, only message status" do
-    post question_comments_path(questions(:open_text), tab: "comments"), params: { comment: { body: "тихий вопрос" } }
+    with_verdict(:pass) do
+      post question_comments_path(questions(:open_text), tab: "comments"), params: { comment: { body: "тихий вопрос" } }
+    end
     follow_redirect!
 
     assert_select ".qf-notice", count: 0
