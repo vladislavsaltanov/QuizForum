@@ -28,4 +28,12 @@ class ApplicationHelperTest < ActionView::TestCase
 
     assert_equal "частично · 0.5", jury_summary(attempt)
   end
+
+  test "local_time_tag renders utc fallback with iso datetime" do
+    html = local_time_tag(Time.utc(2026, 9, 24, 12, 5))
+
+    assert_match(/datetime="2026-09-24T12:05:00Z"/, html)
+    assert_match(/24\.09 12:05/, html)
+    assert_match(/data-local-time/, html)
+  end
 end

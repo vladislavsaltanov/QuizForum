@@ -162,6 +162,23 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
     assert_select "div.qf-chat", count: 1
   end
 
+  test "author sees answer time" do
+    attempt = attempt_by(@respondent)
+    sign_in_as(@author)
+    get question_path(@question)
+
+    assert_select "time[data-local-time]", minimum: 1
+    assert_match(/#{Regexp.escape(attempt.created_at.utc.strftime("%d.%m %H:%M"))}/, response.body)
+  end
+
+  test "respondent does not see answer time" do
+    attempt = attempt_by(@respondent)
+    sign_in_as(@respondent)
+    get question_path(@question)
+
+    assert_no_match(/#{Regexp.escape(attempt.created_at.utc.strftime("%d.%m %H:%M"))}/, response.body)
+  end
+
   test "stranger page hides jury suggestion" do
     attempt_by(@respondent, jury_label: "partial", jury_score: 0.5,
       jury_needs_review: true, jury_reasons: "покрыта часть пунктов")
