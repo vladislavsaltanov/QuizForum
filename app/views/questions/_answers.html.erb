@@ -5,16 +5,18 @@
     <% if @attempts.empty? %>
       <p class="qf-empty">Пока никто не ответил.</p>
     <% end %>
+    <div class="qf-chat">
     <% @attempts.each do |attempt| %>
       <div class="qf-attempt">
         <div class="qf-attempt-head">
           <span><%= attempt.user.name %></span>
-          <span class="qf-chip"><%= verdict_label("pending") %></span>
+          <span class="qf-chip <%= verdict_class(attempt.verdict) %>"><%= verdict_label(attempt.verdict) %></span>
         </div>
         <%= render "attempt_body", attempt: attempt %>
         <%= render "jury_block", attempt: attempt %>
       </div>
     <% end %>
+    </div>
   <% elsif @my_attempt %>
     <div class="qf-attempt">
       <div class="qf-attempt-head">
@@ -91,6 +93,7 @@
   <% end %>
 
   <h2 class="qf-section-title">Все ответы · <%= @attempts.size %></h2>
+  <div class="qf-chat">
   <% @attempts.each do |attempt| %>
     <div class="qf-attempt">
       <div class="qf-attempt-head">
@@ -101,6 +104,7 @@
       <%= render "jury_block", attempt: attempt %>
     </div>
   <% end %>
+  </div>
 
   <div class="qf-actions">
     <%= button_to "Пожаловаться", question_reports_path(@question), class: "qf-ghost" %>
