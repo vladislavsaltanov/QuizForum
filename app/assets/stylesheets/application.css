@@ -562,7 +562,7 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 textarea.qf-answer-area.qf-code { min-height: 380px; }
 
 /* Chat: avatar + bubble rows, author tinted. */
-.qf-chat { display: grid; gap: 14px; margin-bottom: 16px; }
+.qf-chat { display: grid; gap: 14px; margin-bottom: 16px; max-height: 55vh; overflow-y: auto; padding-right: 6px; }
 .qf-msg { display: flex; gap: 10px; align-items: flex-start; }
 .qf-bubble {
   flex: 1; min-width: 0;
