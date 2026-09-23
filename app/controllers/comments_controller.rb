@@ -3,7 +3,7 @@ class CommentsController < ApplicationController
   rate_limit to: 10, within: 3.minutes, only: :create,
              with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
 
-  # Posts a comment as pending; stays hidden until approval or reveal.
+  # Posts a comment; Laya pass publishes immediately, review stays pending.
   def create
     @question = Question.find(params[:question_id])
     @comment = @question.comments.build(body: params.dig(:comment, :body), user: Current.user)
@@ -15,10 +15,13 @@ class CommentsController < ApplicationController
       redirect_to question_path(@question, tab: "comments"), alert: "Комментарий отклонён: #{verdict.category}."
     elsif verdict.verdict == :try_later
       redirect_to question_path(@question, tab: "comments"), alert: "Проверка не удалась, попробуйте позже."
-    elsif @comment.save
-      redirect_to question_path(@question, tab: "comments")
     else
-      redirect_to question_path(@question, tab: "comments"), alert: @comment.errors.full_messages.to_sentence
+      @comment.status = "approved" if verdict.verdict == :pass
+      if @comment.save
+        redirect_to question_path(@question, tab: "comments")
+      else
+        redirect_to question_path(@question, tab: "comments"), alert: @comment.errors.full_messages.to_sentence
+      end
     end
   end
 

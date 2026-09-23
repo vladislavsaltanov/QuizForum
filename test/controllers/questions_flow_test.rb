@@ -82,7 +82,7 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
 
   test "comments need approval, strangers do not see pending" do
     q = questions(:open_text)
-    with_verdict(:pass) do
+    with_verdict(:review) do
       post question_comments_path(q, tab: "comments"), params: { comment: { body: "когда дедлайн?" } }
     end
 
@@ -167,7 +167,7 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
   end
 
   test "comment create shows no flash, only message status" do
-    with_verdict(:pass) do
+    with_verdict(:review) do
       post question_comments_path(questions(:open_text), tab: "comments"), params: { comment: { body: "тихий вопрос" } }
     end
     follow_redirect!
