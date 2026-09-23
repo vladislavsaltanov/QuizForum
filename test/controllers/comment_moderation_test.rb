@@ -16,4 +16,26 @@ class CommentModerationTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to question_path(@question, tab: "comments")
   end
+
+  test "sidecar timeout keeps nothing and asks to retry" do
+    with_verdict(:try_later, "недоступна") do
+      assert_no_difference("Comment.count") do
+        post question_comments_path(@question), params: { comment: { body: "мирный вопрос" } }
+      end
+    end
+
+    assert_redirected_to question_path(@question, tab: "comments")
+    follow_redirect!
+    assert_select ".qf-alert", text: /не удалась/
+  end
+
+  test "review verdict still saves as pending" do
+    with_verdict(:review, "на проверке") do
+      assert_difference("Comment.count", 1) do
+        post question_comments_path(@question), params: { comment: { body: "спорный вопрос" } }
+      end
+    end
+
+    assert_equal "pending", @question.comments.find_by(user: @user).status
+  end
 end
