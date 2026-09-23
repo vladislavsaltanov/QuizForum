@@ -72,7 +72,7 @@ class QuestionsController < ApplicationController
   end
 
   private
-    # Laya sync-gate on public text; reference_answer never checked.
+    # Laya sync-gate on public text including reference and explanation.
     def moderation_blocked?
       moderation_text = [ @question.title, @question.body, @question.tags.join(" "),
                       @question.reference_answer, @question.explanation ].join("\n")

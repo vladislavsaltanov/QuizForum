@@ -41,6 +41,7 @@ class ModerationClient
   private
     # Maps sidecar payload to pass/review/reject; public text only ever rejects.
     def map(payload)
+      return Result.new(:try_later, "недоступна") unless payload.is_a?(Hash)
       return Result.new(:reject, human_category(payload["category"])) if payload["verdict"] == "reject"
       return Result.new(:review, "на проверке") if payload["needs_review"]
       Result.new(:pass, "")
@@ -62,6 +63,6 @@ class ModerationClient
     end
 
     def idempotency_key(text)
-      "comment:#{Digest::SHA256.hexdigest(text.to_s)[0, 16]}"
+      "mod:#{Digest::SHA256.hexdigest(text.to_s)[0, 16]}"
     end
 end
