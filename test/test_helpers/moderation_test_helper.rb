@@ -33,3 +33,7 @@ end
 ActiveSupport.on_load(:action_dispatch_integration_test) do
   include ModerationTestHelper
 end
+
+ActiveSupport.on_load(:active_support_test_case) do
+  include ModerationTestHelper
+end

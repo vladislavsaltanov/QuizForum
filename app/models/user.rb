@@ -15,7 +15,8 @@ class User < ApplicationRecord
     email
   end
 
-  validates :name, presence: true
+  validates :name, presence: true, uniqueness: { case_sensitive: false }
+  validate :name_passes_moderation, if: :will_save_change_to_name?
   validates :email, presence: true, uniqueness: true
   validates :password, length: { minimum: 12 }, allow_nil: true
   validates :display_role, length: { maximum: 50 }, allow_nil: true
@@ -48,4 +49,12 @@ class User < ApplicationRecord
       create!(name: auth.info.name, email: email, provider: auth.provider, uid: auth.uid,
               password: SecureRandom.hex(32), email_confirmed_at: Time.current)
   end
+
+  private
+    # Nicknames display instantly, so Laya gates them like comments.
+    def name_passes_moderation
+      verdict = ModerationClient.check(text: name)
+      errors.add(:name, "отклонено проверкой: #{verdict.category}.") if verdict.verdict == :reject
+      errors.add(:name, "проверка не удалась, попробуйте позже.") if verdict.verdict == :try_later
+    end
 end
