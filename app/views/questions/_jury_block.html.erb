@@ -1,16 +1,31 @@
 <% if @is_author %>
   <div class="qf-jury">
     <% if attempt.jury_label.present? %>
-      <span class="qf-hint">Подсказка: <%= jury_label(attempt.jury_label) %><% if attempt.jury_score %> · <%= attempt.jury_score %><% end %></span>
+      <span class="qf-hint">Подсказка: <%= jury_summary(attempt) %></span>
       <% if attempt.jury_reasons.present? %>
         <div class="qf-body"><%= simple_format(attempt.jury_reasons) %></div>
       <% end %>
     <% end %>
-    <div class="qf-actions">
-      <%= button_to "Верно", verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "correct" } }, method: :patch, class: "qf-ghost" %>
-      <%= button_to "Частично", verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "partial" } }, method: :patch, class: "qf-ghost" %>
-      <%= button_to "Неверно", verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "incorrect" } }, method: :patch, class: "qf-ghost" %>
-      <%= button_to "Переоценить", regrade_question_attempt_path(@question, attempt), method: :post, class: "qf-ghost" %>
-    </div>
+    <details class="qf-verdict-confirm">
+      <summary class="qf-ghost"><%= attempt.verdict == "pending" ? "Оценить" : "Изменить оценку" %></summary>
+      <div class="qf-modal-veil">
+        <div class="qf-modal-card" role="dialog" aria-modal="true" aria-label="Подтверждение оценки">
+          <h3 class="qf-section-title">Подтвердите оценку</h3>
+          <% unless @question.choice? %>
+            <p><b>Правильный ответ:</b></p>
+            <div class="qf-body"><%= simple_format(@question.reference_answer) %></div>
+          <% end %>
+          <p><b>Ответ <%= attempt.user.name %>:</b></p>
+          <%= render "attempt_body", attempt: attempt %>
+          <p class="qf-hint">Мнение жюри: <%= jury_summary(attempt) %></p>
+          <div class="qf-actions">
+            <%= button_to "Верно", verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "correct" } }, method: :patch, class: "qf-ghost" %>
+            <%= button_to "Частично", verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "partial" } }, method: :patch, class: "qf-ghost" %>
+            <%= button_to "Неверно", verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "incorrect" } }, method: :patch, class: "qf-ghost" %>
+            <button type="button" class="qf-ghost" onclick="this.closest('details').removeAttribute('open')">Отмена</button>
+          </div>
+        </div>
+      </div>
+    </details>
   </div>
 <% end %>

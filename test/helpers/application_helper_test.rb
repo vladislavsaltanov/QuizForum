@@ -18,4 +18,14 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_equal "5 минут назад", ago_ru(320.seconds.ago)
     assert_match(/\d{2}\.\d{2} \d{2}:\d{2}/, ago_ru(10.days.ago))
   end
+
+  test "jury_summary falls back when check hasn't finished" do
+    attempt = Attempt.new(jury_label: nil)
+
+    assert_equal "проверка не завершена", jury_summary(attempt)
+    attempt.jury_label = "partial"
+    attempt.jury_score = 0.5
+
+    assert_equal "частично · 0.5", jury_summary(attempt)
+  end
 end

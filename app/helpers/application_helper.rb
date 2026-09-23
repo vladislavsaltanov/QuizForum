@@ -18,6 +18,12 @@ module ApplicationHelper
     JURY_LABELS.fetch(label.to_s, label.to_s)
   end
 
+  # Jury suggestion as one line, or a stub when the check hasn't finished.
+  def jury_summary(attempt)
+    return "проверка не завершена" if attempt.jury_label.blank?
+    "#{jury_label(attempt.jury_label)}#{attempt.jury_score ? " · #{attempt.jury_score}" : ""}"
+  end
+
   # Human-readable verdict name.
   def verdict_label(verdict)
     VERDICT_LABELS.fetch(verdict.to_s, verdict.to_s)

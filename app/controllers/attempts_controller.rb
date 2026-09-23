@@ -1,6 +1,6 @@
 # One immutable attempt per user per question; choice grading happens in the model.
 class AttemptsController < ApplicationController
-  rate_limit to: 10, within: 3.minutes, only: %i[create verdict regrade],
+  rate_limit to: 10, within: 3.minutes, only: %i[create verdict],
              with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
 
   # Records the current user's attempt; model validations reject doubles and late posts.
@@ -24,14 +24,6 @@ class AttemptsController < ApplicationController
     return head(:bad_request) unless Attempt::MANUAL_VERDICTS.include?(verdict)
     @attempt.update!(verdict:)
     redirect_to @attempt.question, notice: "Оценка обновлена."
-  end
-
-  # Asks the jury to grade again; author, trustee, or admin only.
-  def regrade
-    @attempt = attempt_in_scope
-    return head(:forbidden) unless @attempt.question.privileged?(Current.user)
-    AttemptJuryJob.perform_later(@attempt.id)
-    redirect_to @attempt.question, notice: "Отправлено на переоценку."
   end
 
   private
