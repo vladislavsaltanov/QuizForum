@@ -68,11 +68,13 @@
           <%= render @comments %>
         </div>
         <script>
-          const qfChat = document.getElementById("comments");
-          if (qfChat) {
-            const qfBottom = () => qfChat.scrollTo({ top: qfChat.scrollHeight });
-            qfBottom();
-            new MutationObserver(qfBottom).observe(qfChat, { childList: true });
+          {
+            const qfChat = document.getElementById("comments");
+            if (qfChat) {
+              const qfBottom = () => qfChat.scrollTo({ top: qfChat.scrollHeight });
+              qfBottom();
+              new MutationObserver(qfBottom).observe(qfChat, { childList: true });
+            }
           }
         </script>
         <%= form_with url: question_comments_path(@question), class: "qf-chatbar" do |f| %>
