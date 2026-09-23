@@ -11,7 +11,9 @@ from grade import (
     arbitrate,
     auto_points,
     combine,
+    grade_answer,
     legacy_kind,
+    normalize_numerals,
     parse_points,
     ramp,
     short_ref_contained,
@@ -61,5 +63,11 @@ assert auto_points("Канберра.") == ["Канберра"]
 
 # ramp: ниже COV_LO ноль, выше COV_HI единица, между линейно (с плавающей точкой — через допуск)
 assert ramp(0.1) == 0.0 and ramp(0.9) == 1.0 and abs(ramp(0.5) - 0.5) < 1e-9
+
+# числительные словами и цифрами — одно и то же, иначе NLI видит противоречие
+assert normalize_numerals("двадцать четыре") == "24"
+assert normalize_numerals("сто двадцать три") == "123"
+assert normalize_numerals("без чисел здесь") == "без чисел здесь"
+assert grade_answer("24", "24")["verdict"] == "accept"
 
 print("grade pure functions: all asserts pass")
