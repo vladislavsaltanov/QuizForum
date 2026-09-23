@@ -10,7 +10,8 @@ class ModerationClient
     "toxic" => "токсичность", "harassment" => "травля", "threat" => "угрозы",
     "spam" => "спам", "jailbreak" => "попытка обхода",
     "prompt_injection" => "внедрение инструкций", "sensitive_data" => "личные данные",
-    "severity" => "вредный контент", "harm_severity" => "вредный контент", "topic" => "оффтопик"
+    "severity" => "вредный контент", "harm_severity" => "вредный контент", "topic" => "оффтопик",
+    "мат" => "мат"
   }.freeze
 
   ENDPOINT = "/v1/judge"

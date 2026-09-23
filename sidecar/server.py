@@ -8,6 +8,7 @@ GET /up -> {"model", "loaded"}.
 """
 import json
 import os
+import re
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -32,7 +33,12 @@ if overlap:
 QUESTIONS = {**MOD_Q, **GUARD_Q}
 
 
+MAT = re.compile(r"\b(хуй|пизд|бля|еб|сук|пидор|мудак|залуп|дроч|гондон|шлюх|трах)\w*", re.IGNORECASE)
+
+# Coarse sync pre-filter: short mats slip past the model, stems never miss.
 def judge(candidate):
+    if MAT.search(candidate or ""):
+        return {"verdict": "reject", "needs_review": False, "category": "мат"}
     answers = agent.predict({"post": candidate, "prompt": candidate}, QUESTIONS)["answers"]
     worst_name, worst_p = "", 0.0
     for name, ans in answers.items():
