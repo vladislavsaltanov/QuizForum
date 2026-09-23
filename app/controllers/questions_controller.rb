@@ -100,10 +100,10 @@ class QuestionsController < ApplicationController
       @question.attempts.joins(:user).where.not(user: Current.user).distinct.pluck("users.name")
     end
 
-    # Approved plus own comments pre-deadline; everything after reveal.
+    # Approved plus own comments; pending never opens, even after reveal.
     def visible_comments
       scope = @question.comments.includes(:user).order(:created_at)
-      return scope if @question.closed? || @is_author
+      return scope if @is_author
       scope.where(status: "approved").or(scope.where(user: Current.user))
     end
 
