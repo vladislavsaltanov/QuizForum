@@ -1,6 +1,10 @@
 # One user's answer to a question; immutable after create.
 class Attempt < ApplicationRecord
   VERDICTS = %w[pending correct partial incorrect].freeze
+  # Jury suggestion labels from sidecar grade_v2.
+  JURY_LABELS = %w[positive partial false].freeze
+  # Verdicts the author may set by hand (pending is transitional, never manual).
+  MANUAL_VERDICTS = %w[correct partial incorrect].freeze
   # Code-answer languages; values double as select labels.
   LANGUAGES = %w[bash c c# c++ elixir go haskell java javascript kotlin php python ruby rust scala sql swift typescript].freeze
 

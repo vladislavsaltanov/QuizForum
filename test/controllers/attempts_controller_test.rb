@@ -33,7 +33,7 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
   test "stranger cannot set verdict" do
     attempt = attempt_by(@respondent)
     sign_in_as(User.create!(name: "Stranger", email: "stranger@example.com", password: "0123456789ab"))
-    patch question_attempt_verdict_path(@question, attempt), params: { attempt: { verdict: "correct" } }
+    patch verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "correct" } }
 
     assert_response :forbidden
     assert_equal "pending", attempt.reload.verdict
@@ -42,7 +42,7 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
   test "respondent cannot set own verdict" do
     attempt = attempt_by(@respondent)
     sign_in_as(@respondent)
-    patch question_attempt_verdict_path(@question, attempt), params: { attempt: { verdict: "correct" } }
+    patch verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "correct" } }
 
     assert_response :forbidden
     assert_equal "pending", attempt.reload.verdict
@@ -51,12 +51,12 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
   test "author sets and changes any verdict" do
     attempt = attempt_by(@respondent)
     sign_in_as(@author)
-    patch question_attempt_verdict_path(@question, attempt), params: { attempt: { verdict: "incorrect" } }
+    patch verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "incorrect" } }
 
     assert_redirected_to question_path(@question)
     assert_equal "incorrect", attempt.reload.verdict
 
-    patch question_attempt_verdict_path(@question, attempt), params: { attempt: { verdict: "correct" } }
+    patch verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "correct" } }
 
     assert_equal "correct", attempt.reload.verdict
   end
@@ -67,7 +67,7 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
     other = User.create!(name: "Other", email: "other@example.com", password: "0123456789ab")
     attempt2 = attempt_by(other)
     sign_in_as(@respondent)
-    patch question_attempt_verdict_path(@question, attempt2), params: { attempt: { verdict: "partial" } }
+    patch verdict_question_attempt_path(@question, attempt2), params: { attempt: { verdict: "partial" } }
 
     assert_redirected_to question_path(@question)
     assert_equal "partial", attempt2.reload.verdict
@@ -77,7 +77,7 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
     attempt = attempt_by(@respondent)
     admin = User.create!(name: "Admin", email: "admin@example.com", password: "0123456789ab", admin: true)
     sign_in_as(admin)
-    patch question_attempt_verdict_path(@question, attempt), params: { attempt: { verdict: "correct" } }
+    patch verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "correct" } }
 
     assert_redirected_to question_path(@question)
     assert_equal "correct", attempt.reload.verdict
@@ -86,7 +86,7 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
   test "unknown verdict is rejected" do
     attempt = attempt_by(@respondent)
     sign_in_as(@author)
-    patch question_attempt_verdict_path(@question, attempt), params: { attempt: { verdict: "brilliant" } }
+    patch verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "brilliant" } }
 
     assert_response :bad_request
     assert_equal "pending", attempt.reload.verdict
@@ -97,17 +97,17 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
     other = @author.authored_questions.create!(title: "Чужой", body: "Тело",
       answer_type: "text", deadline: 7.days.from_now, reference_answer: "Эталон")
     sign_in_as(@author)
-    patch question_attempt_verdict_path(other, attempt), params: { attempt: { verdict: "correct" } }
+    patch verdict_question_attempt_path(other, attempt), params: { attempt: { verdict: "correct" } }
 
     assert_response :not_found
     assert_equal "pending", attempt.reload.verdict
   end
 
   test "author regrade enqueues job" do
-    attempt_by(@respondent)
+    attempt = attempt_by(@respondent)
     sign_in_as(@author)
     assert_enqueued_with(job: AttemptJuryJob) do
-      post regrade_question_attempt_path(@question, attempt_by(@respondent))
+      post regrade_question_attempt_path(@question, attempt)
     end
 
     assert_redirected_to question_path(@question)

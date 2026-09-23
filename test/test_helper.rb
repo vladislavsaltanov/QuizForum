@@ -11,6 +11,7 @@ require_relative "../config/environment"
 require "rails/test_help"
 require_relative "test_helpers/session_test_helper"
 require_relative "test_helpers/moderation_test_helper"
+require_relative "test_helpers/jury_test_helper"
 
 module ActiveSupport
   class TestCase

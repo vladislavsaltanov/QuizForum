@@ -12,6 +12,7 @@
           <span class="qf-chip"><%= verdict_label("pending") %></span>
         </div>
         <%= render "attempt_body", attempt: attempt %>
+        <%= render "jury_block", attempt: attempt %>
       </div>
     <% end %>
   <% elsif @my_attempt %>
@@ -68,6 +69,7 @@
   <% if @my_attempt %>
     <h2 class="qf-section-title">Ваш ответ · <span class="qf-chip <%= verdict_class(@my_attempt.verdict) %>"><%= verdict_label(@my_attempt.verdict) %></span></h2>
     <div class="qf-attempt"><%= render "attempt_body", attempt: @my_attempt %></div>
+    <%= render "jury_block", attempt: @my_attempt %>
   <% end %>
 
   <% unless @question.choice? %>
@@ -96,6 +98,7 @@
         <span class="qf-chip <%= verdict_class(attempt.verdict) %>"><%= verdict_label(attempt.verdict) %></span>
       </div>
       <%= render "attempt_body", attempt: attempt %>
+      <%= render "jury_block", attempt: attempt %>
     </div>
   <% end %>
 

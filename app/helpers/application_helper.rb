@@ -7,6 +7,17 @@ module ApplicationHelper
     "incorrect" => "Неправильно"
   }.freeze
 
+  JURY_LABELS = {
+    "positive" => "похоже на верный",
+    "partial" => "частично",
+    "false" => "похоже на неверный"
+  }.freeze
+
+  # Human-readable jury suggestion name.
+  def jury_label(label)
+    JURY_LABELS.fetch(label.to_s, label.to_s)
+  end
+
   # Human-readable verdict name.
   def verdict_label(verdict)
     VERDICT_LABELS.fetch(verdict.to_s, verdict.to_s)

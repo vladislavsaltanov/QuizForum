@@ -1,0 +1,14 @@
+<% if @is_author && attempt.jury_label.present? %>
+  <div class="qf-jury">
+    <span class="qf-hint">Подсказка: <%= jury_label(attempt.jury_label) %><% if attempt.jury_score %> · <%= attempt.jury_score %><% end %></span>
+    <% if attempt.jury_reasons.present? %>
+      <div class="qf-body"><%= simple_format(attempt.jury_reasons) %></div>
+    <% end %>
+    <div class="qf-actions">
+      <%= button_to "Верно", verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "correct" } }, method: :patch, class: "qf-ghost" %>
+      <%= button_to "Частично", verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "partial" } }, method: :patch, class: "qf-ghost" %>
+      <%= button_to "Неверно", verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "incorrect" } }, method: :patch, class: "qf-ghost" %>
+      <%= button_to "Переоценить", regrade_question_attempt_path(@question, attempt), method: :post, class: "qf-ghost" %>
+    </div>
+  </div>
+<% end %>

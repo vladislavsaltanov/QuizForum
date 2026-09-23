@@ -1,6 +1,9 @@
 require "test_helper"
 
 class JuryClientTest < ActiveSupport::TestCase
+  # This file tests the real client: opt out of the global jury stub.
+  setup { unstub_jury }
+
   test "positive payload maps label score and no review" do
     result = check_with(grade_json(label: "positive", score: 1.0, needs_review: false))
 
