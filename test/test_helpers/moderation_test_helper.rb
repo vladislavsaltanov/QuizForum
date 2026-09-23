@@ -1,6 +1,8 @@
 module ModerationTestHelper
   extend ActiveSupport::Concern
 
+  ORIGINAL_CHECK = ModerationClient.method(:check)
+
   included do
     setup { stub_moderation_pass }
     teardown { unstub_moderation }
@@ -24,9 +26,7 @@ module ModerationTestHelper
     end
 
     def unstub_moderation
-      ModerationClient.singleton_class.remove_method(:check)
-    rescue NameError
-      nil
+      ModerationClient.define_singleton_method(:check, ORIGINAL_CHECK)
     end
 end
 

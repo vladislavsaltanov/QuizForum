@@ -11,7 +11,13 @@ class ModerationClient
   READ_TIMEOUT = 10
 
   def self.check(text:, question: nil)
+    return Result.new(:pass, "") if bypass?
     new.check(text:, question:)
+  end
+
+  # Dev escape hatch without a sidecar; never bypasses in production.
+  def self.bypass?
+    !Rails.env.production? && ENV["MODERATION_OFF"] == "1"
   end
 
   def self.base_url

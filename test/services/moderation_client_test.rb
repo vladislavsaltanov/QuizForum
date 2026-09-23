@@ -38,6 +38,16 @@ class ModerationClientTest < ActiveSupport::TestCase
     assert_not_equal capture_key("привет"), capture_key("другой")
   end
 
+  test "bypass flag skips network outside production" do
+    unstub_moderation
+    old = ENV.delete("MODERATION_OFF")
+    assert_equal :try_later, ModerationClient.check(text: "x").verdict
+    ENV["MODERATION_OFF"] = "1"
+    assert_equal :pass, ModerationClient.check(text: "x").verdict
+  ensure
+    old.nil? ? ENV.delete("MODERATION_OFF") : ENV["MODERATION_OFF"] = old
+  end
+
   private
     def check_with(body)
       client = ModerationClient.new

@@ -31,6 +31,7 @@ class QuestionsController < ApplicationController
       _, trustee_alert = @question.sync_trustees_by_emails(params[:question][:trustee_emails]) if params[:question].key?(:trustee_emails)
       redirect_to @question, notice: "Вопрос опубликован.", alert: trustee_alert
     else
+      flash.now[:alert] = @question.errors.full_messages.to_sentence
       render :new, status: :unprocessable_entity
     end
   end
@@ -57,6 +58,7 @@ class QuestionsController < ApplicationController
       redirect_to @question, notice: "Вопрос обновлён.", alert: trustee_alert
     else
       @can_manage_trustees = @question.managed_by?(Current.user)
+      flash.now[:alert] = @question.errors.full_messages.to_sentence
       render :edit, status: :unprocessable_entity
     end
   end

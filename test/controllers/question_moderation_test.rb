@@ -17,6 +17,21 @@ class QuestionModerationTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :unprocessable_entity
+    assert_select ".qf-alert", text: /Отклонено/
+  end
+
+  test "sidecar timeout keeps nothing and shows reason" do
+    with_verdict(:try_later, "недоступна") do
+      assert_no_difference("Question.count") do
+        post questions_path, params: { question: {
+          title: "Мирный вопрос", body: "Мирное условие", answer_type: "text",
+          deadline: "2030-01-01T12:00", reference_answer: "Ответ"
+        } }
+      end
+    end
+
+    assert_response :unprocessable_entity
+    assert_select ".qf-alert", text: /не удалась/
   end
 
   test "toxic edit is rejected and keeps old text" do

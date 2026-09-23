@@ -58,12 +58,6 @@ class UserTest < ActiveSupport::TestCase
     assert_equal existing.id, user.id
   end
 
-  teardown do
-    ModerationClient.singleton_class.remove_method(:check)
-  rescue NameError
-    nil
-  end
-
   test "rejects toxic name from moderation" do
     ModerationClient.define_singleton_method(:check) do |*_, **_|
       ModerationClient::Result.new(:reject, "оскорбление")
