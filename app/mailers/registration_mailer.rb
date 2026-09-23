@@ -1,3 +1,4 @@
+# Mailer for email confirmation.
 class RegistrationMailer < ApplicationMailer
   # Email-ownership confirmation.
   def confirmation(user)

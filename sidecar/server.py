@@ -35,7 +35,7 @@ QUESTIONS = {**MOD_Q, **GUARD_Q}
 
 MAT = re.compile(r"\b(хуй|пизд|бля|еб|сук|пидор|мудак|залуп|дроч|гондон|шлюх|трах|сперм|сись|пись|наху|оху|поху|заеб)\w*", re.IGNORECASE)
 
-# Coarse sync pre-filter: short mats slip past the model, stems never miss.
+# Coarse pre-filter: catches short mats the model misses.
 def judge(candidate):
     if MAT.search(candidate or ""):
         return {"verdict": "reject", "needs_review": False, "category": "мат"}

@@ -18,6 +18,7 @@ class ModerationClient
   OPEN_TIMEOUT = 2
   READ_TIMEOUT = 10
 
+  # Main entry: verdict for a text, fail-closed.
   def self.check(text:, question: nil)
     return Result.new(:pass, "") if bypass?
     new.check(text:, question:)
@@ -28,10 +29,12 @@ class ModerationClient
     !Rails.env.production? && ENV["MODERATION_OFF"] == "1"
   end
 
+  # Sidecar URL, override with LAYA_SIDECAR_URL.
   def self.base_url
     ENV.fetch("LAYA_SIDECAR_URL", "http://localhost:8000")
   end
 
+  # Posts the payload; any transport error fails closed.
   def check(text:, question: nil)
     map(JSON.parse(post(text:, question:)))
   rescue StandardError
@@ -47,6 +50,7 @@ class ModerationClient
       Result.new(:pass, "")
     end
 
+    # Single HTTP round-trip with timeouts.
     def post(text:, question:)
       uri = URI("#{self.class.base_url}#{ENDPOINT}")
       http = Net::HTTP.new(uri.host, uri.port)
@@ -58,10 +62,12 @@ class ModerationClient
       http.request(req).body
     end
 
+    # Preset name to Russian label; unknown means violation.
     def human_category(raw)
       CATEGORY_NAMES.fetch(raw.to_s, "нарушение")
     end
 
+    # Stable key per text against double submits.
     def idempotency_key(text)
       "mod:#{Digest::SHA256.hexdigest(text.to_s)[0, 16]}"
     end
