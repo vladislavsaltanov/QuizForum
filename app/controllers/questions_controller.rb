@@ -74,7 +74,7 @@ class QuestionsController < ApplicationController
   private
     # Laya sync-gate on public text; reference_answer never checked.
     def moderation_blocked?
-      verdict = ModerationClient.check(text: "#{@question.title}\n#{@question.body}")
+      verdict = ModerationClient.check(text: "#{@question.title}\n#{@question.body}\n#{@question.tags.join(" ")}")
       @question.errors.add(:base, "Отклонено проверкой: #{verdict.category}.") if verdict.verdict == :reject
       @question.errors.add(:base, "Проверка не удалась, попробуйте позже.") if verdict.verdict == :try_later
       verdict.verdict == :reject || verdict.verdict == :try_later
