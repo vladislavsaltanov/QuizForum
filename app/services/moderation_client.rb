@@ -6,6 +6,13 @@ require "digest"
 class ModerationClient
   Result = Data.define(:verdict, :category)
 
+  CATEGORY_NAMES = {
+    "toxic" => "токсичность", "harassment" => "травля", "threat" => "угрозы",
+    "spam" => "спам", "jailbreak" => "попытка обхода",
+    "prompt_injection" => "внедрение инструкций", "sensitive_data" => "личные данные",
+    "severity" => "вредный контент", "harm_severity" => "вредный контент", "topic" => "оффтопик"
+  }.freeze
+
   ENDPOINT = "/v1/judge"
   OPEN_TIMEOUT = 2
   READ_TIMEOUT = 10
@@ -33,7 +40,7 @@ class ModerationClient
   private
     # Maps sidecar payload to pass/review/reject; public text only ever rejects.
     def map(payload)
-      return Result.new(:reject, payload["category"] || "нарушение") if payload["verdict"] == "reject"
+      return Result.new(:reject, human_category(payload["category"])) if payload["verdict"] == "reject"
       return Result.new(:review, "на проверке") if payload["needs_review"]
       Result.new(:pass, "")
     end
@@ -47,6 +54,10 @@ class ModerationClient
       req.body = JSON.generate(key: idempotency_key(text), candidate: text,
                                question:, presets: %w[moderation_questions guard_questions])
       http.request(req).body
+    end
+
+    def human_category(raw)
+      CATEGORY_NAMES.fetch(raw.to_s, "нарушение")
     end
 
     def idempotency_key(text)

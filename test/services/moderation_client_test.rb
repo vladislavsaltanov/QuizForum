@@ -2,10 +2,10 @@ require "test_helper"
 
 class ModerationClientTest < ActiveSupport::TestCase
   test "reject payload maps verdict and category" do
-    result = check_with('{"verdict":"reject","category":"оскорбление"}')
+    result = check_with('{"verdict":"reject","category":"spam"}')
 
     assert_equal :reject, result.verdict
-    assert_equal "оскорбление", result.category
+    assert_equal "спам", result.category
   end
 
   test "needs_review payload maps to review" do
