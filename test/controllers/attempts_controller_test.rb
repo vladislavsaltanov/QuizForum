@@ -103,24 +103,19 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "pending", attempt.reload.verdict
   end
 
-  test "author regrade enqueues job" do
-    attempt = attempt_by(@respondent)
+  test "verdict change asks confirmation in modal" do
+    attempt_by(@respondent, jury_label: "partial", jury_score: 0.5,
+      jury_needs_review: true, jury_reasons: "покрыта часть пунктов")
     sign_in_as(@author)
-    assert_enqueued_with(job: AttemptJuryJob) do
-      post regrade_question_attempt_path(@question, attempt)
-    end
+    get question_path(@question)
 
-    assert_redirected_to question_path(@question)
-  end
-
-  test "stranger cannot regrade" do
-    attempt = attempt_by(@respondent)
-    sign_in_as(User.create!(name: "Stranger", email: "stranger2@example.com", password: "0123456789ab"))
-    assert_no_enqueued_jobs only: AttemptJuryJob do
-      post regrade_question_attempt_path(@question, attempt)
-    end
-
-    assert_response :forbidden
+    assert_select "details.qf-verdict-confirm", count: 1
+    assert_match(/КМП через префикс-функцию/, response.body)
+    assert_match(/покрыта часть пунктов/, response.body)
+    assert_select "details.qf-verdict-confirm button", text: "Верно", count: 1
+    assert_select "details.qf-verdict-confirm button", text: "Частично", count: 1
+    assert_select "details.qf-verdict-confirm button", text: "Неверно", count: 1
+    assert_no_match(/Переоценить/, response.body)
   end
 
   test "author page shows jury suggestion and buttons" do
@@ -132,7 +127,8 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match(/Подсказка/, response.body)
     assert_match(/покрыта часть пунктов/, response.body)
-    assert_match(/Переоценить/, response.body)
+    assert_match(/Оценить/, response.body)
+    assert_no_match(/Переоценить/, response.body)
   end
 
   test "author sees real verdict chip instead of pending" do
@@ -154,7 +150,7 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/Верно/, response.body)
     assert_match(/Частично/, response.body)
     assert_match(/Неверно/, response.body)
-    assert_match(/Переоценить/, response.body)
+    assert_no_match(/Переоценить/, response.body)
     assert_no_match(/Подсказка/, response.body)
   end
 
