@@ -27,6 +27,7 @@
   --qf-radius-md: 0.875rem;
 }
 
+html, body { overflow-x: clip; } /* frost bleeds past pane without page scroll; clip keeps sticky working */
 body {
   background: var(--qf-paper);
   color: var(--qf-ink);
@@ -427,8 +428,8 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   padding-bottom: 20px;
   margin-left: -72px;
   padding-left: 72px;
-  margin-right: -16px;
-  padding-right: 16px;
+  margin-right: -72px;
+  padding-right: 72px;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 20px, black calc(100% - 14px), transparent 100%), linear-gradient(to right, transparent 0, black 32px, black calc(100% - 32px), transparent 100%);
   -webkit-mask-composite: source-in;
   mask-image: linear-gradient(to bottom, transparent 0, black 20px, black calc(100% - 14px), transparent 100%), linear-gradient(to right, transparent 0, black 32px, black calc(100% - 32px), transparent 100%);
