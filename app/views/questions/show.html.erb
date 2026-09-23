@@ -79,7 +79,7 @@
         </script>
         <%= form_with url: question_comments_path(@question), class: "qf-chatbar" do |f| %>
           <%= text_area_tag "comment[body]", nil, rows: 1, placeholder: "Написать сообщение…", class: "qf-chat-input", "aria-label": "Новый комментарий", onkeydown: "if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.requestSubmit()}" %>
-          <button type="submit" class="qf-send" aria-label="Отправить">↑</button>
+          <button type="submit" class="qf-send" aria-label="Отправить" data-turbo-submits-with="…">↑</button>
         <% end %>
         <p class="qf-hint">Сообщения проходят модерацию и открываются всем после дедлайна.</p>
       <% end %>
