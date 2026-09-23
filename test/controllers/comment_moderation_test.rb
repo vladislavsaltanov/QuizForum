@@ -17,6 +17,14 @@ class CommentModerationTest < ActionDispatch::IntegrationTest
     assert_redirected_to question_path(@question, tab: "comments")
   end
 
+  test "pass comment publishes immediately" do
+    with_verdict(:pass) do
+      post question_comments_path(@question), params: { comment: { body: "мирный вопрос" } }
+    end
+
+    assert_equal "approved", @question.comments.find_by(user: @user).status
+  end
+
   test "sidecar timeout keeps nothing and asks to retry" do
     with_verdict(:try_later, "недоступна") do
       assert_no_difference("Comment.count") do
