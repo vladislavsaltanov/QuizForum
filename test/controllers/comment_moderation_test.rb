@@ -25,6 +25,16 @@ class CommentModerationTest < ActionDispatch::IntegrationTest
     assert_equal "approved", @question.comments.find_by(user: @user).status
   end
 
+  test "double submit creates one comment" do
+    with_verdict(:pass) do
+      assert_difference("Comment.count", 1) do
+        2.times do
+          post question_comments_path(@question), params: { comment: { body: "двойной клик" } }
+        end
+      end
+    end
+  end
+
   test "sidecar timeout keeps nothing and asks to retry" do
     with_verdict(:try_later, "недоступна") do
       assert_no_difference("Comment.count") do
