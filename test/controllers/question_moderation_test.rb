@@ -48,6 +48,20 @@ class QuestionModerationTest < ActionDispatch::IntegrationTest
     assert_includes seen, "токсичный-тег"
   end
 
+  test "reference answer enters moderation text" do
+    seen = nil
+    ModerationClient.define_singleton_method(:check) do |text:, **_|
+      seen = text
+      ModerationClient::Result.new(:pass, "")
+    end
+    post questions_path, params: { question: {
+      title: "Мирный вопрос", body: "Мирное условие", answer_type: "text",
+      deadline: "2030-01-01T12:00", reference_answer: "секретный-эталон"
+    } }
+
+    assert_includes seen, "секретный-эталон"
+  end
+
   test "toxic edit is rejected and keeps old text" do
     q = questions(:open_text)
     with_verdict(:reject, "оскорбление") do

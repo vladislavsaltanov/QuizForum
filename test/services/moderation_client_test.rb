@@ -33,6 +33,18 @@ class ModerationClientTest < ActiveSupport::TestCase
     assert_equal :try_later, result.verdict
   end
 
+  test "preset categories translate to russian" do
+    result = check_with('{"verdict":"reject","category":"toxic"}')
+
+    assert_equal "токсичность", result.category
+  end
+
+  test "unknown category falls back to violation" do
+    result = check_with('{"verdict":"reject","category":"weird"}')
+
+    assert_equal "нарушение", result.category
+  end
+
   test "same text yields same idempotency key" do
     assert_equal capture_key("привет"), capture_key("привет")
     assert_not_equal capture_key("привет"), capture_key("другой")
@@ -40,12 +52,14 @@ class ModerationClientTest < ActiveSupport::TestCase
 
   test "bypass flag skips network outside production" do
     unstub_moderation
+    Net::HTTP.define_singleton_method(:new) { |*_| raise Errno::ECONNREFUSED }
     old = ENV.delete("MODERATION_OFF")
     assert_equal :try_later, ModerationClient.check(text: "x").verdict
     ENV["MODERATION_OFF"] = "1"
     assert_equal :pass, ModerationClient.check(text: "x").verdict
   ensure
     old.nil? ? ENV.delete("MODERATION_OFF") : ENV["MODERATION_OFF"] = old
+    Net::HTTP.singleton_class.remove_method(:new) rescue nil
   end
 
   private
