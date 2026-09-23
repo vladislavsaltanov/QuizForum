@@ -71,25 +71,31 @@
           <% end %>
           <%= render @comments %>
         </div>
+        <%= form_with url: question_comments_path(@question), class: "qf-chatbar" do |f| %>
+          <%= text_area_tag "comment[body]", nil, rows: 1, placeholder: "Написать сообщение…", class: "qf-chat-input", "aria-label": "Новый комментарий", onkeydown: "if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.requestSubmit()}" %>
+          <button type="submit" class="qf-send" aria-label="Отправить" data-turbo-submits-with="…">↑</button>
+        <% end %>
+        <p class="qf-hint">Сообщения проходят модерацию и открываются всем после дедлайна.</p>
         <script>
           {
             const qfChat = document.getElementById("comments");
             if (qfChat) {
               const qfBottom = () => qfChat.scrollTo({ top: qfChat.scrollHeight });
               qfBottom();
+              requestAnimationFrame(qfBottom);
+              window.addEventListener("load", qfBottom);
+              if (document.fonts && document.fonts.ready) { document.fonts.ready.then(qfBottom); }
               new MutationObserver(qfBottom).observe(qfChat, { childList: true });
               const qfPane = qfChat.closest("section");
               const qfFade = () => qfPane.classList.toggle("is-scrolled", qfChat.scrollTop > 8);
               qfChat.addEventListener("scroll", qfFade, { passive: true });
               qfFade();
+              const qfInput = qfPane.querySelector(".qf-chat-input");
+              if (qfInput) { qfInput.addEventListener("focus", () => setTimeout(qfBottom, 300)); }
+              if (window.visualViewport) { window.visualViewport.addEventListener("resize", qfBottom); }
             }
           }
         </script>
-        <%= form_with url: question_comments_path(@question), class: "qf-chatbar" do |f| %>
-          <%= text_area_tag "comment[body]", nil, rows: 1, placeholder: "Написать сообщение…", class: "qf-chat-input", "aria-label": "Новый комментарий", onkeydown: "if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.requestSubmit()}" %>
-          <button type="submit" class="qf-send" aria-label="Отправить" data-turbo-submits-with="…">↑</button>
-        <% end %>
-        <p class="qf-hint">Сообщения проходят модерацию и открываются всем после дедлайна.</p>
       <% end %>
     </section>
   </div>
