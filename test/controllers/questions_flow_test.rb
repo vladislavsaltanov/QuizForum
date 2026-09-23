@@ -138,6 +138,17 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "closed question never reveals pending comments to strangers" do
+    q = questions(:closed_text)
+    Comment.create!(question: q, user: q.author, body: "скрытый до проверки")
+    stranger = User.create!(name: "StrangerClosed", email: "stranger-closed@example.com",
+                            password: "password12345678", password_confirmation: "password12345678")
+    sign_in_as(stranger)
+    get question_path(q, tab: "comments")
+
+    assert_no_match(/скрытый до проверки/, response.body)
+  end
+
   test "non-author cannot approve comments" do
     q = questions(:open_text)
     comment = Comment.create!(question: q, user: @user, body: "hi")

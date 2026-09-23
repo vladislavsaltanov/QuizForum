@@ -62,6 +62,21 @@ class QuestionModerationTest < ActionDispatch::IntegrationTest
     assert_includes seen, "секретный-эталон"
   end
 
+  test "options enter moderation text" do
+    seen = nil
+    ModerationClient.define_singleton_method(:check) do |text:, **_|
+      seen = text
+      ModerationClient::Result.new(:pass, "")
+    end
+    post questions_path, params: { question: {
+      title: "Мирный вопрос", body: "Мирное условие", answer_type: "single_choice",
+      deadline: "2030-01-01T12:00", reference_answer: "",
+      options_text: [ "вариант-один", "вариант-два" ], options_correct: [ "0" ]
+    } }
+
+    assert_includes seen, "вариант-один"
+  end
+
   test "toxic edit is rejected and keeps old text" do
     q = questions(:open_text)
     with_verdict(:reject, "оскорбление") do

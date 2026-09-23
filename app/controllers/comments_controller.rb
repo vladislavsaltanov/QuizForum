@@ -10,6 +10,11 @@ class CommentsController < ApplicationController
     unless @comment.valid?
       return redirect_to question_path(@question, tab: "comments"), alert: @comment.errors.full_messages.to_sentence
     end
+    # Double clicks land on the existing row instead of a second check.
+    if @question.comments.where(user: Current.user, body: @comment.body)
+                 .where("created_at > ?", 30.seconds.ago).exists?
+      return redirect_to question_path(@question, tab: "comments")
+    end
     verdict = ModerationClient.check(text: @comment.body, question: @question.title)
     if verdict.verdict == :reject
       redirect_to question_path(@question, tab: "comments"), alert: "Комментарий отклонён: #{verdict.category}."
