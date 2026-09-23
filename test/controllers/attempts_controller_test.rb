@@ -135,6 +135,37 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/Переоценить/, response.body)
   end
 
+  test "author sees real verdict chip instead of pending" do
+    attempt_by(@respondent, verdict: "incorrect")
+    sign_in_as(@author)
+    get question_path(@question)
+
+    assert_response :success
+    assert_match(/Неправильно/, response.body)
+    assert_no_match(/На проверке/, response.body)
+  end
+
+  test "author sees buttons even without jury suggestion" do
+    attempt_by(@respondent)
+    sign_in_as(@author)
+    get question_path(@question)
+
+    assert_response :success
+    assert_match(/Верно/, response.body)
+    assert_match(/Частично/, response.body)
+    assert_match(/Неверно/, response.body)
+    assert_match(/Переоценить/, response.body)
+    assert_no_match(/Подсказка/, response.body)
+  end
+
+  test "answers list scrolls like comments" do
+    attempt_by(@respondent)
+    sign_in_as(@author)
+    get question_path(@question)
+
+    assert_select "div.qf-chat", count: 1
+  end
+
   test "stranger page hides jury suggestion" do
     attempt_by(@respondent, jury_label: "partial", jury_score: 0.5,
       jury_needs_review: true, jury_reasons: "покрыта часть пунктов")
