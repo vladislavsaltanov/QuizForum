@@ -422,8 +422,9 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 .qf-list-head .qf-count { margin: 0 0 4px; }
 .qf-list-head a { pointer-events: auto; }
 /* Comments only: scroller slides behind the head; melt layer fades in on scroll. */
-.is-comments .qf-chat { margin-top: -70px; padding-top: 64px; }
+.is-comments .qf-chat { margin-top: -86px; padding-top: 80px; }
 .is-comments .qf-list-head {
+  padding-bottom: 26px;
   margin-left: -72px;
   padding-left: 72px;
   margin-right: -16px;
