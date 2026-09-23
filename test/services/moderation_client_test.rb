@@ -39,6 +39,12 @@ class ModerationClientTest < ActiveSupport::TestCase
     assert_equal "токсичность", result.category
   end
 
+  test "mat category passes through" do
+    result = check_with('{"verdict":"reject","category":"мат"}')
+
+    assert_equal "мат", result.category
+  end
+
   test "unknown category falls back to violation" do
     result = check_with('{"verdict":"reject","category":"weird"}')
 
