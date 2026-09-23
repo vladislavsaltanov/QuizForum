@@ -1,5 +1,8 @@
 # Public question pages with deadline-based visibility of answers and comments.
 class QuestionsController < ApplicationController
+  rate_limit to: 10, within: 3.minutes, only: %i[create update],
+             with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
+
   # Assembles one question page; what respondents see depends on the deadline.
   def show
     @question = Question.find(params[:id])
@@ -23,7 +26,8 @@ class QuestionsController < ApplicationController
     @question = Current.user.authored_questions.build(question_params)
     @question.tags = params[:question][:tags_string].to_s.split(",").map(&:strip).reject(&:empty?)
     @question.options = parse_options if @question.choice?
-    if @question.save
+    moderation_blocked? if @question.valid?
+    if @question.errors.empty? && @question.save
       _, trustee_alert = @question.sync_trustees_by_emails(params[:question][:trustee_emails]) if params[:question].key?(:trustee_emails)
       redirect_to @question, notice: "Вопрос опубликован.", alert: trustee_alert
     else
@@ -45,7 +49,8 @@ class QuestionsController < ApplicationController
     @question.assign_attributes(question_params)
     @question.tags = params[:question][:tags_string].to_s.split(",").map(&:strip).reject(&:empty?)
     @question.options = parse_options if @question.choice?
-    if @question.save
+    moderation_blocked? if @question.valid?
+    if @question.errors.empty? && @question.save
       if params[:question].key?(:trustee_emails) && @question.managed_by?(Current.user)
         _, trustee_alert = @question.sync_trustees_by_emails(params[:question][:trustee_emails])
       end
@@ -65,6 +70,14 @@ class QuestionsController < ApplicationController
   end
 
   private
+    # Laya sync-gate on public text; reference_answer never checked.
+    def moderation_blocked?
+      verdict = ModerationClient.check(text: "#{@question.title}\n#{@question.body}")
+      @question.errors.add(:base, "Отклонено проверкой: #{verdict.category}.") if verdict.verdict == :reject
+      @question.errors.add(:base, "Проверка не удалась, попробуйте позже.") if verdict.verdict == :try_later
+      verdict.verdict == :reject || verdict.verdict == :try_later
+    end
+
     # Author-or-trustee-or-admin gate shared by the write actions.
     def privileged?(question)
       question.privileged?(Current.user)
