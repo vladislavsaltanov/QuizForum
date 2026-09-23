@@ -725,4 +725,4 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 .qf-modal-card .qf-actions > :last-child { margin-left: auto; }
 .qf-modal-card .qf-section-title { margin-top: 13px; }
 .qf-jury > .qf-hint { display: block; margin: 14px 0 12px; }
-.qf-attempt-head + .qf-hint { display: block; margin: 2px 0 14px; }
+.qf-attempt-head + .qf-hint { display: block; margin: -3px 0 14px; } /* шапка дает 8px снизу, видимый зазор сводим к половине */
