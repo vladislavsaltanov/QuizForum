@@ -17,15 +17,15 @@ if [ "${LAYA_SIDECAR_URL:-}" = "" ]; then
     echo "cannot install laya into sidecar/.venv; check network and Python>=3.10" >&2
     exit 1
   fi
-  if [ ! -d sidecar/openjev ]; then
-    echo "warn: sidecar/openjev missing (jury weights); moderation runs, grading stays pending" >&2
-  fi
+  # Jury weights (~1.6GB pinned revision) live in ./weights like Laya;
+  # the sidecar downloads them itself on first boot.
   export HF_HOME="$PWD/weights/hf-cache"
   sidecar/.venv/bin/python sidecar/server.py 8000 >log/sidecar.log 2>&1 &
   SIDECAR_PID=$!
   export LAYA_SIDECAR_URL=http://localhost:8000
-  # Readiness gate: first boot downloads weights into ./weights, can take minutes.
-  for _ in $(seq 1 120); do
+  # Readiness gate: first boot downloads weights into ./weights, can take minutes
+  # (Laya + OpenJev 0.8B, CPU load). /up answers only when both are loaded.
+  for _ in $(seq 1 180); do
     curl -sf -o /dev/null http://localhost:8000/up && break
     sleep 5
   done
