@@ -11,11 +11,11 @@
 
 | Вопрос | Комментарии |
 | --- | --- |
-| ![Экран вопроса](docs/screenshots/QuestionScreen.png) | ![Комментарии к вопросу](docs/screenshots/QuestionCommentsScreen.png) |
+| <img src="docs/screenshots/QuestionScreen.png" width="400" alt="Экран вопроса"> | <img src="docs/screenshots/QuestionCommentsScreen.png" width="400" alt="Комментарии к вопросу"> |
 
 | Новый вопрос | Лидерборд |
 | --- | --- |
-| ![Создание вопроса](docs/screenshots/NewQuestion.png) | ![Таблица лидеров](docs/screenshots/LeaderboardScreen.png) |
+| <img src="docs/screenshots/NewQuestion.png" width="400" alt="Создание вопроса"> | <img src="docs/screenshots/LeaderboardScreen.png" width="400" alt="Таблица лидеров"> |
 
 </details>
 
