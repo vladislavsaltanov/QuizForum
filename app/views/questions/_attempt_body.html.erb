@@ -1,7 +1,9 @@
 <% if attempt.question.choice? %>
   <ul class="qf-picked">
     <% attempt.selected.each do |i| %>
-      <li><%= attempt.question.options[i.to_i]["text"] %></li>
+      <% opt = attempt.question.options[i.to_i] %>
+      <% next if opt.nil? %>
+      <li><%= opt["text"] %></li>
     <% end %>
   </ul>
 <% else %>

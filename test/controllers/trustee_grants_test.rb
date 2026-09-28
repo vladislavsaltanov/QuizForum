@@ -37,7 +37,8 @@ class TrusteeGrantsTest < ActionDispatch::IntegrationTest
     q = Question.find_by!(title: "Вопрос частично")
     assert_redirected_to question_path(q)
     assert q.trustees.exists?(@candidate.id)
-    assert_match(/ghost@example.com/, flash[:alert])
+    assert_no_match(/ghost@example.com/, flash[:alert])
+    assert_match(/Добавлено наблюдателей: 1 из 2/, flash[:alert])
   end
 
   test "update replaces set: removing email revokes" do
@@ -84,13 +85,18 @@ class TrusteeGrantsTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to question_path(@question)
     assert_not_nil flash[:alert]
+    assert_match(/Добавлено наблюдателей: 0 из 1/, flash[:alert])
     assert_equal 0, @question.question_trustees.count
   end
 
-  test "trustee editing question cannot change set" do
+  test "trustee cannot edit question or change set" do
     other = User.create!(name: "Other", email: "other@example.com", password: "0123456789ab")
     @question.question_trustees.create!(user: @candidate)
     sign_in_as(@candidate)
+    get edit_question_path(@question)
+
+    assert_response :forbidden
+
     patch question_path(@question), params: {
       question: {
         title: @question.title, body: @question.body, answer_type: "text",
@@ -99,7 +105,7 @@ class TrusteeGrantsTest < ActionDispatch::IntegrationTest
       }
     }
 
-    assert_redirected_to question_path(@question)
+    assert_response :forbidden
     assert @question.trustees.exists?(@candidate.id)
     assert_not @question.trustees.exists?(other.id)
   end

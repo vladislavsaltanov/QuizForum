@@ -30,6 +30,21 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to question_path(q)
   end
 
+  test "forged selected index is rejected and page still renders" do
+    q = @author.authored_questions.create!(title: "Выбор", body: "Тело",
+      answer_type: "single_choice", deadline: 7.days.from_now,
+      options: [ { "text" => "да", "correct" => true }, { "text" => "нет", "correct" => false } ])
+    sign_in_as(@respondent)
+    assert_no_difference("Attempt.count") do
+      post question_attempts_path(q), params: { attempt: { selected: [ "999" ] } }
+    end
+
+    assert_redirected_to question_path(q)
+    get question_path(q)
+
+    assert_response :success
+  end
+
   test "stranger cannot set verdict" do
     attempt = attempt_by(@respondent)
     sign_in_as(User.create!(name: "Stranger", email: "stranger@example.com", password: "0123456789ab"))

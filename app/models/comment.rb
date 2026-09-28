@@ -6,6 +6,7 @@ class Comment < ApplicationRecord
   belongs_to :user
 
   validates :body, presence: true
+  validates :body, length: { maximum: 2000 }
   validates :status, inclusion: { in: STATUSES }
 
   broadcasts_to :question, inserts_by: :append, target: "comments", if: :visible_live?

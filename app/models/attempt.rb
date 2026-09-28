@@ -13,7 +13,9 @@ class Attempt < ApplicationRecord
 
   validates :user_id, uniqueness: { scope: :question_id }
   validates :verdict, inclusion: { in: VERDICTS }
+  validates :body, length: { maximum: 8000 }, allow_nil: true
   validate :answer_present
+  validate :selected_indices_valid, if: -> { question&.choice? }
 
   before_create :grade_choice!
 
@@ -24,6 +26,17 @@ class Attempt < ApplicationRecord
         errors.add(:selected, :blank) if selected.blank?
       else
         errors.add(:body, :blank) if body.blank?
+      end
+    end
+
+    # Forged indexes would render nil and crash the page for every viewer.
+    def selected_indices_valid
+      size = question.options.size
+      Array(selected).each do |s|
+        unless s.to_s.match?(/\A\d+\z/) && s.to_i.between?(0, size - 1)
+          errors.add(:selected, :inclusion)
+          break
+        end
       end
     end
 

@@ -12,6 +12,8 @@ class Question < ApplicationRecord
 
   validates :title, :deadline, presence: true
   validates :body, presence: true
+  validates :title, length: { maximum: 200 }
+  validates :body, :reference_answer, :explanation, length: { maximum: 20_000 }, allow_nil: true
   validates :reference_answer, presence: true, unless: :choice?
   validates :answer_type, inclusion: { in: ANSWER_TYPES }
   before_validation :compact_options, if: :choice?
@@ -57,23 +59,28 @@ class Question < ApplicationRecord
     user.present? && trustees.exists?(user.id)
   end
 
+  # Author or admin only; trustees keep view access but never edit.
+  def editable_by?(user)
+    author == user || user&.admin?
+  end
+
   # Author or admin only; trustees never manage grants.
   def managed_by?(user)
-    author == user || user&.admin?
+    editable_by?(user)
   end
 
   # Replace the trustee set from comma-separated emails; returns [ok, alert].
   def sync_trustees_by_emails(raw)
     emails = raw.to_s.split(",").map { it.strip.downcase }.reject(&:empty?).uniq
     users = User.where(email: emails).index_by(&:email)
-    missing = emails - users.keys
     question_trustees.where.not(user_id: users.values.map(&:id)).destroy_all
-    invalid = users.values.filter_map do |u|
+    failed = users.values.count do |u|
       grant = question_trustees.find_or_initialize_by(user: u)
-      grant.save ? nil : grant.errors.full_messages.to_sentence
+      !grant.save
     end
-    problems = missing.map { "Пользователь не найден: #{it}" } + invalid
-    problems.empty? ? [ true, nil ] : [ false, problems.to_sentence ]
+    granted = users.size - failed
+    return [ true, nil ] if granted == emails.size
+    [ false, "Добавлено наблюдателей: #{granted} из #{emails.size}." ]
   end
 
   private
