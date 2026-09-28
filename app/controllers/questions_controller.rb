@@ -8,6 +8,7 @@ class QuestionsController < ApplicationController
     @question = Question.find(params[:id])
     # Privileged viewers (author, trustee, admin) see answers, reference, and comments.
     @is_author = @question.privileged?(Current.user)
+    @can_edit = @question.editable_by?(Current.user)
     @tab = params[:tab] == "comments" ? "comments" : "answers"
     @my_attempt = @question.attempts.find_by(user: Current.user)
     @attempts = visible_attempts
@@ -39,14 +40,14 @@ class QuestionsController < ApplicationController
   # Edit form; the trustee block renders for author/admin only.
   def edit
     @question = Question.find(params[:id])
-    head(:forbidden) unless privileged?(@question)
+    head(:forbidden) unless editable?(@question)
     @can_manage_trustees = @question.managed_by?(Current.user)
   end
 
   # Saves edits; only author/admin may change the trustee list.
   def update
     @question = Question.find(params[:id])
-    return head(:forbidden) unless privileged?(@question)
+    return head(:forbidden) unless editable?(@question)
     @question.assign_attributes(question_params)
     @question.tags = params[:question][:tags_string].to_s.split(",").map(&:strip).reject(&:empty?)
     @question.options = parse_options if @question.choice?
@@ -66,7 +67,7 @@ class QuestionsController < ApplicationController
   # Deletes the question with its attempts and comments.
   def destroy
     @question = Question.find(params[:id])
-    return head(:forbidden) unless privileged?(@question)
+    return head(:forbidden) unless editable?(@question)
     @question.destroy!
     redirect_to root_path, notice: "Вопрос удалён."
   end
@@ -83,9 +84,9 @@ class QuestionsController < ApplicationController
       verdict.verdict == :reject || verdict.verdict == :try_later
     end
 
-    # Author-or-trustee-or-admin gate shared by the write actions.
-    def privileged?(question)
-      question.privileged?(Current.user)
+    # Author-or-admin gate for the write actions; trustees stay read-only.
+    def editable?(question)
+      question.editable_by?(Current.user)
     end
 
     # Strangers see only their own attempts before the deadline; full list after reveal.

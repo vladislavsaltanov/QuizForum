@@ -7,6 +7,12 @@ class CommentTest < ActiveSupport::TestCase
     assert_not comment.valid?
   end
 
+  test "rejects body over 2000 chars" do
+    comment = Comment.new(question: questions(:open_text), user: users(:one), body: "x" * 2001)
+
+    assert_not comment.valid?
+  end
+
   test "rejects unknown status" do
     comment = Comment.new(question: questions(:open_text), user: users(:one), body: "уточните условие", status: "archived")
 

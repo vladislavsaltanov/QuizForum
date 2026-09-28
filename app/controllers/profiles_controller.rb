@@ -77,9 +77,10 @@ class ProfilesController < ApplicationController
         params[:user][:password].to_s.present?
     end
 
-    # OAuth users have no password, so the live session counts as proof.
+    # Every credential change needs the current password, including OAuth
+    # accounts (they set one via password reset first). No session-only bypass:
+    # a hijacked session must not be enough to swap email+password.
     def reauthenticated?
-      return true if @user.provider.present?
       @user.authenticate(params[:user][:current_password].to_s).present?
     end
 end

@@ -43,7 +43,8 @@ MAT = re.compile(r"\b(хуй|пизд|бля|еб|сук|пидор|мудак|�
 
 # Coarse pre-filter: catches short mats the model misses.
 def judge(candidate):
-    if MAT.search(candidate or ""):
+    candidate = (candidate or "")[:20000]
+    if MAT.search(candidate):
         return {"verdict": "reject", "needs_review": False, "category": "мат"}
     answers = agent.predict({"post": candidate, "prompt": candidate}, QUESTIONS)["answers"]
     worst_name, worst_p = "", 0.0
@@ -87,11 +88,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path == "/v1/judge":
             try:
-                length = int(self.headers.get("Content-Length", 0))
+                length = min(int(self.headers.get("Content-Length", 0)), 262144)
                 payload = json.loads(self.rfile.read(length) or b"{}")
                 self._json(judge(payload.get("candidate") or ""))
-            except Exception as exc:  # fail open at transport; Rails fails closed
-                self._json({"verdict": "pass", "needs_review": True, "category": f"error: {exc}"})
+            except Exception as exc:  # Rails treats non-200 as transport failure: fails closed
+                self._json({"error": f"{exc}"}, status=500)
             return
         if self.path != "/v1/grade":
             return self.send_error(404)

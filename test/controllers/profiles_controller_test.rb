@@ -92,14 +92,36 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert @user.reload.authenticate("password-12-plus")
   end
 
-  test "oauth user changes email without current password" do
+  test "oauth user cannot change email without current password" do
     oauth = User.create!(name: "Oa", email: "oa@example.com", provider: "google_oauth2", uid: "1",
       password: "password12345678", password_confirmation: "password12345678")
     sign_in_as(oauth)
     patch profile_path, params: { user: { name: "Oa", email: "oa2@example.com" } }
 
+    assert_response :unprocessable_entity
+    assert_equal "oa@example.com", oauth.reload.email
+  end
+
+  test "oauth user changes email with current password" do
+    oauth = User.create!(name: "Oa2", email: "oa2a@example.com", provider: "google_oauth2", uid: "2",
+      password: "password12345678", password_confirmation: "password12345678")
+    sign_in_as(oauth)
+    patch profile_path, params: { user: { name: "Oa2", email: "oa2b@example.com", current_password: "password12345678" } }
+
     assert_redirected_to profile_path
-    assert_equal "oa2@example.com", oauth.reload.email
+    assert_equal "oa2b@example.com", oauth.reload.email
+  end
+
+  test "hijacked session cannot take over via email plus password" do
+    oauth = User.create!(name: "Oa3", email: "oa3@example.com", provider: "google_oauth2", uid: "3",
+      password: "password12345678", password_confirmation: "password12345678")
+    sign_in_as(oauth)
+    patch profile_path, params: { user: { name: "Oa3", email: "evil@example.com",
+      password: "evilpassword123", password_confirmation: "evilpassword123" } }
+
+    assert_response :unprocessable_entity
+    assert_equal "oa3@example.com", oauth.reload.email
+    assert oauth.reload.authenticate("password12345678")
   end
 
   test "duplicate email renders edit" do

@@ -40,6 +40,35 @@ class TrusteeGateTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "trustee cannot edit, update or destroy" do
+    sign_in_as(@trustee)
+    get edit_question_path(@question)
+
+    assert_response :forbidden
+
+    patch question_path(@question), params: { question: {
+      title: "Чужое", body: @question.body, answer_type: "text",
+      deadline: @question.deadline, reference_answer: @question.reference_answer } }
+
+    assert_response :forbidden
+    assert_not_equal "Чужое", @question.reload.title
+
+    assert_no_difference("Question.count") do
+      delete question_path(@question)
+    end
+
+    assert_response :forbidden
+  end
+
+  test "trustee sees no edit or delete buttons" do
+    sign_in_as(@trustee)
+    get question_path(@question)
+
+    assert_response :success
+    assert_select "a", text: "Редактировать", count: 0
+    assert_select "button", text: "Удалить", count: 0
+  end
+
   test "trustee sees publish and delete buttons on pending comment" do
     Comment.create!(question: @question, user: users(:one), body: "на модерации")
     sign_in_as(@trustee)
