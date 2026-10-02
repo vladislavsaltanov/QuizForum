@@ -42,7 +42,7 @@ gem "image_processing", "~> 1.2"
 
 # JSON 3.x changed JSON.parse to kwargs-only; ActiveSupport 8.1.3.1 still
 # calls JSON.parse(json, options) positionally. Pin to 2.x until Rails fixes it.
-gem "json", "< 3"
+gem "json", "< 4"
 
 # Google OAuth
 gem "omniauth"
