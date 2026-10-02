@@ -22,8 +22,9 @@ class CommentScrollTest < ApplicationSystemTestCase
     top, bottom, air = composer
     assert_operator top, :>=, 0, "поле ввода не должно уезжать под верхний край"
     assert_operator bottom, :<=, viewport_height, "поле ввода должно быть видно при открытии"
-    assert_operator air, :>=, 24, "поле ввода не должно липнуть к низу экрана"
+    assert_operator air, :>=, 24, "под полем ввода должен быть воздух"
     assert_operator composer_gap, :>=, 12, "полю ввода нужен отступ от ленты"
+    assert_operator last_bubble_clear, :>=, 1, "поле ввода не должно накрывать последний комментарий"
   end
 
   test "scrolling up is not dragged back down by a late re-layout" do
@@ -80,6 +81,14 @@ class CommentScrollTest < ApplicationSystemTestCase
 
     def viewport_height
       page.evaluate_script("window.innerHeight").to_f
+    end
+
+    # Distance from the newest bubble up to the composer: negative means covered.
+    def last_bubble_clear
+      page.evaluate_script(
+        "document.querySelector('.qf-chatbar').getBoundingClientRect().top - " \
+        "document.getElementById('comments').lastElementChild.getBoundingClientRect().bottom"
+      ).to_f
     end
 
     def composer_gap

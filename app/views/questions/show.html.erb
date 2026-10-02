@@ -100,6 +100,17 @@
               if (document.fonts && document.fonts.ready) { document.fonts.ready.then(qfBottom); }
               new MutationObserver(qfBottom).observe(qfChat, { childList: true });
               const qfPane = qfChat.closest("section");
+              // Cap the chat column at the room actually left below it, so the
+              // composer is on screen when the page opens and never needs to be
+              // sticky (a sticky one rides up and covers the newest bubble).
+              const qfFit = () => {
+                const qfRoom = window.innerHeight - qfPane.getBoundingClientRect().top - 28;
+                qfPane.style.maxBlockSize = Math.max(220, qfRoom) + "px";
+                qfBottom(); /* the pane just got shorter: re-pin the newest message */
+              };
+              qfFit();
+              requestAnimationFrame(qfFit);
+              window.addEventListener("resize", qfFit);
               const qfFade = () => qfPane.classList.toggle("is-scrolled", qfChat.scrollTop > 8);
               qfChat.addEventListener("scroll", qfFade, { passive: true });
               qfFade();
