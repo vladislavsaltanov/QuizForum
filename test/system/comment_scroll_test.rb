@@ -2,7 +2,8 @@ require "application_system_test_case"
 
 class CommentScrollTest < ApplicationSystemTestCase
   BOX = "(() => { const c = document.getElementById('comments'); return [c.scrollTop, c.scrollHeight, c.clientHeight]; })()"
-  BOTTOM_GAP = "(() => { const c = document.getElementById('comments'); const l = c.lastElementChild; return c.getBoundingClientRect().bottom - l.getBoundingClientRect().bottom; })()"
+  THREAD_GAP = "(() => { const c = document.getElementById('comments'); const l = c.lastElementChild; return c.getBoundingClientRect().bottom - l.getBoundingClientRect().bottom; })()"
+  COMPOSER = "(() => { const r = document.querySelector('.qf-chatbar').getBoundingClientRect(); return [r.top, r.bottom, window.innerHeight - r.bottom]; })()"
 
   # Paging is an async fetch plus a Turbo stream; give both room to land.
   def setup
@@ -10,13 +11,18 @@ class CommentScrollTest < ApplicationSystemTestCase
     super
   end
 
-  test "chat opens on the newest message and keeps its gap from the input" do
+  test "chat opens on the newest message, fully on screen with air around it" do
     open_chat(25)
 
     assert_selector "#comments .qf-msg", count: 10
     scroll_top, height, client = box
-    assert_equal height - client, scroll_top, "панель должна открыться на последнем сообщении"
-    assert_operator bottom_gap, :>=, 16, "под последним сообщением нужен отступ"
+    assert_equal height - client, scroll_top, "лента должна открыться на последнем сообщении"
+    assert_operator thread_gap, :>=, 16, "под последним сообщением нужен отступ"
+
+    top, bottom, air = composer
+    assert_operator top, :>=, 0, "поле ввода не должно уезжать под верхний край"
+    assert_operator bottom, :<=, viewport_height, "поле ввода должно быть видно при открытии"
+    assert_operator air, :>=, 24, "поле ввода не должно липнуть к низу экрана"
     assert_operator composer_gap, :>=, 12, "полю ввода нужен отступ от ленты"
   end
 
@@ -63,11 +69,23 @@ class CommentScrollTest < ApplicationSystemTestCase
       page.evaluate_script(BOX)
     end
 
-    def bottom_gap
-      page.evaluate_script(BOTTOM_GAP).to_f
+    def thread_gap
+      page.evaluate_script(THREAD_GAP).to_f
+    end
+
+    # [top, bottom, air below the composer]
+    def composer
+      page.evaluate_script(COMPOSER).map(&:to_f)
+    end
+
+    def viewport_height
+      page.evaluate_script("window.innerHeight").to_f
     end
 
     def composer_gap
-      page.evaluate_script("(() => { const t = document.querySelector('.qf-chatbar').getBoundingClientRect(); const c = document.getElementById('comments').getBoundingClientRect(); return t.top - c.bottom; })()").to_f
+      page.evaluate_script(
+        "document.querySelector('.qf-chatbar').getBoundingClientRect().top - " \
+        "document.getElementById('comments').getBoundingClientRect().bottom"
+      ).to_f
     end
 end

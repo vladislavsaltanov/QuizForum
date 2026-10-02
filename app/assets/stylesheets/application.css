@@ -651,11 +651,13 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 .qf-bubble .qf-ghost { margin-top: 8px; padding: 4px 14px; font-size: 12px; }
 
 .qf-chatbar {
-  margin-block-start: 16px;
+  position: sticky; bottom: 28px;
+  margin-block: 16px 28px;
   display: flex; gap: 8px; align-items: flex-end;
   background: var(--qf-paper);
   border: 2px solid var(--qf-border); border-radius: 20px;
   padding: 8px 8px 8px 18px;
+  box-shadow: 0 14px 26px -16px rgb(25 35 47 / 0.6);
   transition: border-color .18s ease;
 }
 .qf-chatbar:focus-within { border-color: var(--qf-ink); }
