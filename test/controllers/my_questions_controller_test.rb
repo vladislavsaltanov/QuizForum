@@ -57,6 +57,32 @@ class MyQuestionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "section[aria-label='Наблюдаемые вопросы'] .qf-card", count: 0
   end
 
+  test "own questions are paged by 20 under a pager" do
+    22.times { |i| own_question("Свои #{i}") }
+
+    get my_questions_path
+    assert_select "section[aria-label='Мои вопросы'] .qf-card", count: 20
+    assert_select "section[aria-label='Мои вопросы'] + .qf-pager a[href*='page=2']", minimum: 1
+
+    get my_questions_path, params: { page: 2 }
+    assert_select "section[aria-label='Мои вопросы'] .qf-card", count: 5
+  end
+
+  test "trustee questions get their own page key" do
+    22.times do |i|
+      observed = Question.create!(title: "Наблюдаемый #{i}", body: "Тело", answer_type: "text",
+                                 reference_answer: "Ответ", deadline: 7.days.from_now, author: users(:two))
+      observed.question_trustees.create!(user: @user)
+    end
+
+    get my_questions_path
+    assert_select "section[aria-label='Наблюдаемые вопросы'] .qf-card", count: 20
+    assert_select "section[aria-label='Наблюдаемые вопросы'] + .qf-pager a[href*='t_page=2']", minimum: 1
+
+    get my_questions_path, params: { t_page: 2 }
+    assert_select "section[aria-label='Наблюдаемые вопросы'] .qf-card", count: 2
+  end
+
   test "empty state for fresh user" do
     fresh = User.create!(name: "Fresh", email: "fresh@example.com",
                          password: "password12345678", password_confirmation: "password12345678")
@@ -66,4 +92,10 @@ class MyQuestionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".qf-card", count: 0
     assert_select ".qf-empty", text: /ничего не опубликовали/
   end
+
+  private
+    def own_question(title)
+      Question.create!(title: title, body: "Тело", answer_type: "text",
+                       reference_answer: "Ответ", deadline: 7.days.from_now, author: @user)
+    end
 end

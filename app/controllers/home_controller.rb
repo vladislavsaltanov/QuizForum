@@ -1,5 +1,7 @@
 # Landing: searchable, filterable question index.
 class HomeController < ApplicationController
+  include Paginates
+
   # Collects filter params and the filtered question list for the index view.
   def show
     @user = Current.user
@@ -9,7 +11,7 @@ class HomeController < ApplicationController
     @topic = params[:topic].to_s
     @authors = User.joins(:authored_questions).distinct.order(:name).pluck(:name)
     @topics = (Question.pluck(:tags).flatten.uniq - Question::DIFFICULTIES).sort
-    @questions = filter_questions.includes(:author)
+    @questions = paginate(filter_questions).includes(:author)
   end
 
   private

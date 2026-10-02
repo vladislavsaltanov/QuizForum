@@ -1,0 +1,21 @@
+<% return if pager[:pages] <= 1 %>
+<% query = request.query_parameters.except(pager[:key].to_s).reject { |_, v| v.blank? } %>
+<% page_url = ->(n) { "#{request.path}?#{query.merge(pager[:key].to_s => n).to_query}" } %>
+<nav class="qf-pager" aria-label="Постраничная навигация">
+  <% if pager[:number] > 1 %>
+    <%= link_to "← Назад", page_url.call(pager[:number] - 1), class: "qf-pager-step", rel: "prev" %>
+  <% end %>
+  <% pager_numbers(pager[:number], pager[:pages]).each do |number| %>
+    <% if number == :gap %>
+      <span class="qf-pager-gap" aria-hidden="true">…</span>
+    <% else %>
+      <%= link_to number, page_url.call(number),
+            class: "qf-pager-num#{' is-active' if number == pager[:number]}",
+            "aria-current" => ("page" if number == pager[:number]) %>
+    <% end %>
+  <% end %>
+  <% if pager[:number] < pager[:pages] %>
+    <%= link_to "Вперёд →", page_url.call(pager[:number] + 1), class: "qf-pager-step", rel: "next" %>
+  <% end %>
+  <span class="qf-pager-count">Стр. <%= pager[:number] %> из <%= pager[:pages] %></span>
+</nav>

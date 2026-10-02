@@ -61,7 +61,7 @@
           <%= link_to "Комментарии", question_path(@question, tab: "comments"), class: "qf-tab#{' is-active' if @tab == 'comments'}", role: "tab" %>
         </div>
         <% unless @tab == "answers" %>
-          <p class="qf-count">Обсуждение · <%= @comments.size %></p>
+          <p class="qf-count">Обсуждение · <%= @comments_total %></p>
         <% end %>
       </div>
 
@@ -70,6 +70,7 @@
       <% else %>
         <%= turbo_stream_from @question %>
         <div id="comments" class="qf-chat">
+          <%= render "comments/more_marker", before: @comments.first&.id, url: question_comments_path(@question) if @has_older %>
           <% if @comments.empty? %>
             <p class="qf-empty">Пока тихо — начните обсуждение первым.</p>
           <% end %>
@@ -84,16 +85,66 @@
           {
             const qfChat = document.getElementById("comments");
             if (qfChat) {
-              const qfBottom = () => qfChat.scrollTo({ top: qfChat.scrollHeight });
+              // Before the reader scrolls anything, every late re-layout (fonts,
+              // load) must still land on the newest message. After that, follow
+              // only while they are parked at the bottom, so a late callback can
+              // never yank them back down mid-read.
+              let qfReaderMoved = false;
+              const qfBottom = () => {
+                const atBottom = qfChat.scrollHeight - qfChat.scrollTop - qfChat.clientHeight < 24;
+                if (!qfReaderMoved || atBottom) qfChat.scrollTo({ top: qfChat.scrollHeight });
+              };
               qfBottom();
               requestAnimationFrame(qfBottom);
               window.addEventListener("load", qfBottom);
               if (document.fonts && document.fonts.ready) { document.fonts.ready.then(qfBottom); }
               new MutationObserver(qfBottom).observe(qfChat, { childList: true });
               const qfPane = qfChat.closest("section");
+              // Cap the chat column at the room actually left below it, so the
+              // composer is on screen when the page opens and never needs to be
+              // sticky (a sticky one rides up and covers the newest bubble).
+              const qfFit = () => {
+                const qfRoom = window.innerHeight - qfPane.getBoundingClientRect().top - 28;
+                qfPane.style.maxBlockSize = Math.max(220, qfRoom) + "px";
+                qfBottom(); /* the pane just got shorter: re-pin the newest message */
+              };
+              qfFit();
+              requestAnimationFrame(qfFit);
+              window.addEventListener("resize", qfFit);
               const qfFade = () => qfPane.classList.toggle("is-scrolled", qfChat.scrollTop > 8);
               qfChat.addEventListener("scroll", qfFade, { passive: true });
               qfFade();
+              // Reaching the top asks for the next 10 older comments; the
+              // scroll offset is restored so the reader stays on the same bubble.
+              let qfBusy = false;
+              const qfLoadOlder = async () => {
+                const qfMore = qfChat.querySelector("#comments-more");
+                if (qfBusy || !qfMore) return;
+                qfBusy = true;
+                const prevHeight = qfChat.scrollHeight, prevTop = qfChat.scrollTop;
+                try {
+                  const qfRes = await fetch(`${qfMore.dataset.url}?before=${qfMore.dataset.before}`,
+                    { headers: { Accept: "text/vnd.turbo-stream.html" } });
+                  if (qfRes.ok) Turbo.renderStreamMessage(await qfRes.text());
+                } finally {
+                  qfBusy = false;
+                }
+                // Turbo applies a stream asynchronously, so wait for the prepended
+                // rows to be laid out before pinning the reader back to the same
+                // bubble. Restoring earlier reads a stale height and lurches.
+                let tries = 0;
+                const qfPin = () => {
+                  const grown = qfChat.scrollHeight - prevHeight;
+                  if (grown === 0 && tries++ < 20) { requestAnimationFrame(qfPin); return; }
+                  qfReaderMoved = true;
+                  qfChat.scrollTop = prevTop + grown;
+                };
+                requestAnimationFrame(qfPin);
+              };
+              qfChat.addEventListener("scroll", () => {
+                if (qfChat.scrollTop > 8) qfReaderMoved = true;
+                if (qfChat.scrollTop < 40) qfLoadOlder();
+              }, { passive: true });
               const qfInput = qfPane.querySelector(".qf-chat-input");
               if (qfInput) { qfInput.addEventListener("focus", () => setTimeout(qfBottom, 300)); }
               if (window.visualViewport) { window.visualViewport.addEventListener("resize", qfBottom); }

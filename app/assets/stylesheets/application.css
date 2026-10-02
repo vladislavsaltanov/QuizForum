@@ -204,6 +204,18 @@ body {
   color: var(--qf-mute);
 }
 .qf-section-title + .qf-cards { margin-top: 16px; }
+.qf-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 28px; }
+.qf-pager-num, .qf-pager-step {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-inline-size: 2.5rem; padding: 0.5rem 0.75rem;
+  border: 1px solid var(--qf-border); border-radius: var(--qf-radius-md);
+  color: var(--qf-ink); text-decoration: none; font-family: var(--qf-mono); font-size: 0.875rem;
+}
+.qf-pager-num:hover, .qf-pager-step:hover { border-color: var(--qf-ink); }
+.qf-pager-num.is-active { background: var(--qf-ink); border-color: var(--qf-ink); color: var(--qf-paper); }
+.qf-pager-gap, .qf-pager-count { font-family: var(--qf-mono); font-size: 0.8125rem; color: var(--qf-mute); }
+.qf-pager-count { margin-inline-start: 4px; }
+#comments-more { display: none; }
 .qf-divider { margin: 44px 0 0; }
 .qf-list-top { margin-bottom: 20px; }
 a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
@@ -416,8 +428,8 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   background: color-mix(in srgb, var(--qf-paper) 72%, transparent);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 20px);
-  mask-image: linear-gradient(to bottom, transparent 0, black 20px);
+  -webkit-mask-image: linear-gradient(to bottom, black 0, black 1px);
+  mask-image: linear-gradient(to bottom, black 0, black 1px);
 }
 .qf-list-head .qf-tabs { margin-bottom: 14px; }
 .qf-list-head .qf-count { margin: 0 0 4px; }
@@ -430,9 +442,9 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   padding-left: 72px;
   margin-right: -72px;
   padding-right: 72px;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 20px, black calc(100% - 14px), transparent 100%), linear-gradient(to right, transparent 0, black 32px, black calc(100% - 32px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0, black calc(100% - 14px), transparent 100%), linear-gradient(to right, transparent 0, black 32px, black calc(100% - 32px), transparent 100%);
   -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(to bottom, transparent 0, black 20px, black calc(100% - 14px), transparent 100%), linear-gradient(to right, transparent 0, black 32px, black calc(100% - 32px), transparent 100%);
+  mask-image: linear-gradient(to bottom, black 0, black calc(100% - 14px), transparent 100%), linear-gradient(to right, transparent 0, black 32px, black calc(100% - 32px), transparent 100%);
   mask-composite: intersect;
 }
 .is-comments .qf-list-head::after {
@@ -612,7 +624,18 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 textarea.qf-answer-area.qf-code { min-height: 380px; }
 
 /* Chat: avatar + bubble rows, author tinted. */
-.qf-chat { display: grid; gap: 14px; margin-bottom: 16px; max-height: 55vh; overflow-y: auto; padding-right: 6px; }
+/* The comments pane is a self-contained chat: the thread scrolls inside it, the
+   composer sits under it in normal flow. Height is fitted to the viewport by the
+   inline script (qfFit), so the composer is on screen when the page opens and a
+   sticky one can never ride up and cover the newest bubble. */
+.qf-pane.is-comments { display: flex; flex-direction: column; max-block-size: 70vh; }
+.qf-pane.is-comments .qf-chat { flex: 1 1 auto; min-block-size: 0; max-block-size: none; }
+
+.qf-chat {
+  display: grid; gap: 14px; margin-bottom: 0; max-height: 55vh;
+  overflow-y: auto; overflow-anchor: none; /* we restore the offset ourselves on prepend */
+  padding: 0 6px 18px 0;
+}
 .qf-msg { display: flex; gap: 10px; align-items: flex-start; }
 .qf-bubble {
   flex: 1; min-width: 0;
@@ -635,7 +658,8 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 .qf-bubble .qf-ghost { margin-top: 8px; padding: 4px 14px; font-size: 12px; }
 
 .qf-chatbar {
-  position: sticky; bottom: 12px;
+  flex: none;
+  margin-block: 16px 0;
   display: flex; gap: 8px; align-items: flex-end;
   background: var(--qf-paper);
   border: 2px solid var(--qf-border); border-radius: 20px;

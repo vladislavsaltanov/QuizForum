@@ -13,7 +13,7 @@ Rails.application.routes.draw do
     resources :attempts, only: %i[ create ] do
       patch :verdict, on: :member
     end
-    resources :comments, only: %i[create destroy] do
+    resources :comments, only: %i[index create destroy] do
       patch :approve, on: :member
     end
     resources :reports, only: %i[ create ]

@@ -1,5 +1,7 @@
 # Public question pages with deadline-based visibility of answers and comments.
 class QuestionsController < ApplicationController
+  COMMENT_BATCH = 10
+
   rate_limit to: 10, within: 3.minutes, only: %i[create update],
              with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
 
@@ -14,6 +16,8 @@ class QuestionsController < ApplicationController
     @attempts = visible_attempts
     @respondent_names = respondent_names
     @comments = visible_comments
+    @comments_total = Comment.visible_for(@question, Current.user).count
+    @has_older = @comments_total > @comments.size
     @stats = @question.attempts.group(:verdict).count if @question.closed? || @is_author
   end
 
@@ -102,11 +106,9 @@ class QuestionsController < ApplicationController
       @question.attempts.joins(:user).where.not(user: Current.user).distinct.pluck("users.name")
     end
 
-    # Approved plus own comments; pending never opens, even after reveal.
+    # Newest batch, flipped for the chat; older ones arrive on scroll up.
     def visible_comments
-      scope = @question.comments.includes(:user).order(:created_at)
-      return scope if @is_author
-      scope.where(status: "approved").or(scope.where(user: Current.user))
+      Comment.visible_for(@question, Current.user).includes(:user).order(id: :desc).limit(COMMENT_BATCH).reverse
     end
 
     # Whitelisted question form fields.

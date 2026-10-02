@@ -8,7 +8,8 @@
 <%= render "shared/header", active: "main" %>
 
 <main class="qf-main qf-main-home">
-  <p class="qf-kicker">Открытые вопросы · <%= @questions.size %></p>
+  <% pager = @pagers[:page] %>
+  <p class="qf-kicker">Открытые вопросы · <%= pager[:count] %></p>
   <h1 class="qf-hero">Вопросы</h1>
 
   <%= form_with url: root_path, method: :get, class: "qf-search", role: "search" do %>
@@ -46,8 +47,10 @@
     <% end %>
   </section>
 
+  <%= render "shared/pager", pager: pager %>
+
   <footer class="qf-footer">
     <span>QuizForum</span>
-    <span><%= @questions.size %> открытых вопросов</span>
+    <span><%= pager[:count] %> открытых вопросов</span>
   </footer>
 </main>

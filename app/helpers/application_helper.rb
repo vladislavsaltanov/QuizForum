@@ -41,6 +41,15 @@ module ApplicationHelper
     "qf-verdict-#{verdict}"
   end
 
+  # Page numbers around the current one; :gap stands in for skipped pages.
+  def pager_numbers(number, pages, window: 2)
+    wanted = ([ *1..pages ] & [ number, number - window, number + window ]).sort
+    wanted.each_with_object([]) do |n, out|
+      out << :gap if out.last.is_a?(Integer) && n - out.last > 1
+      out << n
+    end
+  end
+
   # Two-letter avatar initials.
   def initials(name)
     name.to_s.split.first(2).map(&:first).join.upcase

@@ -1,7 +1,23 @@
 # Premoderated comments; Laya sync-gate rejects toxic before INSERT.
 class CommentsController < ApplicationController
+  BATCH = 10
+
   rate_limit to: 10, within: 3.minutes, only: :create,
              with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
+
+  # Older batch prepended when the reader scrolls the chat up; the cursor is the
+  # id of the oldest comment already on screen.
+  def index
+    @question = Question.find(params[:question_id])
+    scope = Comment.visible_for(@question, Current.user).order(id: :desc)
+    scope = scope.where("comments.id < ?", params[:before].to_i) if params[:before].present?
+    # One extra row tells us whether another batch is waiting behind this one.
+    batch = scope.limit(BATCH + 1).to_a
+    @older = batch.first(BATCH).reverse
+    @exhausted = batch.size <= BATCH
+    # The cursor endpoint only ever answers Turbo; a stray bookmark gets nothing.
+    head(:no_content) unless request.format.turbo_stream?
+  end
 
   # Posts a comment; Laya pass publishes immediately, review stays pending.
   def create
