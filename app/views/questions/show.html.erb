@@ -85,8 +85,15 @@
           {
             const qfChat = document.getElementById("comments");
             if (qfChat) {
-              let qfAtBottom = true;
-              const qfBottom = () => { if (qfAtBottom) qfChat.scrollTo({ top: qfChat.scrollHeight }); };
+              // Before the reader scrolls anything, every late re-layout (fonts,
+              // load) must still land on the newest message. After that, follow
+              // only while they are parked at the bottom, so a late callback can
+              // never yank them back down mid-read.
+              let qfReaderMoved = false;
+              const qfBottom = () => {
+                const atBottom = qfChat.scrollHeight - qfChat.scrollTop - qfChat.clientHeight < 24;
+                if (!qfReaderMoved || atBottom) qfChat.scrollTo({ top: qfChat.scrollHeight });
+              };
               qfBottom();
               requestAnimationFrame(qfBottom);
               window.addEventListener("load", qfBottom);
@@ -110,12 +117,21 @@
                   if (qfRes.ok) Turbo.renderStreamMessage(await qfRes.text());
                 } finally {
                   qfBusy = false;
-                  qfAtBottom = false;
-                  qfChat.scrollTop = prevTop + (qfChat.scrollHeight - prevHeight);
                 }
+                // Turbo applies a stream asynchronously, so wait for the prepended
+                // rows to be laid out before pinning the reader back to the same
+                // bubble. Restoring earlier reads a stale height and lurches.
+                let tries = 0;
+                const qfPin = () => {
+                  const grown = qfChat.scrollHeight - prevHeight;
+                  if (grown === 0 && tries++ < 20) { requestAnimationFrame(qfPin); return; }
+                  qfReaderMoved = true;
+                  qfChat.scrollTop = prevTop + grown;
+                };
+                requestAnimationFrame(qfPin);
               };
               qfChat.addEventListener("scroll", () => {
-                qfAtBottom = qfChat.scrollHeight - qfChat.scrollTop - qfChat.clientHeight < 24;
+                if (qfChat.scrollTop > 8) qfReaderMoved = true;
                 if (qfChat.scrollTop < 40) qfLoadOlder();
               }, { passive: true });
               const qfInput = qfPane.querySelector(".qf-chat-input");
