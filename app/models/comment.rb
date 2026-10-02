@@ -16,6 +16,13 @@ class Comment < ApplicationRecord
     status == "approved"
   end
 
+  # Approved plus own comments; every status for the privileged viewer.
+  def self.visible_for(question, user)
+    scope = where(question: question)
+    return scope if question.privileged?(user)
+    scope.where(status: "approved").or(scope.where(user: user))
+  end
+
   private
     # Broadcast only comments everyone may already see.
     def visible_live?

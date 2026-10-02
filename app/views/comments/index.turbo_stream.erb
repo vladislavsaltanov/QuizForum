@@ -1,0 +1,10 @@
+<%= turbo_stream.prepend "comments" do %>
+  <%= render partial: "comments/comment", collection: @older %>
+<% end %>
+<% if @exhausted %>
+  <%= turbo_stream.remove "comments-more" %>
+<% elsif @older.any? %>
+  <%= turbo_stream.replace "comments-more" do %>
+    <%= render "comments/more_marker", before: @older.first.id, url: question_comments_path(@question) %>
+  <% end %>
+<% end %>

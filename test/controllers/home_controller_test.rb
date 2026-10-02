@@ -65,4 +65,55 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select ".qf-card", count: 1
     assert_select ".qf-card-title", text: /TCP/
   end
+
+  test "splits the index into pages of 20 questions" do
+    40.times { |i| bulk_question("Массовый #{i}") }
+    sign_in_as(users(:one))
+
+    get root_path
+    assert_select ".qf-card", count: 20
+    assert_select ".qf-kicker", text: /Открытые вопросы · 45/
+
+    get root_path, params: { page: 2 }
+    assert_select ".qf-card", count: 20
+
+    get root_path, params: { page: 3 }
+    assert_select ".qf-card", count: 5
+  end
+
+  test "pager sits under the cards and keeps the active filters" do
+    25.times { |i| bulk_question("Массовый #{i}") }
+    sign_in_as(users(:one))
+    get root_path, params: { difficulty: "среднее" }
+
+    assert_select ".qf-cards + .qf-pager" do
+      assert_select "a[href*='page=2']", minimum: 1
+      assert_select "a[href*='difficulty=%D1%81%D1%80%D0%B5%D0%B4%D0%BD%D0%B5%D0%B5']", minimum: 1
+    end
+  end
+
+  test "pager marks the current page and clamps a page past the last one" do
+    25.times { |i| bulk_question("Массовый #{i}") }
+    sign_in_as(users(:one))
+    get root_path, params: { page: 99 }
+
+    assert_response :success
+    assert_select ".qf-card", count: 10
+    assert_select ".qf-pager [aria-current=page]", text: "2"
+  end
+
+  test "single page of results renders no pager" do
+    sign_in_as(users(:one))
+    get root_path, params: { q: "подстроки" }
+
+    assert_select ".qf-card", count: 1
+    assert_select ".qf-pager", count: 0
+  end
+
+  private
+    def bulk_question(title)
+      Question.create!(title: title, body: "Тело", answer_type: "text",
+                       reference_answer: "Ответ", deadline: 7.days.from_now,
+                       author: users(:one), tags: [ "среднее" ])
+    end
 end

@@ -204,6 +204,18 @@ body {
   color: var(--qf-mute);
 }
 .qf-section-title + .qf-cards { margin-top: 16px; }
+.qf-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 28px; }
+.qf-pager-num, .qf-pager-step {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-inline-size: 2.5rem; padding: 0.5rem 0.75rem;
+  border: 1px solid var(--qf-border); border-radius: var(--qf-radius-md);
+  color: var(--qf-ink); text-decoration: none; font-family: var(--qf-mono); font-size: 0.875rem;
+}
+.qf-pager-num:hover, .qf-pager-step:hover { border-color: var(--qf-ink); }
+.qf-pager-num.is-active { background: var(--qf-ink); border-color: var(--qf-ink); color: var(--qf-paper); }
+.qf-pager-gap, .qf-pager-count { font-family: var(--qf-mono); font-size: 0.8125rem; color: var(--qf-mute); }
+.qf-pager-count { margin-inline-start: 4px; }
+#comments-more { display: none; }
 .qf-divider { margin: 44px 0 0; }
 .qf-list-top { margin-bottom: 20px; }
 a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
