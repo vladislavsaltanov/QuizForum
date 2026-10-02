@@ -627,7 +627,7 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 .qf-chat {
   display: grid; gap: 14px; margin-bottom: 16px; max-height: 55vh;
   overflow-y: auto; overflow-anchor: none; /* we restore the offset ourselves on prepend */
-  padding: 0 6px 10px 0;
+  padding: 0 6px 18px 0;
 }
 .qf-msg { display: flex; gap: 10px; align-items: flex-start; }
 .qf-bubble {
@@ -651,7 +651,7 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 .qf-bubble .qf-ghost { margin-top: 8px; padding: 4px 14px; font-size: 12px; }
 
 .qf-chatbar {
-  position: sticky; bottom: 12px;
+  margin-block-start: 16px;
   display: flex; gap: 8px; align-items: flex-end;
   background: var(--qf-paper);
   border: 2px solid var(--qf-border); border-radius: 20px;

@@ -16,7 +16,8 @@ class CommentScrollTest < ApplicationSystemTestCase
     assert_selector "#comments .qf-msg", count: 10
     scroll_top, height, client = box
     assert_equal height - client, scroll_top, "панель должна открыться на последнем сообщении"
-    assert_operator bottom_gap, :>=, 8, "под последним сообщением нужен отступ"
+    assert_operator bottom_gap, :>=, 16, "под последним сообщением нужен отступ"
+    assert_operator composer_gap, :>=, 12, "полю ввода нужен отступ от ленты"
   end
 
   test "scrolling up is not dragged back down by a late re-layout" do
@@ -64,5 +65,9 @@ class CommentScrollTest < ApplicationSystemTestCase
 
     def bottom_gap
       page.evaluate_script(BOTTOM_GAP).to_f
+    end
+
+    def composer_gap
+      page.evaluate_script("(() => { const t = document.querySelector('.qf-chatbar').getBoundingClientRect(); const c = document.getElementById('comments').getBoundingClientRect(); return t.top - c.bottom; })()").to_f
     end
 end
