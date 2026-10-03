@@ -28,7 +28,9 @@ Rails.application.configure do
   # config.assume_ssl = true
 
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
-  config.force_ssl = true
+  # compose sets FORCE_SSL=false for plain-HTTP servers (Thruster without
+  # TLS_DOMAIN); set it to true when TLS_DOMAIN or a reverse proxy is in front.
+  config.force_ssl = ENV.fetch("FORCE_SSL", "true") == "true"
 
   # Skip http-to-https redirect for the default health check endpoint.
   config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
@@ -58,6 +60,20 @@ Rails.application.configure do
 
   # Set host to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST", "example.com") }
+
+  # Gmail SMTP, same shape as development. Blank password = no SMTP
+  # (registration emails cannot send — set GMAIL_APP_PASSWORD on deploy).
+  if ENV["GMAIL_APP_PASSWORD"].present?
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.smtp_settings = {
+      address: "smtp.gmail.com",
+      port: 587,
+      user_name: ENV.fetch("GMAIL_USERNAME", ENV["SMTP_LOGIN"]),
+      password: ENV["GMAIL_APP_PASSWORD"],
+      authentication: :plain,
+      enable_starttls_auto: true
+    }
+  end
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
   # config.action_mailer.smtp_settings = {

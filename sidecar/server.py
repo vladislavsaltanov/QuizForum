@@ -18,7 +18,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("HF_HOME", os.path.join(ROOT, "weights", "hf-cache"))
 
-import torch
+import torch  # noqa: E402
 
 torch.set_num_threads(1)
 
@@ -37,7 +37,6 @@ overlap = set(MOD_Q) & set(GUARD_Q)
 if overlap:
     raise SystemExit(f"preset key collision: {overlap}")
 QUESTIONS = {**MOD_Q, **GUARD_Q}
-
 
 MAT = re.compile(r"\b(хуй|пизд|бля|еб|сук|пидор|мудак|залуп|дроч|гондон|шлюх|трах|сперм|сись|пись|наху|оху|поху|заеб)\w*", re.IGNORECASE)
 
@@ -67,7 +66,6 @@ snapshot_download(repo_id=grade.MODEL_ID, revision=grade.OPENJEV_REVISION,
 GRADE_DTYPE = grade.load_grader()
 # CPU inference is heavy: at most two concurrent grades, the rest get 503 busy.
 GRADE_SEM = threading.Semaphore(2)
-
 
 class Handler(BaseHTTPRequestHandler):
     def _json(self, payload, status=200):
@@ -109,11 +107,13 @@ class Handler(BaseHTTPRequestHandler):
         finally:
             GRADE_SEM.release()
 
-
 if __name__ == "__main__":
     try:
         port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
     except ValueError as err:
         raise SystemExit(f"bad port: {sys.argv[1]}") from err
-    print(f"laya sidecar on :{port} (multilingual + openjev-0.8b/{GRADE_DTYPE}, CPU)", flush=True)
-    ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
+    # Container networking: compose sets SIDECAR_HOST=0.0.0.0.
+    # Local default unchanged (127.0.0.1).
+    host = os.environ.get("SIDECAR_HOST", "127.0.0.1")
+    print(f"laya sidecar on {host}:{port} (multilingual + openjev-0.8b/{GRADE_DTYPE}, CPU)", flush=True)
+    ThreadingHTTPServer((host, port), Handler).serve_forever()
