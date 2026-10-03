@@ -32,11 +32,11 @@ class QuestionsController < ApplicationController
     @question.tags = params[:question][:tags_string].to_s.split(",").map(&:strip).reject(&:empty?)
     @question.options = parse_options if @question.choice?
     moderation_blocked? if @question.valid?
-    if @question.errors.empty? && @question.save
-      _, trustee_alert = @question.sync_trustees_by_emails(params[:question][:trustee_emails]) if params[:question].key?(:trustee_emails)
-      redirect_to @question, notice: "Вопрос опубликован.", alert: trustee_alert
+    saved, @trustee_alert = @question.errors.empty? ? save_with_trustees : [ false, nil ]
+    if saved
+      redirect_to @question, notice: "Вопрос опубликован.", alert: @trustee_alert
     else
-      flash.now[:alert] = @question.errors.full_messages.to_sentence
+      flash.now[:alert] = @question.errors.full_messages.to_sentence.presence || "Не удалось сохранить. Повторите."
       render :new, status: :unprocessable_entity
     end
   end
@@ -56,14 +56,12 @@ class QuestionsController < ApplicationController
     @question.tags = params[:question][:tags_string].to_s.split(",").map(&:strip).reject(&:empty?)
     @question.options = parse_options if @question.choice?
     moderation_blocked? if @question.valid?
-    if @question.errors.empty? && @question.save
-      if params[:question].key?(:trustee_emails) && @question.managed_by?(Current.user)
-        _, trustee_alert = @question.sync_trustees_by_emails(params[:question][:trustee_emails])
-      end
-      redirect_to @question, notice: "Вопрос обновлён.", alert: trustee_alert
+    saved, @trustee_alert = @question.errors.empty? ? save_with_trustees : [ false, nil ]
+    if saved
+      redirect_to @question, notice: "Вопрос обновён.", alert: @trustee_alert
     else
       @can_manage_trustees = @question.managed_by?(Current.user)
-      flash.now[:alert] = @question.errors.full_messages.to_sentence
+      flash.now[:alert] = @question.errors.full_messages.to_sentence.presence || "Не удалось сохранить. Повторите."
       render :edit, status: :unprocessable_entity
     end
   end
@@ -77,6 +75,34 @@ class QuestionsController < ApplicationController
   end
 
   private
+    # Question row and trustee grants commit as one unit: a sync that blows up must
+    # not leave a published question that nobody observes. requires_new keeps that
+    # unit atomic even when the caller already sits inside another transaction.
+    # Returns [saved, alert].
+    def save_with_trustees
+      Question.transaction(requires_new: true) do
+        if @question.save
+          [ true, trustee_sync_alert ]
+        else
+          [ false, nil ]
+        end
+      end
+    rescue ActiveRecord::RecordNotUnique
+      # Two saves raced on the unique grant index; the savepoint undid the question too.
+      flash[:modal] = [ "Параллельное сохранение: список наблюдателей не применён. Повторите правку." ]
+      [ false, nil ]
+    end
+
+    # nil when the form left the trustee field alone or the actor may not manage it.
+    # Per-address reasons go to the modal, the one-line summary stays in the toast.
+    def trustee_sync_alert
+      return unless params[:question].key?(:trustee_emails)
+      return unless @question.managed_by?(Current.user)
+      _, alert, problems = @question.sync_trustees_by_emails(params[:question][:trustee_emails])
+      flash[:modal] = problems if problems.any?
+      alert
+    end
+
     # Laya sync-gate on public text including reference and explanation.
     def moderation_blocked?
       moderation_text = [ @question.title, @question.body, @question.tags.join(" "),

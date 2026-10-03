@@ -69,21 +69,33 @@ class Question < ApplicationRecord
     editable_by?(user)
   end
 
-  # Replace the trustee set from comma-separated emails; returns [ok, alert].
+  # Replace the trustee set from comma-separated emails; returns [ok, alert, problems].
+  # problems is one "email — reason" line per address that did not become a trustee.
   def sync_trustees_by_emails(raw)
     emails = raw.to_s.split(",").map { it.strip.downcase }.reject(&:empty?).uniq
     users = User.where(email: emails).index_by(&:email)
-    question_trustees.where.not(user_id: users.values.map(&:id)).destroy_all
-    failed = users.values.count do |u|
-      grant = question_trustees.find_or_initialize_by(user: u)
-      !grant.save
+    kept = users.values.map(&:id)
+    rejected = []
+    # Grant before revoke, in one transaction: a rejected email (author, race)
+    # must never leave the question with fewer observers than it started with.
+    transaction do
+      users.each_value do |u|
+        rejected << u unless question_trustees.find_or_initialize_by(user: u).save
+      end
+      question_trustees.where.not(user_id: kept).destroy_all if rejected.empty?
     end
-    granted = users.size - failed
-    return [ true, nil ] if granted == emails.size
-    [ false, "Добавлено наблюдателей: #{granted} из #{emails.size}." ]
+    problems = trustee_problems(emails, users.keys, rejected)
+    return [ true, nil, [] ] if problems.empty?
+    [ false, "Добавлено наблюдателей: #{emails.size - problems.size} из #{emails.size}.", problems ]
   end
 
   private
+    # Why each address failed: unknown mailbox, or a grant the model refused.
+    def trustee_problems(emails, found, rejected)
+      (emails - found).map { "#{it} — нет пользователя с таким email" } +
+        rejected.map { "#{it.email} — #{it.id == author_id ? "это вы, автор вопроса" : "не удалось сохранить"}" }
+    end
+
     # Blank option rows from the static form never reach grading.
     def compact_options
       self.options = Array(options).filter_map do |o|

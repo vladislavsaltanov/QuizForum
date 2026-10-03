@@ -750,3 +750,12 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 .qf-modal-card .qf-section-title { margin-top: 13px; }
 .qf-jury > .qf-hint { display: block; margin: 14px 0 12px; }
 .qf-answered-at { display: block; margin: -3px 0 14px; } /* именной оверрайт: половина зазора шапки (8px − 3px) */
+
+/* Per-address trustee failures: native <dialog>, opened by showModal(). */
+.qf-modal {
+  border: none; border-radius: 14px; padding: 1.5rem; max-width: 30rem;
+  background: #fffdf8; box-shadow: 0 24px 60px rgb(0 0 0 / .28);
+}
+.qf-modal::backdrop { background: rgb(24 18 14 / .45); }
+.qf-modal-title { margin: 0 0 .75rem; font-size: 1.05rem; }
+.qf-modal-list { margin: 0 0 1.25rem; padding-left: 1.1rem; display: grid; gap: .4rem; }

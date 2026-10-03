@@ -29,6 +29,16 @@
       <% if alert %><p class="qf-alert"><%= alert %></p><% end %>
     </div>
     <%= yield %>
+    <% if flash[:modal] %>
+      <dialog class="qf-modal" id="qf-modal">
+        <h2 class="qf-modal-title">Наблюдатели не применены</h2>
+        <ul class="qf-modal-list">
+          <% Array(flash[:modal]).each do |line| %><li><%= line %></li><% end %>
+        </ul>
+        <form method="dialog"><button class="qf-apply" value="ok">Понятно</button></form>
+      </dialog>
+      <script>document.getElementById("qf-modal").showModal();</script>
+    <% end %>
     <script>
       {
         // Server renders UTC wall time; show each visitor their own zone. No-JS fallback stays UTC.
