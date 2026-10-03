@@ -81,6 +81,8 @@ bin/dev             # приложение (:3000) + Laya sidecar (:8000)
 
 Первый старт качает веса в `./weights` (Laya + OpenJev 0.8B) и может занять до 15 минут. `/up` отвечает, только когда обе модели загружены. Готовность видно в `log/sidecar.log`.
 
+На сервер — одной командой через Docker Compose: см. [docs/DEPLOY.md](docs/DEPLOY.md).
+
 Тесты:
 
 ```bash
@@ -108,7 +110,6 @@ bin/bundler-audit check
 | `LAYA_SIDECAR_URL` | Внешняя модерация; пусто = локальный sidecar из `bin/dev` |
 | `JURY_SIDECAR_URL` | Внешнее жюри; по умолчанию `localhost:8000` |
 | `MODERATION_OFF=1` | Только для локальной разработки без sidecar. В production игнорируется |
-
 
 ## Лицензия
 

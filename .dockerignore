@@ -46,6 +46,11 @@
 # Ignore development files
 /.devcontainer
 
+# AI sidecar weights (~4GB): mounted as a volume in compose, never baked
+# into the web image.
+/weights
+/sidecar/.venv
+
 # Ignore Docker-related files
 /.dockerignore
 /Dockerfile*

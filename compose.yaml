@@ -1,0 +1,86 @@
+# QuizForum — one-command production deploy.
+#
+# On the server:
+#   cp .env.deploy.example .env.deploy
+#   fill secrets, then run the command below
+#   docker compose --env-file .env.deploy up -d --build
+#
+# Services: web (Rails + Thruster :80/:443) + db (Postgres) + redis (Cable)
+# + sidecar (Laya moderation + OpenJev jury, CPU). Web boots without waiting
+# for the sidecar: moderation/grading activates once sidecar is healthy
+# (first boot downloads ~4GB weights, can take 15 min).
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env.deploy
+    environment:
+      POSTGRES_USER: quiz_forum
+      POSTGRES_DB: quiz_forum_production
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quiz_forum -d quiz_forum_production"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  sidecar:
+    build: ./sidecar
+    restart: unless-stopped
+    env_file: .env.deploy
+    environment:
+      SIDECAR_HOST: "0.0.0.0"
+      HF_HOME: /weights
+    volumes:
+      - weights:/weights
+    healthcheck:
+      # /up answers only when both models are loaded — readiness gate.
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8000/up"]
+      interval: 30s
+      timeout: 10s
+      retries: 60
+      start_period: 20m
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    env_file: .env.deploy
+    environment:
+      DATABASE_URL: postgres://quiz_forum:${POSTGRES_PASSWORD}@db:5432/quiz_forum_production # yamllint disable-line rule:line-length
+      CACHE_DATABASE_URL: postgres://quiz_forum:${POSTGRES_PASSWORD}@db:5432/quiz_forum_production_cache # yamllint disable-line rule:line-length
+      QUEUE_DATABASE_URL: postgres://quiz_forum:${POSTGRES_PASSWORD}@db:5432/quiz_forum_production_queue # yamllint disable-line rule:line-length
+      CABLE_DATABASE_URL: postgres://quiz_forum:${POSTGRES_PASSWORD}@db:5432/quiz_forum_production_cable # yamllint disable-line rule:line-length
+      REDIS_URL: redis://redis:6379/1
+      LAYA_SIDECAR_URL: http://sidecar:8000
+      JURY_SIDECAR_URL: http://sidecar:8000
+      SOLID_QUEUE_IN_PUMA: "1"
+      FORCE_SSL: ${FORCE_SSL:-false}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - storage:/rails/storage
+    # bin/docker-entrypoint runs db:prepare (creates *_cache/queue/cable DBs).
+
+volumes:
+  db_data:
+  redis_data:
+  weights:
+  storage:

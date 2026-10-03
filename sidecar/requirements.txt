@@ -1,0 +1,8 @@
+# CPU-only torch (default PyPI wheels are CUDA and gigabytes heavier).
+--index-url https://download.pytorch.org/whl/cpu
+--extra-index-url https://pypi.org/simple
+
+torch
+laya
+transformers
+huggingface_hub
