@@ -29,7 +29,7 @@
     <% @top.each_with_index do |(user, score), i| %>
       <div class="qf-row<%= " is-top#{i + 1}" if i < 3 %><%= " is-me" if user.id == Current.user.id %>">
         <span class="qf-pos"><%= i + 1 %></span>
-        <span class="qf-avatar qf-avatar-sm" aria-hidden="true"><%= initials(user.name) %></span>
+        <%= avatar_tag(user.name, size: :sm) %>
         <span class="qf-who"><%= user.name %></span>
         <span class="qf-score"><%= score %></span>
       </div>

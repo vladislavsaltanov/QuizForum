@@ -9,7 +9,7 @@
     <% @attempts.each do |attempt| %>
       <div class="qf-attempt">
         <div class="qf-attempt-head">
-          <span><%= attempt.user.name %></span>
+          <span class="qf-attempt-who"><%= avatar_tag(attempt.user.name, size: :sm) %><%= attempt.user.name %></span>
           <span class="qf-chip <%= verdict_class(attempt.verdict) %>"><%= verdict_label(attempt.verdict) %></span>
         </div>
         <span class="qf-hint qf-answered-at">Ответ дан: <%= local_time_tag(attempt.created_at) %></span>
@@ -98,7 +98,7 @@
   <% @attempts.each do |attempt| %>
     <div class="qf-attempt">
       <div class="qf-attempt-head">
-        <span><%= attempt.user.name %></span>
+        <span class="qf-attempt-who"><%= avatar_tag(attempt.user.name, size: :sm) %><%= attempt.user.name %></span>
         <span class="qf-chip <%= verdict_class(attempt.verdict) %>"><%= verdict_label(attempt.verdict) %></span>
       </div>
       <% if @is_author %>

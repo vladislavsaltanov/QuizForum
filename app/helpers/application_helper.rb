@@ -55,6 +55,13 @@ module ApplicationHelper
     name.to_s.split.first(2).map(&:first).join.upcase
   end
 
+  # Avatar box for a name: data-blobatar seeds the deterministic picture client-side,
+  # the initials stay as the no-JS fallback. Decorative, hence aria-hidden.
+  def avatar_tag(name, size: nil)
+    tag.span initials(name), class: [ "qf-avatar", (:"qf-avatar-#{size}" if size) ],
+      data: { blobatar: name.to_s }, aria: { hidden: true }
+  end
+
   # Russian countdown to the deadline; rails-i18n would be a new dep for one line.
   def time_left(deadline)
     secs = (deadline - Time.current).to_i
