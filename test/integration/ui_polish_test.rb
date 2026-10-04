@@ -7,7 +7,7 @@ require "test_helper"
 class UiPolishTest < ActionDispatch::IntegrationTest
   STYLE_SHEET = "app/assets/stylesheets/application.css"
   BUTTON_CHIPS = %w[.qf-ghost .qf-tab .qf-chip].freeze
-  DIVIDER = ".qf-main-wide .qf-pane + .qf-pane::before"
+  DIVIDER = ".qf-main-wide .qf-panes::before"
   URGENT_CHIP = ".qf-chip.qf-chip-urgent"
   MIN_CONTRAST = 4.5
 
@@ -22,33 +22,74 @@ class UiPolishTest < ActionDispatch::IntegrationTest
     assert_equal BUTTON_CHIPS.sort, rule[:selectors].sort
   end
 
-  test "the question columns are split by an offset hairline that vanishes on one column" do
-    pane = rule_for(".qf-main-wide .qf-pane + .qf-pane")
-    assert_match(/position:\s*relative/, pane[:declarations],
-      "the divider is a pseudo-element, so its pane has to be the containing block")
-    assert_no_match(/padding|margin/, pane[:declarations],
-      "the comments pane offsets its sticky head with negative margins — a padded pane breaks it")
+  test "the question columns are split by a divider that outlasts the comments cap" do
+    panes = rule_for(".qf-main-wide .qf-panes")
+    assert_match(/position:\s*relative/, panes[:declarations],
+      "the divider hangs off the grid, so the grid has to be its containing block")
 
     divider = rule_for(DIVIDER)
     assert_match(/content:\s*(""|none)/, divider[:declarations])
     assert_match(/position:\s*absolute/, divider[:declarations])
-    assert_match(/inset-block:\s*0/, divider[:declarations], "the hairline spans the whole column height")
-    assert_match(/inline-size:\s*1px/, divider[:declarations])
+
+    # Regression guard: the comments pane caps its own height to the room below
+    # the sticky head, so a divider attached to that pane stops at the chat
+    # bottom. It has to hang off the grid instead.
+    assert_empty rules.select { |rule| rule[:selectors].any? { _1.match?(/\.qf-pane(?![-\w])[^,{]*::before/) } },
+      "no pane may carry a divider pseudo-element: the comments pane is height-capped"
+
+    # The rule starts with the panes and runs 0.95 of their height: both insets are
+    # shares of the grid, so the proportion holds however tall the column gets.
+    top, bottom = divider[:declarations][/inset-block:\s*([^;]+)/, 1].to_s.split(/\s+/)
+    assert_equal "0", top.to_s, "the rule has to start exactly at the top of the panes, got #{top.inspect}"
+    assert_match(/\A[\d.]+%\z/, bottom.to_s,
+      "the bottom inset must be a share of the grid height, got #{bottom.inspect}")
+    assert_in_delta 0.05, bottom.to_s.delete("%").to_f / 100, 0.005,
+      "the rule should span 0.95 of the panes, so it stops about 5% short of the bottom"
+
+    # The sticky comments head and the author card paint glass backgrounds. Below
+    # them the rule vanishes under the tab bar, so it has to be on top.
+    rule_z = divider[:declarations][/z-index:\s*(\d+)/, 1].to_i
+    assert rule_z.positive?, "the rule needs an explicit z-index to stay visible over the sticky head"
+    [ ".qf-list-head", ".qf-author-card" ].each do |selector|
+      other = rules.find { |candidate| candidate[:selectors].include?(selector) }
+      next if other.nil?
+
+      z = other[:declarations][/z-index:\s*(\d+)/, 1].to_i
+      assert_operator rule_z, :>, z,
+        "#{selector} paints at z-index #{z}; the divider at #{rule_z} would be hidden behind it"
+    end
+
+    assert_match(/inline-size:\s*2px/, divider[:declarations], "the divider is a 2px rule")
     assert_match(/background:[^;]*var\(--qf-border\)/, divider[:declarations],
       "the divider is a muted border colour, never a hardcoded one")
 
-    gap = rule_for(".qf-main-wide .qf-panes")[:declarations][/gap:\s*([\d.]+)px/, 1].to_f
-    offset = divider[:declarations][/inset-inline-start:\s*-([\d.]+)px/, 1].to_f
+    decls = panes[:declarations]
+    gap = decls[/gap:\s*([\d.]+)px/, 1].to_f
+    weights = decls.scan(/(\d+)fr/).flatten.map(&:to_i)
     assert gap.positive?, "the wide panes must declare a px gap to divide"
-    assert_operator (offset - gap / 2).abs, :<=, 1,
-      "a 1px line sits dead centre of the #{gap}px gap, so the offset is about #{-gap / 2}px, got #{-offset}px"
+    assert_equal 2, weights.size, "expected a two-column split, got #{decls[/grid-template-columns:[^;]+/, 1]}"
+
+    offset = divider[:declarations][/inset-inline-start:\s*([^;]+)/, 1].to_s
+    # The grid has no inline padding, so the offset is a plain fraction of the
+    # column box. No nested clamp()/var(): that form silently dropped the whole
+    # declaration in the browser and parked the rule at the page edge.
+    centred = (gap / 2 - 1).round
+    assert_equal "calc((100% - #{gap.to_i}px) * #{weights.first} / #{weights.sum} + #{centred}px)", offset,
+      "the rule must sit half a gap past the first column of #{weights.join(':')}, computed with plain numbers"
+    assert_no_match(/var\(|clamp\(/, offset, "the offset must not depend on custom properties or clamp()")
 
     narrow = rules.select { |rule| narrow_media?(rule[:media]) && rule[:selectors].include?(DIVIDER) }
     assert_not_empty narrow, "the divider must be switched off in the max-width: 1000px one-column layout"
     narrow.each do |rule|
       assert_match(/content:\s*none/, rule[:declarations],
-        "one column has no gap left to divide, so #{rule[:media]} has to drop the hairline")
+        "one column has no gap left to divide, so #{rule[:media]} has to drop the rule")
     end
+  end
+
+  test "the comments panes keep their negative margins" do
+    pane = rule_for(".qf-pane")
+    assert_no_match(/padding|margin/, pane[:declarations],
+      "the comments pane offsets its sticky head with negative margins — a padded pane breaks it")
   end
 
   test "the urgency badge colours come from :root vars and stay readable" do
@@ -68,6 +109,33 @@ class UiPolishTest < ActionDispatch::IntegrationTest
     ratio = contrast(ink, background)
     assert_operator ratio, :>=, MIN_CONTRAST,
       "badge text #{ink} on #{background} is #{ratio.round(2)}:1, below #{MIN_CONTRAST}:1"
+  end
+
+  test "the footer sits at the bottom of the viewport on a short page" do
+    body = rules.select { |candidate| candidate[:selectors].include?("body") }
+             .find { |candidate| candidate[:declarations].include?("margin:") }
+    assert_not_nil body, "the main body block must still be there"
+    assert_match(/min-block-size:\s*100dvh/, body[:declarations],
+      "the page has to claim the viewport height, or there is no slack to push the footer down into")
+    assert_match(/display:\s*flex/, body[:declarations])
+    assert_match(/flex-direction:\s*column/, body[:declarations])
+
+    main = rule_for(".qf-main")[:declarations]
+    assert_match(/flex:\s*1 0 auto/, main,
+      ".qf-main has to absorb the leftover height or the footer stays under the content")
+    # An auto cross-axis margin cancels flex stretch, so without an explicit
+    # width .qf-main collapses to its content width — the page goes to a sliver.
+    assert_match(/inline-size:\s*100%/, main,
+      ".qf-main needs an explicit width; margin-inline: auto cancels the flex stretch")
+    assert_match(/box-sizing:\s*border-box/, main,
+      "that width must include the inline padding, or the block overflows its container")
+  end
+
+  test "the tab row lines up with the top of the column" do
+    head = rule_for(".qf-list-head")[:declarations]
+    top_pad = head[/padding:\s*([^;]+)/, 1].to_s.split(/\s+/).first
+    assert_equal "0", top_pad,
+      "the author card starts at the top of the column; #{top_pad} of head padding pushes the tabs below it"
   end
 
   private

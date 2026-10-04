@@ -36,6 +36,11 @@ body {
   color: var(--qf-ink);
   font-family: system-ui, -apple-system, sans-serif;
   margin: 0;
+  /* Sticky footer: on a short page the footer drops to the bottom of the
+     viewport instead of floating stranded right under the content. */
+  min-block-size: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Turbo injects its own bar stylesheet as head.firstChild, so this sheet always
@@ -105,6 +110,12 @@ html { scroll-behavior: smooth; }
   padding-block-start: clamp(1.75rem, 1rem + 3vw, 2.5rem);
   padding-block-end: clamp(3rem, 2rem + 4vw, 4rem);
   padding-inline: clamp(1rem, 0.75rem + 3vw, 2.5rem);
+  /* flex: 1 0 auto takes the slack the sticky footer leaves behind. In a column
+     flex container an auto cross-axis margin cancels stretch, so the block
+     collapses to its content width unless it is given a width outright. */
+  box-sizing: border-box;
+  inline-size: 100%;
+  flex: 1 0 auto;
 }
 
 /* Сетка главной зависит от места в контейнере, а не от вьюпорта. */
@@ -435,12 +446,14 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 
 .qf-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
 
-/* Sticky glass head: tabs + count, feathered top edge, clicks pass through. */
+/* Sticky glass head: tabs + count, feathered top edge, clicks pass through.
+   No padding above the tabs: the author card starts at the top of the column
+   and the tab row is meant to line up with it. */
 .qf-list-head {
   position: sticky;
   top: 57px;
   z-index: 5;
-  padding: 20px 0 10px;
+  padding: 0 0 10px;
   margin-bottom: 10px;
   pointer-events: none;
   background: color-mix(in srgb, var(--qf-paper) 72%, transparent);
@@ -617,24 +630,32 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 
 /* Wide question page: asymmetric panes, room for answers. */
 .qf-main-wide { max-width: 1280px; }
-.qf-main-wide .qf-panes { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 32px; }
+.qf-main-wide .qf-panes { position: relative; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 32px; }
 
-/* Hairline divider down the middle of the 32px column gap. It hangs off a
-   pseudo-element, not a border on the pane: the comments pane pulls its sticky
-   head out with negative margins, and any change to the pane box breaks that. */
-.qf-main-wide .qf-pane + .qf-pane { position: relative; }
-.qf-main-wide .qf-pane + .qf-pane::before {
+/* Column divider, 2px, down the middle of the 32px gap. It hangs off the grid
+   rather than off a pane: the comments pane caps its own height to the room
+   below the sticky head, so a divider attached there stops at the chat bottom.
+   It hangs off the grid rather than off the page for the other reason — the
+   page has a fluid gutter, and the grid has none, so `100%` here is exactly the
+   column width and the offset needs no nested clamp() to measure it.
+   The rule tracks the grid exactly: it starts where the panes start and runs
+   95% of their height. Both insets are shares of the grid, so the proportion
+   holds at any height instead of drifting on a long page. */
+.qf-main-wide .qf-panes::before {
   content: "";
   position: absolute;
-  inset-block: 0;
-  inset-inline-start: -17px;
-  inline-size: 1px;
+  inset-block: 0 5%;
+  inset-inline-start: calc((100% - 32px) * 5 / 12 + 15px);
+  inline-size: 2px;
+  /* Above the sticky comments head and the author card: both paint a glass
+     background, and below them the rule simply disappears under the tab bar. */
+  z-index: 7;
   background: color-mix(in srgb, var(--qf-border) 55%, transparent);
 }
 
 @media (max-width: 1000px) {
   .qf-main-wide .qf-panes { grid-template-columns: 1fr; }
-  .qf-main-wide .qf-pane + .qf-pane::before { content: none; } /* one column: no gap to divide */
+  .qf-main-wide .qf-panes::before { content: none; } /* one column: no gap to divide */
 }
 
 .qf-author-card { position: relative; z-index: 6; display: flex; align-items: center; gap: 14px; }
