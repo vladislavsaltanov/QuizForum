@@ -612,8 +612,8 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%;
   background-color: var(--qf-ink); color: var(--qf-paper);
-  /* Ring: a 1px outline on a 34px circle aliases badly; 2px reads solid. */
-  box-shadow: 0 0 0 2px var(--qf-paper);
+  /* Ring: --qf-paper would be invisible against the paper background. */
+  box-shadow: 0 0 0 2px var(--qf-border);
   font-family: var(--qf-mono); font-size: 15px; font-weight: 600;
 }
 /* The blobatar is inline SVG, not a background: the eyes have to stay addressable. */

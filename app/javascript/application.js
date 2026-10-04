@@ -67,5 +67,10 @@ new MutationObserver(drawBlobatars).observe(document.documentElement, { childLis
 if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
   document.addEventListener("pointermove", look, { passive: true });
   addEventListener("resize", measure, { passive: true });
-  addEventListener("scroll", measure, { passive: true });
+  // Capture, not bubble: `scroll` does not bubble, and the comment thread is its
+  // own scroll container — a window listener would miss every chat scroll and the
+  // cached rects would go stale.
+  document.addEventListener("scroll", measure, { passive: true, capture: true });
+  // Web fonts land after first paint and shift every row.
+  document.fonts?.ready.then(measure);
 }
