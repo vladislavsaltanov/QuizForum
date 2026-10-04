@@ -8,6 +8,27 @@ class BlobatarAvatarTest < ActionDispatch::IntegrationTest
     sign_in_as(users(:two))
   end
 
+  # A stale vendored file or a renamed import breaks module linking, which kills
+  # this whole file — Turbo included — while the Rails suite stays green.
+  test "vendored bundles export every name application.js imports" do
+    imports = Rails.root.join("app/javascript/application.js").read
+      .scan(/^import \{([^}]+)\} from "([^"]+)"/)
+      .to_h { |names, specifier| [ specifier, names.split(",").map(&:strip) ] }
+
+    assert_not_empty imports
+    packages = Rails.application.importmap.packages
+
+    imports.each do |specifier, names|
+      file = Rails.root.join("vendor/javascript", packages.fetch(specifier).path)
+      exported = file.read.scan(/export\s*\{([^}]*)\}/).flatten.join(",")
+        .split(",").map { _1.split(" as ").last.strip }
+
+      names.each do |name|
+        assert_includes exported, name, "#{file.basename} must export #{name} for #{specifier}"
+      end
+    end
+  end
+
   test "profile seeds the avatar from the profile owner" do
     get profile_path
 
