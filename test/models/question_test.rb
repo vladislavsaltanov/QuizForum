@@ -129,4 +129,59 @@ class QuestionTest < ActiveSupport::TestCase
 
     assert_not q.valid?
   end
+
+  test "closing soon means open with less than a day left" do
+    assert timed_question("Скоро", 3.hours.from_now).closing_soon?
+    assert_not timed_question("Не скоро", 5.days.from_now).closing_soon?
+    assert_not timed_question("Уже закрыт", 3.hours.ago).closing_soon?
+  end
+
+  test "feed drops closed questions past the archive grace but keeps the weekly tail" do
+    fresh_tail = timed_question("Хвост недели", 2.days.ago)
+    ancient = timed_question("Древний", Question::ARCHIVE_GRACE.ago - 1.minute)
+
+    titles = Question.feed.pluck(:title)
+
+    assert_includes titles, fresh_tail.title
+    assert_not_includes titles, ancient.title
+  end
+
+  test "feed lifts the closing cohort above the rest, nearest deadline first" do
+    urgent_far = timed_question("Срочный, но позже", 20.hours.from_now)
+    urgent_near = timed_question("Срочный и совсем скоро", 2.hours.from_now)
+    calm = timed_question("Спокойный", 10.days.from_now)
+
+    assert_equal [ urgent_near, urgent_far, calm ].map(&:title), feed_order_of(urgent_far, urgent_near, calm)
+  end
+
+  test "inside the calm tier the newer question wins" do
+    older = timed_question("Старый открытый", 10.days.from_now)
+    newer = timed_question("Свежий открытый", 9.days.from_now)
+    stale = timed_question("Совсем старый открытый", 2.days.ago)
+
+    assert_equal [ newer, older, stale ].map(&:title), feed_order_of(newer, older, stale)
+  end
+
+  test "archived keeps only closed past the grace period, newest closure first" do
+    newest = timed_question("Недавно закрытый", Question::ARCHIVE_GRACE.ago - 1.hour)
+    oldest = timed_question("Очень старый", 1.year.ago)
+    tail = timed_question("Ещё в ленте", 1.day.ago)
+
+    titles = Question.archived.where(title: [ newest.title, oldest.title, tail.title ]).pluck(:title)
+
+    assert_equal [ newest, oldest ].map(&:title), titles
+    assert_not_includes titles, tail.title
+  end
+
+  private
+    def timed_question(title, deadline)
+      Question.create!(title: title, body: "Тело", answer_type: "text",
+                       reference_answer: "Ответ", deadline: deadline,
+                       author: @author, tags: [ "среднее" ])
+    end
+
+    # Fixtures also sit in the feed, so ordering assertions narrow to the questions under test.
+    def feed_order_of(*questions)
+      Question.feed.where(title: questions.map(&:title)).pluck(:title)
+    end
 end

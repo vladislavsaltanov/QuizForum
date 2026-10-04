@@ -21,6 +21,9 @@
   --qf-ink-soft: #24303e;
   /* Darkened from #8a7a63: small text still passes 4.5:1 */
   --qf-mute: #6e5f4c;
+  /* Urgency badge: same red pair as the incorrect verdict (5.1:1 on the chip). */
+  --qf-urgent: #b3261e;
+  --qf-urgent-bg: #f9ddd6;
   --qf-mono: "IBM Plex Mono", ui-monospace, monospace;
   --qf-container: 64rem;
   --qf-radius-lg: 1.25rem;
@@ -33,7 +36,22 @@ body {
   color: var(--qf-ink);
   font-family: system-ui, -apple-system, sans-serif;
   margin: 0;
+  /* Sticky footer: on a short page the footer drops to the bottom of the
+     viewport instead of floating stranded right under the content. */
+  min-block-size: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
+
+/* Turbo injects its own bar stylesheet as head.firstChild, so this sheet always
+   cascades later: repaint the bar in the ink colour and slim it to a hairline. */
+.turbo-progress-bar {
+  height: 2px;
+  background: var(--qf-ink);
+}
+
+/* Anchor jumps glide instead of jumping; sticky positioning is unaffected. */
+html { scroll-behavior: smooth; }
 
 /* Slim sticky header: wordmark left, pill nav, user right. */
 .qf-header {
@@ -92,6 +110,12 @@ body {
   padding-block-start: clamp(1.75rem, 1rem + 3vw, 2.5rem);
   padding-block-end: clamp(3rem, 2rem + 4vw, 4rem);
   padding-inline: clamp(1rem, 0.75rem + 3vw, 2.5rem);
+  /* flex: 1 0 auto takes the slack the sticky footer leaves behind. In a column
+     flex container an auto cross-axis margin cancels stretch, so the block
+     collapses to its content width unless it is given a width outright. */
+  box-sizing: border-box;
+  inline-size: 100%;
+  flex: 1 0 auto;
 }
 
 /* Сетка главной зависит от места в контейнере, а не от вьюпорта. */
@@ -342,6 +366,9 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 .qf-chip[class*="qf-verdict-"] { color: var(--vq); border-color: var(--vq); background: var(--vq-bg); font-weight: 700; }
 .qf-stat b[class*="qf-verdict-"] { color: var(--vq); }
 
+/* Urgency badge on a card: colour lives in vars so every urgent chip matches. */
+.qf-chip.qf-chip-urgent { color: var(--qf-urgent); border-color: var(--qf-urgent); background: var(--qf-urgent-bg); font-weight: 700; }
+
 .qf-footer {
   display: flex;
   flex-wrap: wrap;
@@ -363,7 +390,9 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .qf-card, .qf-tab, .qf-apply, .qf-ghost, .qf-send, .qf-input, .qf-filter, .qf-chatbar, .is-comments .qf-list-head::after { transition: none; }
+  /* Smooth scrolling is motion too: the same opt-out covers it. */
+  html { scroll-behavior: auto; }
+  .qf-card, .qf-tab, .qf-apply, .qf-ghost, .qf-send, .qf-input, .qf-filter, .qf-chatbar, .qf-chip-urgent, .is-comments .qf-list-head::after { transition: none; }
   .qf-card:hover, .qf-send:hover { transform: none; }
   .qf-msg, .qf-attempt, .qf-notice, .qf-alert { animation: none; }
 }
@@ -417,12 +446,21 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 
 .qf-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
 
-/* Sticky glass head: tabs + count, feathered top edge, clicks pass through. */
+/* The answers pane puts the count line straight under the tab row, so the head's
+   own bottom padding and margin land above it and push it 20px further down than
+   its twin in the comments pane. Dropping just those two puts the count at the
+   same 14px the tab row already gives it there — no second constant. The
+   comments head keeps both: there they sit below the count, not above it. */
+.qf-list-head:has(+ .qf-count) { padding-bottom: 0; margin-bottom: 0; }
+
+/* Sticky glass head: tabs + count, feathered top edge, clicks pass through.
+   No padding above the tabs: the author card starts at the top of the column
+   and the tab row is meant to line up with it. */
 .qf-list-head {
   position: sticky;
   top: 57px;
   z-index: 5;
-  padding: 20px 0 10px;
+  padding: 0 0 10px;
   margin-bottom: 10px;
   pointer-events: none;
   background: color-mix(in srgb, var(--qf-paper) 72%, transparent);
@@ -589,15 +627,42 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 .qf-nav-link { color: inherit; text-decoration: none; }
 .qf-nav-link:hover { color: var(--qf-ink); }
 
+/* The UA underlines every <a>; button-shaped classes must opt out once, here,
+   so action links and chips stop inheriting it. */
+.qf-ghost, .qf-tab, .qf-chip { text-decoration: none; }
+
 @media (max-width: 860px) {
   .qf-panes { grid-template-columns: 1fr; }
 }
 
 /* Wide question page: asymmetric panes, room for answers. */
 .qf-main-wide { max-width: 1280px; }
-.qf-main-wide .qf-panes { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 32px; }
+.qf-main-wide .qf-panes { position: relative; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 32px; }
+
+/* Column divider, 2px, down the middle of the 32px gap. It hangs off the grid
+   rather than off a pane: the comments pane caps its own height to the room
+   below the sticky head, so a divider attached there stops at the chat bottom.
+   It hangs off the grid rather than off the page for the other reason — the
+   page has a fluid gutter, and the grid has none, so `100%` here is exactly the
+   column width and the offset needs no nested clamp() to measure it.
+   The rule tracks the grid exactly: it spans the middle 95% of the panes, centred.
+   Both insets are shares of the grid and deliberately equal, so the rule sits
+   dead centre and keeps that proportion however tall the column gets. */
+.qf-main-wide .qf-panes::before {
+  content: "";
+  position: absolute;
+  inset-block: 2.5% 2.5%;
+  inset-inline-start: calc((100% - 32px) * 5 / 12 + 15px);
+  inline-size: 2px;
+  /* Above the sticky comments head and the author card: both paint a glass
+     background, and below them the rule simply disappears under the tab bar. */
+  z-index: 7;
+  background: color-mix(in srgb, var(--qf-border) 55%, transparent);
+}
+
 @media (max-width: 1000px) {
   .qf-main-wide .qf-panes { grid-template-columns: 1fr; }
+  .qf-main-wide .qf-panes::before { content: none; } /* one column: no gap to divide */
 }
 
 .qf-author-card { position: relative; z-index: 6; display: flex; align-items: center; gap: 14px; }
@@ -710,6 +775,7 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 .qf-apply, .qf-ghost { transition: transform .1s ease, border-color .15s ease, background .15s ease; }
 .qf-apply:active, .qf-ghost:active { transform: scale(.96); }
 .qf-input, .qf-filter { transition: border-color .18s ease; }
+.qf-chip-urgent { transition: border-color .15s ease, background .15s ease; }
 .qf-notice, .qf-alert { animation: qf-toast-in .22s ease-out, qf-toast-out .4s ease-in 2.8s forwards; }
 
 /* Leaderboard: plain rows, top-3 tinted, me pinned. */

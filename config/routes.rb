@@ -19,6 +19,7 @@ Rails.application.routes.draw do
     resources :reports, only: %i[ create ]
   end
   resource :leaderboard, only: %i[show]
+  get "archive" => "archives#show", as: :archive
   resource :my_questions, only: %i[show]
   resource :profile, only: %i[show edit update] do
     patch :grant_role, on: :member

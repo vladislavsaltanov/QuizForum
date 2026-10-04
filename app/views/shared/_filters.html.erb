@@ -1,0 +1,14 @@
+<%# Search and filter form shared by the landing feed and the archive. Both list
+    questions, both offer the same narrowing; only url differs. %>
+<%= form_with url: url, method: :get, class: "qf-search", role: "search" do %>
+  <%= search_field_tag :q, @q, placeholder: "Найти вопрос…", class: "qf-search-input", "aria-label": "Поиск вопросов" %>
+  <div class="qf-filters">
+    <%= select_tag :author, options_for_select([ [ "Все авторы", "" ] ] + @authors.map { [ it, it ] }, @author), class: "qf-filter", "aria-label": "Автор" %>
+    <%= select_tag :difficulty, options_for_select([ [ "Любая сложность", "" ] ] + Question::DIFFICULTIES.map { [ it.capitalize, it ] }, @difficulty), class: "qf-filter", "aria-label": "Сложность" %>
+    <%= select_tag :topic, options_for_select([ [ "Все темы", "" ] ] + @topics.map { [ "##{it}", it ] }, @topic), class: "qf-filter", "aria-label": "Тема" %>
+    <button type="submit" class="qf-apply">Найти</button>
+    <% if filters_active? %>
+      <%= link_to "Сбросить", url, class: "qf-reset" %>
+    <% end %>
+  </div>
+<% end %>

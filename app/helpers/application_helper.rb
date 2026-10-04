@@ -41,6 +41,11 @@ module ApplicationHelper
     "qf-verdict-#{verdict}"
   end
 
+  # True when any list filter is set; the lists swap their empty-state wording on it.
+  def filters_active?
+    params.values_at(:q, :author, :difficulty, :topic).any?(&:present?)
+  end
+
   # Page numbers around the current one; :gap stands in for skipped pages.
   def pager_numbers(number, pages, window: 2)
     wanted = ([ *1..pages ] & [ number, number - window, number + window ]).sort

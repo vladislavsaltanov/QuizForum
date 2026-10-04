@@ -62,6 +62,10 @@ _Avoid_: due date, close date
 The automatic post-Deadline opening of a Question's reference material, all Attempts, Verdicts, and Comments. Requires no manual action.
 _Avoid_: unlock, раскрытие
 
+**Archive**:
+The landing feed keeps a Question for 7 days past its Deadline — a window for going over the results — and only then moves it to the Archive, a separate page for everything older. The Archive is a way of showing, never of removing: the Question, its Attempts, and its Comments stay exactly where they are and stay reachable by direct link.
+_Avoid_: deleting a question, trash, cleanup, hiding
+
 **Moderation**:
 The approval flow keeping Comments hidden until an Author/Trustee approves them (pending → approved) or the Deadline opens them.
 _Avoid_: premoderation, премодерация
