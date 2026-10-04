@@ -641,7 +641,10 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 .qf-chat {
   display: grid; gap: 14px; margin-bottom: 0; max-height: 55vh;
   overflow-y: auto; overflow-anchor: none; /* we restore the offset ourselves on prepend */
-  padding: 0 6px 18px 0;
+  /* Left padding must clear the avatar ring: overflow-y: auto makes overflow-x
+     auto too, and the clip happens at the padding edge — 0 there meant a
+     half-cut ring on every comment. */
+  padding: 0 6px 18px 6px;
 }
 .qf-msg { display: flex; gap: 10px; align-items: flex-start; }
 .qf-bubble {
