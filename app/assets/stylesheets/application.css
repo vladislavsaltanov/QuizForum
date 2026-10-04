@@ -446,6 +446,13 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 
 .qf-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
 
+/* The answers pane puts the count line straight under the tab row, so the head's
+   own bottom padding and margin land above it and push it 20px further down than
+   its twin in the comments pane. Dropping just those two puts the count at the
+   same 14px the tab row already gives it there — no second constant. The
+   comments head keeps both: there they sit below the count, not above it. */
+.qf-list-head:has(+ .qf-count) { padding-bottom: 0; margin-bottom: 0; }
+
 /* Sticky glass head: tabs + count, feathered top edge, clicks pass through.
    No padding above the tabs: the author card starts at the top of the column
    and the tab row is meant to line up with it. */

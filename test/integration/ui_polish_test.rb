@@ -136,6 +136,28 @@ class UiPolishTest < ActionDispatch::IntegrationTest
       "that width must include the inline padding, or the block overflows its container")
   end
 
+  test "the answer count sits as close to the tabs as the comment count" do
+    # The count is a sibling of the head, so the head's own bottom padding and
+    # margin are what push it away from the tab row. Both go, and nothing else:
+    # the tabs keep the margin the comments pane already gives them, which is
+    # what makes the two counts sit at the same distance.
+    head = rule_for(".qf-list-head:has(+ .qf-count)")
+    assert_match(/padding-bottom:\s*0/, head[:declarations],
+      "the head's bottom padding sits above the count in the answers pane")
+    assert_match(/margin-bottom:\s*0/, head[:declarations],
+      "and so does the head's own bottom margin; together they add 20px of gap")
+
+    refute rules.any? { |rule| rule[:selectors].include?(".qf-list-head:has(+ .qf-count) .qf-tabs") },
+      "the answers tab row must keep the shared .qf-list-head .qf-tabs margin — " \
+      "overriding it would drift away from the comment count instead of matching it"
+
+    # The comments pane carries its own count inside the head and keeps its space.
+    commented = rule_for(".qf-list-head")[:declarations]
+    bottom_pad = commented[/padding:\s*([^;]+)/, 1].to_s.split(/\s+/).last
+    assert_not_equal "0", bottom_pad,
+      "the comments head still needs bottom padding (#{bottom_pad}) for the sticky glass"
+  end
+
   test "the tab row lines up with the top of the column" do
     head = rule_for(".qf-list-head")[:declarations]
     top_pad = head[/padding:\s*([^;]+)/, 1].to_s.split(/\s+/).first
