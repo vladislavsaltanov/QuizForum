@@ -64,11 +64,54 @@ class AttemptJuryJobTest < ActiveSupport::TestCase
     assert_equal "positive", @attempt.jury_label
   end
 
+  test "rejected injection never reaches the grader and stays pending" do
+    JuryClient.define_singleton_method(:new) do |*|
+      fake = Object.new
+      fake.define_singleton_method(:grade) { |*_, **_| flunk "rejected text reached the grader" }
+      fake
+    end
+    with_screen(ModerationClient::Result.new(:reject, "prompt_injection")) do
+      AttemptJuryJob.perform_now(@attempt.id)
+    end
+
+    @attempt.reload
+    assert_equal "pending", @attempt.verdict
+    assert_nil @attempt.jury_label
+  ensure
+    JuryClient.define_singleton_method(:new, ORIGINAL_NEW)
+  end
+
+  test "screen review forces needs_review on confident positive" do
+    with_screen(ModerationClient::Result.new(:review, "на проверке")) do
+      with_grade(jury_result("positive", 1.0, false)) { AttemptJuryJob.perform_now(@attempt.id) }
+    end
+
+    @attempt.reload
+    assert_equal "pending", @attempt.verdict
+    assert_equal "positive", @attempt.jury_label
+    assert @attempt.jury_needs_review
+  end
+
+  test "screen try_later still grades normally" do
+    with_screen(ModerationClient::Result.new(:try_later, "недоступна")) do
+      with_grade(jury_result("positive", 1.0, false)) { AttemptJuryJob.perform_now(@attempt.id) }
+    end
+
+    assert_equal "correct", @attempt.reload.verdict
+  end
   private
     ORIGINAL_NEW = JuryClient.method(:new)
+    ORIGINAL_CHECK = ModerationClient.method(:check)
 
     def jury_result(label, score, review, reasons: [], missing: [])
       JuryClient::Result.new(label, score, review, reasons, missing)
+    end
+
+    def with_screen(result)
+      ModerationClient.define_singleton_method(:check) { |*_, **_| result }
+      yield
+    ensure
+      ModerationClient.define_singleton_method(:check, ORIGINAL_CHECK)
     end
 
     def with_grade(result)

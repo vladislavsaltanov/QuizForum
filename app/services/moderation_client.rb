@@ -18,10 +18,12 @@ class ModerationClient
   OPEN_TIMEOUT = 2
   READ_TIMEOUT = 10
 
-  # Main entry: verdict for a text, fail-closed.
-  def self.check(text:, question: nil)
+  # Main entry: verdict for a text, fail-closed. Attempts pass the full
+  # guard set (prompt-injection screening); author text stays on the
+  # limited set that never false-rejects well-formed questions.
+  def self.check(text:, question: nil, presets: %w[moderation_questions])
     return Result.new(:pass, "") if bypass?
-    new.check(text:, question:)
+    new.check(text:, question:, presets:)
   end
 
   # Dev escape hatch without a sidecar; never bypasses in production.
@@ -35,8 +37,8 @@ class ModerationClient
   end
 
   # Posts the payload; any transport error fails closed.
-  def check(text:, question: nil)
-    map(JSON.parse(post(text:, question:)))
+  def check(text:, question: nil, presets: %w[moderation_questions])
+    map(JSON.parse(post(text:, question:, presets:)))
   rescue StandardError
     Result.new(:try_later, "недоступна")
   end
@@ -51,14 +53,14 @@ class ModerationClient
     end
 
     # Single HTTP round-trip with timeouts.
-    def post(text:, question:)
+    def post(text:, question:, presets:)
       uri = URI("#{self.class.base_url}#{ENDPOINT}")
       http = Net::HTTP.new(uri.host, uri.port)
       http.open_timeout = OPEN_TIMEOUT
       http.read_timeout = READ_TIMEOUT
       req = Net::HTTP::Post.new(uri.path, "Content-Type" => "application/json")
       req.body = JSON.generate(key: idempotency_key(text), candidate: text,
-                               question:, presets: %w[moderation_questions guard_questions])
+                               question:, presets:)
       http.request(req).body
     end
 

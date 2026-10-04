@@ -46,6 +46,7 @@ overlap = set(MOD_Q) & set(GUARD_Q)
 if overlap:
     raise SystemExit(f"preset key collision: {overlap}")
 QUESTIONS = {**MOD_Q, **{k: v for k, v in GUARD_Q.items() if k in GUARD_KEEP}}
+QUESTIONS_FULL_GUARD = {**MOD_Q, **GUARD_Q}
 
 MAT = re.compile(r"\b(хуй|пизд|бля|еб|сук|пидор|мудак|залуп|дроч|гондон|шлюх|трах|сперм|сись|пись|наху|оху|поху|заеб)\w*", re.IGNORECASE)
 
@@ -53,11 +54,11 @@ MAT = re.compile(r"\b(хуй|пизд|бля|еб|сук|пидор|мудак|�
 # The candidate fills both slots because the one guard preset we kept,
 # sensitive_data, asks about `prompt`. The dropped presets are gone from
 # QUESTIONS, so the model is never asked the injection questions at all.
-def judge(candidate):
+def judge(candidate, questions=QUESTIONS):
     candidate = (candidate or "")[:20000]
     if MAT.search(candidate):
         return {"verdict": "reject", "needs_review": False, "category": "мат"}
-    answers = agent.predict({"post": candidate, "prompt": candidate}, QUESTIONS)["answers"]
+    answers = agent.predict({"post": candidate, "prompt": candidate}, questions)["answers"]
     worst_name, worst_p = "", 0.0
     for name, ans in answers.items():
         try:
@@ -100,7 +101,9 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 length = min(int(self.headers.get("Content-Length", 0)), 262144)
                 payload = json.loads(self.rfile.read(length) or b"{}")
-                self._json(judge(payload.get("candidate") or ""))
+                presets = payload.get("presets") or []
+                questions = QUESTIONS_FULL_GUARD if "guard_questions" in presets else QUESTIONS
+                self._json(judge(payload.get("candidate") or "", questions))
             except Exception as exc:  # Rails treats non-200 as transport failure: fails closed
                 self._json({"error": f"{exc}"}, status=500)
             return
