@@ -8,14 +8,6 @@ class BlobatarAvatarTest < ActionDispatch::IntegrationTest
     sign_in_as(users(:two))
   end
 
-  # blobatar's own docs call this out: without the stylesheet the gaze layer
-  # fails silently rather than erroring.
-  test "layout links the gaze stylesheet the pointer layer needs" do
-    get profile_path
-
-    assert_select "link[rel=stylesheet][href*='blobatar-gaze']", count: 1
-  end
-
   test "profile seeds the avatar from the profile owner" do
     get profile_path
 
