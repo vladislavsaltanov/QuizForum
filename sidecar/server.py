@@ -33,14 +33,26 @@ REVIEW_AT = 0.5
 agent = laya.load("convaiinnovations/laya", subfolder="multilingual")
 MOD_Q = laya.moderation_questions()
 GUARD_Q = laya.guard_questions()
+# Only sensitive_data still applies to author-written text. The other guard
+# presets ask about `prompt` — "instructions aimed at the AI system rather than
+# a genuine user request" — and a Question is by nature an instruction to a
+# solver, so asking that question about one scored well-formed questions as
+# prompt injection and rejected them on publish. Nothing on the Rails side sends
+# a Question, Comment or User name to a model as a prompt (only the Jury sees an
+# Attempt, and Attempts never reach ModerationClient), so jailbreak and
+# prompt_injection had no target here and mostly produced false rejects.
+GUARD_KEEP = {"sensitive_data"}
 overlap = set(MOD_Q) & set(GUARD_Q)
 if overlap:
     raise SystemExit(f"preset key collision: {overlap}")
-QUESTIONS = {**MOD_Q, **GUARD_Q}
+QUESTIONS = {**MOD_Q, **{k: v for k, v in GUARD_Q.items() if k in GUARD_KEEP}}
 
 MAT = re.compile(r"\b(хуй|пизд|бля|еб|сук|пидор|мудак|залуп|дроч|гондон|шлюх|трах|сперм|сись|пись|наху|оху|поху|заеб)\w*", re.IGNORECASE)
 
 # Coarse pre-filter: catches short mats the model misses.
+# The candidate fills both slots because the one guard preset we kept,
+# sensitive_data, asks about `prompt`. The dropped presets are gone from
+# QUESTIONS, so the model is never asked the injection questions at all.
 def judge(candidate):
     candidate = (candidate or "")[:20000]
     if MAT.search(candidate):

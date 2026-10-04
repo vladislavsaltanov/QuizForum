@@ -65,6 +65,18 @@ jobs:
       - name: Lint code for consistent style
         run: bin/rubocop -f github
 
+  sidecar-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      # Stubs torch/laya/huggingface_hub/grade, so stock python3 is enough:
+      # no venv, no model weights, no torch download.
+      - name: Run sidecar security tests
+        run: python3 sidecar/test_server_security.py
+
   model-test:
     runs-on: ubuntu-latest
 
