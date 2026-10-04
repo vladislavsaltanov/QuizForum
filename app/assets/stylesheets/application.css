@@ -613,6 +613,8 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   border-radius: 50%;
   background-color: var(--qf-ink); color: var(--qf-paper);
   background-size: cover; background-position: center;
+  /* Ring: a 1px outline on a 34px circle aliases badly; 2px reads solid. */
+  box-shadow: 0 0 0 2px var(--qf-paper);
   font-family: var(--qf-mono); font-size: 15px; font-weight: 600;
 }
 .qf-avatar-sm { width: 34px; height: 34px; font-size: 12px; }
