@@ -638,13 +638,13 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
    It hangs off the grid rather than off the page for the other reason — the
    page has a fluid gutter, and the grid has none, so `100%` here is exactly the
    column width and the offset needs no nested clamp() to measure it.
-   The rule tracks the grid exactly: it starts where the panes start and runs
-   95% of their height. Both insets are shares of the grid, so the proportion
-   holds at any height instead of drifting on a long page. */
+   The rule tracks the grid exactly: it spans the middle 95% of the panes, centred.
+   Both insets are shares of the grid and deliberately equal, so the rule sits
+   dead centre and keeps that proportion however tall the column gets. */
 .qf-main-wide .qf-panes::before {
   content: "";
   position: absolute;
-  inset-block: 0 5%;
+  inset-block: 2.5% 2.5%;
   inset-inline-start: calc((100% - 32px) * 5 / 12 + 15px);
   inline-size: 2px;
   /* Above the sticky comments head and the author card: both paint a glass

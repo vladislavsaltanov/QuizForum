@@ -37,14 +37,19 @@ class UiPolishTest < ActionDispatch::IntegrationTest
     assert_empty rules.select { |rule| rule[:selectors].any? { _1.match?(/\.qf-pane(?![-\w])[^,{]*::before/) } },
       "no pane may carry a divider pseudo-element: the comments pane is height-capped"
 
-    # The rule starts with the panes and runs 0.95 of their height: both insets are
-    # shares of the grid, so the proportion holds however tall the column gets.
+    # The rule spans the middle 95% of the grid, dead centre. Both insets are
+    # shares of the grid height and have to be equal, or the rule drifts off
+    # centre and stops reading as a separator.
     top, bottom = divider[:declarations][/inset-block:\s*([^;]+)/, 1].to_s.split(/\s+/)
-    assert_equal "0", top.to_s, "the rule has to start exactly at the top of the panes, got #{top.inspect}"
-    assert_match(/\A[\d.]+%\z/, bottom.to_s,
-      "the bottom inset must be a share of the grid height, got #{bottom.inspect}")
-    assert_in_delta 0.05, bottom.to_s.delete("%").to_f / 100, 0.005,
-      "the rule should span 0.95 of the panes, so it stops about 5% short of the bottom"
+    [ top, bottom ].each do |value|
+      assert_match(/\A[\d.]+%\z/, value,
+        "both insets must be a share of the grid height, got #{top.inspect} #{bottom.inspect}")
+    end
+    assert_in_delta 0.025, top.to_s.delete("%").to_f / 100, 0.005,
+      "the rule should span 0.95 of the panes, so 2.5% has to come off each end"
+    assert_in_delta 0.025, bottom.to_s.delete("%").to_f / 100, 0.005
+    assert_equal top, bottom,
+      "the insets must match: #{top} and #{bottom} put the rule off centre"
 
     # The sticky comments head and the author card paint glass backgrounds. Below
     # them the rule vanishes under the tab bar, so it has to be on top.
