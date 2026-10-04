@@ -1,22 +1,23 @@
-<% content_for :title, "QuizForum — главный экран" %>
+<% content_for :title, "Архив — QuizForum" %>
 <% content_for :head do %>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
 <% end %>
 
-<%= render "shared/header", active: "main" %>
+<%= render "shared/header", active: nil %>
 
 <main class="qf-main qf-main-home">
   <% pager = @pagers[:page] %>
-  <p class="qf-kicker">Открытые вопросы · <%= pager[:count] %></p>
-  <h1 class="qf-hero">Вопросы</h1>
+  <%= link_to "← К открытым вопросам", root_path, class: "qf-back" %>
+  <p class="qf-kicker">Архив · <%= pager[:count] %></p>
+  <h1 class="qf-hero">Архив</h1>
 
-  <%= render "shared/filters", url: root_path %>
+  <%= render "shared/filters", url: archive_path %>
 
-  <section class="qf-cards" aria-label="Вопросы">
+  <section class="qf-cards" aria-label="Архив вопросов">
     <% if @questions.empty? %>
-      <p class="qf-empty">Ничего не найдено. Попробуйте смягчить фильтры.</p>
+      <p class="qf-empty"><%= filters_active? ? "Ничего не найдено. Попробуйте смягчить фильтры." : "В архиве пока пусто." %></p>
     <% end %>
     <% @questions.each_with_index do |question, i| %>
       <%= link_to question_path(question), class: "qf-card-link" do %>
@@ -29,11 +30,7 @@
           <h2 class="qf-card-title"><%= question.title %></h2>
           <div class="qf-card-meta">
             <span class="qf-card-author"><%= question.author.name %><%= " • #{question.author.display_role}" if question.author.display_role.present? %></span>
-            <% if question.closing_soon? %>
-              <span class="qf-chip qf-chip-urgent">заканчивается · <%= time_left(question.deadline) %></span>
-            <% else %>
-              <span class="qf-chip">до <%= local_time_tag(question.deadline) %></span>
-            <% end %>
+            <span class="qf-chip">закрыт <%= local_time_tag(question.deadline) %></span>
           </div>
         </article>
       <% end %>
@@ -42,15 +39,8 @@
 
   <%= render "shared/pager", pager: pager %>
 
-  <%# Same pill as the page-switch buttons above it, so the archive reads as part of
-      the same navigation. One COUNT for the whole page, never inside the card loop. %>
-  <% archived_count = Question.archived.count %>
-  <nav class="qf-pager" aria-label="Архив вопросов">
-    <%= link_to "Архив · #{archived_count}", archive_path, class: "qf-pager-step" %>
-  </nav>
-
   <footer class="qf-footer">
     <span>QuizForum</span>
-    <span><%= pager[:count] %> открытых вопросов</span>
+    <span><%= pager[:count] %> вопросов в архиве</span>
   </footer>
 </main>

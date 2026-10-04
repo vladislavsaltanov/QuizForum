@@ -2,6 +2,10 @@
 class Question < ApplicationRecord
   ANSWER_TYPES = %w[text code single_choice multiple_choice].freeze
   DIFFICULTIES = %w[легкое среднее сложное].freeze
+  # How long a closed question stays on the landing feed before the archive takes it.
+  ARCHIVE_GRACE = 7.days
+  # Deadline horizon that makes a question urgent enough to top the feed.
+  CLOSING_SOON = 24.hours
 
   belongs_to :author, class_name: "User"
   has_many :attempts, dependent: :destroy
@@ -28,6 +32,38 @@ class Question < ApplicationRecord
   def closed?
     !open?
   end
+
+  # Open with at most a day left: the cohort that needs answering first.
+  def closing_soon?
+    open? && deadline <= CLOSING_SOON.from_now
+  end
+
+  # Landing feed: open questions plus a one-week tail of closed ones, urgent first.
+  # now() is used straight in SQL because Rails pins the session time zone to UTC,
+  # which is where deadline lives; passing a Ruby timestamp would drift by the zone offset.
+  def self.feed
+    where("questions.deadline >= now() - make_interval(secs => ?)", ARCHIVE_GRACE.to_i).order(Arel.sql(feed_order))
+  end
+
+  # Everything the feed has dropped, newest closure first.
+  def self.archived
+    where(deadline: ..ARCHIVE_GRACE.ago).order(deadline: :desc)
+  end
+
+  def self.feed_order
+    # Columns stay qualified because the feed is often joined to users for author filters.
+    soon = "questions.deadline > now() AND questions.deadline <= now() + make_interval(secs => #{CLOSING_SOON.to_i})"
+    <<~SQL.squish
+      CASE
+        WHEN #{soon} THEN 0
+        WHEN questions.deadline > now() THEN 1
+        ELSE 2
+      END,
+      CASE WHEN #{soon} THEN questions.deadline END ASC NULLS LAST,
+      questions.created_at DESC
+    SQL
+  end
+  private_class_method :feed_order
 
   # True for single- or multiple-choice questions.
   def choice?
