@@ -12,7 +12,7 @@
   <h1 class="qf-hero"><%= @user.name %></h1>
 
   <div class="qf-card qf-id-card">
-    <span class="qf-avatar qf-avatar-xl" aria-hidden="true"><%= initials(@user.name) %></span>
+    <%= avatar_tag(@user.name, size: :xl) %>
     <span class="qf-author-meta">
       <b><%= @user.display_role.presence || "Участник" %></b>
       <i>ID <%= @user.id %> · <%= @user.email %> · на сайте с <%= local_time_tag(@user.created_at, date_only: true) %></i>

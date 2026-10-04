@@ -20,6 +20,13 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_equal "qf-avatar", Nokogiri::HTML5.fragment(avatar_tag("One")).at_css(".qf-avatar")["class"]
   end
 
+  test "avatar_tag escapes a hostile name into an inert attribute" do
+    node = Nokogiri::HTML5.fragment(avatar_tag(%(O" onerror=alert(1)<img))).at_css(".qf-avatar")
+
+    assert_equal %(O" onerror=alert(1)<img), node["data-blobatar"]
+    assert_empty node.css("img"), "name must not become markup"
+  end
+
   test "time_left pluralizes ru correctly" do
     assert_equal "3 дня", time_left(Time.current + 3.days + 5.minutes)
     assert_equal "1 час", time_left(Time.current + 1.hour + 1.minute)

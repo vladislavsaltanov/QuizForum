@@ -28,7 +28,7 @@
   <div class="qf-panes">
     <section class="qf-pane" aria-label="Детали вопроса">
       <div class="qf-card qf-author-card">
-        <span class="qf-avatar" aria-hidden="true"><%= initials(@question.author.name) %></span>
+        <%= avatar_tag(@question.author.name) %>
         <span class="qf-author-meta">
           <b><%= @question.author.name %></b>
           <% if @question.author.display_role.present? %>

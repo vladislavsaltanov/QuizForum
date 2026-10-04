@@ -514,6 +514,7 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   font-weight: 600;
   margin-bottom: 8px;
 }
+.qf-attempt-who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 
 .qf-picked { margin: 0; padding-left: 20px; line-height: 1.7; }
 
@@ -610,11 +611,12 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   width: 44px; height: 44px;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%;
-  background: var(--qf-ink); color: var(--qf-paper);
+  background-color: var(--qf-ink); color: var(--qf-paper);
+  background-size: cover; background-position: center;
   font-family: var(--qf-mono); font-size: 15px; font-weight: 600;
 }
 .qf-avatar-sm { width: 34px; height: 34px; font-size: 12px; }
-.is-author .qf-avatar { background: #b06a2a; }
+.is-author .qf-avatar { background-color: #b06a2a; }
 
 /* Serif body text: editorial, less generated-looking. */
 .qf-body { font-family: Georgia, 'Times New Roman', serif; font-size: 17px; }

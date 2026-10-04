@@ -20,12 +20,12 @@ class BlobatarAvatarTest < ActionDispatch::IntegrationTest
     get question_path(questions(:closed_single))
 
     assert_response :success
-    assert_select ".qf-attempt-head [data-blobatar='One']", count: 1
+    assert_select ".qf-attempt-who [data-blobatar='One']", count: 1
   end
 
   test "each comment carries its author's avatar seed" do
-    questions(:closed_single).comments.create!(user: @author, body: "спасибо")
-    get question_path(questions(:closed_single))
+    questions(:closed_single).comments.create!(user: @author, body: "спасибо", status: "approved")
+    get question_path(questions(:closed_single)), params: { tab: "comments" }
 
     assert_response :success
     assert_select ".qf-msg [data-blobatar='One']", count: 1
@@ -39,7 +39,7 @@ class BlobatarAvatarTest < ActionDispatch::IntegrationTest
   end
 
   test "leaderboard seeds an avatar per ranked user" do
-    Attempt.create!(question: questions(:closed_single), user: users(:one), selected: [ "1" ])
+    Attempt.create!(question: questions(:closed_single), user: users(:one), selected: [ "0" ])
     get leaderboard_path
 
     assert_response :success

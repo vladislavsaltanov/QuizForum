@@ -76,16 +76,16 @@
     <div class="qf-stat"><span>Неправильно</span><b class="qf-verdict-incorrect">2</b></div>
   </div>
 
-  <h2 class="qf-section-title">Аватары — инициалы, размеры sm / базовый / xl</h2>
+  <h2 class="qf-section-title">Аватары — blobatar по имени, размеры sm / базовый / xl</h2>
   <div class="qf-actions">
-    <span class="qf-avatar qf-avatar-sm" aria-hidden="true">ИС</span>
-    <span class="qf-avatar" aria-hidden="true">ИС</span>
-    <span class="qf-avatar qf-avatar-xl" aria-hidden="true">ИС</span>
+    <%= avatar_tag("Иванов Иван", size: :sm) %>
+    <%= avatar_tag("Иванов Иван") %>
+    <%= avatar_tag("Иванов Иван", size: :xl) %>
   </div>
 
   <h2 class="qf-section-title">Сообщение чата — аватар + пузырь .qf-bubble</h2>
   <div class="qf-msg">
-    <span class="qf-avatar qf-avatar-sm" aria-hidden="true">ПА</span>
+    <%= avatar_tag("Петрова Анна", size: :sm) %>
     <div class="qf-bubble">
       <div class="qf-msg-head"><b>Петрова Анна Сергеевна</b><time>5 минут назад</time></div>
       <p>А будет ли это работать на Python 2?</p>
