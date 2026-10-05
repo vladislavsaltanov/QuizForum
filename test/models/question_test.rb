@@ -28,12 +28,20 @@ class QuestionTest < ActiveSupport::TestCase
     assert_not q.valid?
   end
 
-  test "rejects more than six options" do
-    opts = 7.times.map { |i| { "text" => "o#{i}", "correct" => i.zero? } }
+  test "rejects more than eight options" do
+    opts = 9.times.map { |i| { "text" => "o#{i}", "correct" => i.zero? } }
     q = Question.new(title: "t", body: "b", answer_type: "single_choice", options: opts,
       reference_answer: "r", deadline: 7.days.from_now, author: @author, tags: [])
 
     assert_not q.valid?
+  end
+
+  test "accepts eight options" do
+    opts = 8.times.map { |i| { "text" => "o#{i}", "correct" => i.zero? } }
+    q = Question.new(title: "t", body: "b", answer_type: "single_choice", options: opts,
+      reference_answer: "r", deadline: 7.days.from_now, author: @author, tags: [])
+
+    assert q.valid?
   end
 
   test "grants observers for known emails" do

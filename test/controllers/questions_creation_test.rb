@@ -45,6 +45,42 @@ class QuestionsCreationTest < ActionDispatch::IntegrationTest
     assert_equal [ { "text" => "да", "correct" => true }, { "text" => "нет", "correct" => false } ], q.options
   end
 
+  test "creates single choice with eight options" do
+    texts = 8.times.map { |i| "в#{i}" }
+    post questions_path, params: { question: {
+      title: "Восемь", body: "Условие", answer_type: "single_choice",
+      deadline: "2030-01-01T12:00", reference_answer: "Ответ",
+      options_text: texts, options_correct: [ "0" ]
+    } }
+
+    q = Question.find_by!(title: "Восемь")
+
+    assert_equal 8, q.options.size
+    assert q.options.first["correct"]
+    assert_redirected_to question_path(q)
+  end
+
+  test "rejects nine options" do
+    texts = 9.times.map { |i| "в#{i}" }
+    assert_no_difference "Question.count" do
+      post questions_path, params: { question: {
+        title: "Девять", body: "Условие", answer_type: "single_choice",
+        deadline: "2030-01-01T12:00", reference_answer: "Ответ",
+        options_text: texts, options_correct: [ "0" ]
+      } }
+    end
+
+    assert_response :unprocessable_entity
+  end
+
+  test "new form starts with two rows and an add button" do
+    get new_question_path
+
+    assert_response :success
+    assert_includes response.body, "Добавить вариант ответа"
+    assert_equal 2, response.body.scan("question[options_text]").size
+  end
+
   test "rejects choice without correct answer" do
     assert_no_difference "Question.count" do
       post questions_path, params: { question: {

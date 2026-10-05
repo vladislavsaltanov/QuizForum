@@ -165,7 +165,7 @@ class Question < ApplicationRecord
         rejected.map { "#{it.email} — #{it.id == author_id ? "это вы, автор вопроса" : "не удалось сохранить"}" }
     end
 
-    # Blank option rows from the static form never reach grading.
+    # Blank option rows from the dynamic form never reach grading.
     def compact_options
       self.options = Array(options).filter_map do |o|
         o = o.to_h
@@ -175,10 +175,10 @@ class Question < ApplicationRecord
       end
     end
 
-    # Choice options must be 2-6 with a valid correct flag.
+    # Choice options must be 2-8 with a valid correct flag.
     def options_complete
       errors.add(:options, :blank) if options.size < 2
-      errors.add(:options, "must have at most 6 items") if options.size > 6
+      errors.add(:options, "must have at most 8 items") if options.size > 8
       errors.add(:options, :inclusion) if single_choice? && options.count { it["correct"] } != 1
       errors.add(:options, :inclusion) if multiple_choice? && options.none? { it["correct"] }
     end
