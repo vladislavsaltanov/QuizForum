@@ -14,16 +14,21 @@
 
   <fieldset id="qf-options">
     <legend class="qf-label">Варианты (только для типов с выбором)</legend>
-    <% 6.times do |i| %>
-      <% opt = question.options[i] || {} %>
-      <div class="qf-opt-row">
-        <%= text_field_tag "question[options_text][]", opt["text"], class: "qf-input", placeholder: "Вариант #{i + 1}", "aria-label": "Вариант #{i + 1}" %>
-        <label class="qf-check">
-          <%= check_box_tag "question[options_correct][]", i, opt["correct"] %> верный
-        </label>
-      </div>
-    <% end %>
-    <p class="qf-hint">От 2 до 6 вариантов, пустые строки отбрасываются. Для одиночного выбора отметьте ровно один.</p>
+    <div id="qf-opt-list">
+      <% rows = [question.options.size, 2].max %>
+      <% rows.times do |i| %>
+        <% opt = question.options[i] || {} %>
+        <div class="qf-opt-row">
+          <%= text_field_tag "question[options_text][]", opt["text"], class: "qf-input", placeholder: "Вариант #{i + 1}", "aria-label": "Вариант #{i + 1}" %>
+          <label class="qf-check">
+            <%= check_box_tag "question[options_correct][]", i, opt["correct"] %> верный
+          </label>
+          <button type="button" class="qf-ghost qf-opt-remove">Убрать</button>
+        </div>
+      <% end %>
+    </div>
+    <button type="button" class="qf-ghost" id="qf-add-opt">Добавить вариант ответа</button>
+    <p class="qf-hint">От 2 до 8 вариантов, пустые строки отбрасываются. Для одиночного выбора отметьте ровно один.</p>
   </fieldset>
 
   <%= f.label :deadline, "Дедлайн", class: "qf-label" %>
@@ -57,6 +62,46 @@
   const qfRef = document.getElementById("qf-reference-wrap");
   const qfSync = () => { const choice = qfType.value === "single_choice" || qfType.value === "multiple_choice"; qfOpts.hidden = !choice; qfRef.hidden = choice; };
   qfType.addEventListener("change", qfSync); qfSync();
+</script>
+<script>
+  {
+    // Dynamic option rows: 2 min, 8 max. Reindex keeps checkbox values
+    // aligned with text order so parse_options zips correctly.
+    const list = document.getElementById("qf-opt-list");
+    const addBtn = document.getElementById("qf-add-opt");
+    if (list && addBtn) {
+      const MIN = 2, MAX = 8;
+      const rows = () => [...list.querySelectorAll(".qf-opt-row")];
+      const reindex = () => {
+        rows().forEach((row, idx) => {
+          const text = row.querySelector('input[type="text"]');
+          const check = row.querySelector('input[type="checkbox"]');
+          if (text) { text.placeholder = `Вариант ${idx + 1}`; text.setAttribute("aria-label", `Вариант ${idx + 1}`); }
+          if (check) check.value = idx;
+          const rm = row.querySelector(".qf-opt-remove");
+          if (rm) rm.hidden = rows().length <= MIN;
+        });
+        addBtn.hidden = rows().length >= MAX;
+      };
+      addBtn.addEventListener("click", () => {
+        if (rows().length >= MAX) return;
+        const clone = rows().at(-1).cloneNode(true);
+        clone.querySelector('input[type="text"]').value = "";
+        const check = clone.querySelector('input[type="checkbox"]');
+        check.checked = false;
+        list.appendChild(clone);
+        reindex();
+        list.lastElementChild.querySelector('input[type="text"]').focus();
+      });
+      list.addEventListener("click", (e) => {
+        const rm = e.target.closest(".qf-opt-remove");
+        if (!rm || rows().length <= MIN) return;
+        rm.closest(".qf-opt-row").remove();
+        reindex();
+      });
+      reindex();
+    }
+  }
 </script>
 <script>
   {

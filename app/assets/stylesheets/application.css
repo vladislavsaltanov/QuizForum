@@ -247,6 +247,7 @@ html { scroll-behavior: smooth; }
 a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
 .qf-label { font-family: var(--qf-mono); font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--qf-mute); margin: 14px 0 -2px; }
 #qf-options { border: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+#qf-opt-list { display: grid; gap: 16px; }
 #qf-options > legend.qf-label { margin-bottom: 12px; }
 #qf-options[hidden] { display: none; }
 #qf-reference-wrap[hidden] { display: none; }
@@ -778,7 +779,7 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 .qf-apply:active, .qf-ghost:active { transform: scale(.96); }
 .qf-input, .qf-filter { transition: border-color .18s ease; }
 .qf-chip-urgent { transition: border-color .15s ease, background .15s ease; }
-.qf-notice, .qf-alert { animation: qf-toast-in .22s ease-out, qf-toast-out .4s ease-in 2.8s forwards; }
+.qf-flash .qf-notice, .qf-flash .qf-alert { animation: qf-toast-in .22s ease-out, qf-toast-out .4s ease-in 2.8s forwards; }
 
 /* Leaderboard: plain rows, top-3 tinted, me pinned. */
 .qf-board { display: grid; gap: 8px; margin-top: 18px; }
