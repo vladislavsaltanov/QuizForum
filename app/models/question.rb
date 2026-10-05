@@ -38,16 +38,49 @@ class Question < ApplicationRecord
     open? && deadline <= CLOSING_SOON.from_now
   end
 
-  # Landing feed: open questions plus a one-week tail of closed ones, urgent first.
+  # Landing feed: open questions plus a tail of closed ones, urgent first.
+  # AI packs get a short tail (AiQuestions::ARCHIVE_GRACE) instead of the human week;
+  # with the kill switch off AI rows never reach the feed at all.
   # now() is used straight in SQL because Rails pins the session time zone to UTC,
   # which is where deadline lives; passing a Ruby timestamp would drift by the zone offset.
   def self.feed
-    where("questions.deadline >= now() - make_interval(secs => ?)", ARCHIVE_GRACE.to_i).order(Arel.sql(feed_order))
+    human_feed.or(ai_feed).order(Arel.sql(feed_order))
   end
 
   # Everything the feed has dropped, newest closure first.
   def self.archived
-    where(deadline: ..ARCHIVE_GRACE.ago).order(deadline: :desc)
+    human_archived.or(ai_archived).order(deadline: :desc)
+  end
+
+  scope :ai, -> { where(ai_generated: true) }
+  scope :human, -> { where(ai_generated: false) }
+
+  # Feed/archived halves; AI halves go empty when the kill switch is off.
+  def self.human_feed
+    human.where("questions.deadline >= now() - make_interval(secs => ?)", ARCHIVE_GRACE.to_i)
+  end
+
+  def self.ai_feed
+    return none unless AiQuestions.enabled?
+    ai.where("questions.deadline >= now() - make_interval(secs => ?)", AiQuestions::ARCHIVE_GRACE.to_i)
+  end
+
+  def self.human_archived
+    human.where(deadline: ..ARCHIVE_GRACE.ago)
+  end
+
+  def self.ai_archived
+    return none unless AiQuestions.enabled?
+    ai.where("questions.deadline < now() - make_interval(secs => ?)", AiQuestions::ARCHIVE_GRACE.to_i)
+  end
+
+  # Latest AI batch still on the feed (today's open pack, or yesterday's
+  # during its 2-hour closed tail before the archive takes it).
+  def self.latest_ai_pack
+    return [] unless AiQuestions.enabled?
+    rows = ai_feed.includes(:author, :attempts).order(ai_batch: :desc).to_a
+    return [] if rows.empty?
+    rows.take_while { it.ai_batch == rows.first.ai_batch }
   end
 
   def self.feed_order

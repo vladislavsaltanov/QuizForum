@@ -1,0 +1,18 @@
+# Solid Queue recurring jobs. Times are UTC: 14:00 UTC == 17:00 MSK year-round
+# (Russia has no DST), which is the AI pack cycle hour in AiQuestions.zone.
+# Fallback without a dispatcher: an external cron POSTing the webhook
+# (curl -H "Authorization: Bearer $AI_INGEST_TOKEN" /api/ai_questions).
+production:
+  ai_daily_generate:
+    command: "AiDailyGenerateJob.perform_later"
+    schedule: every day at 14:00
+  ai_retention:
+    command: "AiRetentionJob.perform_later"
+    schedule: every day at 15:00
+development:
+  ai_daily_generate:
+    command: "AiDailyGenerateJob.perform_later"
+    schedule: every day at 14:00
+  ai_retention:
+    command: "AiRetentionJob.perform_later"
+    schedule: every day at 15:00

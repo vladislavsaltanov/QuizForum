@@ -130,4 +130,16 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     assert_equal "one@example.com", @user.reload.email
   end
+
+  test "toggles the AI banner cookie from profile settings" do
+    patch toggle_ai_banner_profile_path, params: { hide_ai_banner: "1" }
+
+    assert_redirected_to profile_path
+    assert_equal "1", cookies[:hide_ai_banner]
+
+    patch toggle_ai_banner_profile_path
+
+    assert_redirected_to profile_path
+    assert cookies[:hide_ai_banner].blank?
+  end
 end

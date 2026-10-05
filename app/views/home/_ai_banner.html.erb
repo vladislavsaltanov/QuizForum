@@ -1,0 +1,13 @@
+<%# Full-width banner linking to the daily AI rubric page. One teaser row, no cards. %>
+<%= link_to ai_pack_path, class: "qf-ai-banner-link" do %>
+  <div class="qf-ai-banner" role="article" aria-label="Рубрика ИИ — вопросы дня">
+    <div class="qf-ai-banner-text">
+      <span class="qf-kicker">Рубрика ИИ · вопросы дня</span>
+      <p class="qf-ai-banner-sub">9 свежих вопросов от нейросети каждый день — 3 лёгких, 3 средних, 3 сложных. Новый пак в 17:00.</p>
+    </div>
+    <span class="qf-ai-banner-side">
+      <span class="qf-ai-date"><%= @ai_pack.first.created_at.strftime("%d.%m") %></span>
+      <span class="qf-ai-open" aria-hidden="true">→</span>
+    </span>
+  </div>
+<% end %>

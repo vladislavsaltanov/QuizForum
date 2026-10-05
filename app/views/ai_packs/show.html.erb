@@ -1,0 +1,49 @@
+<% content_for :title, "Рубрика ИИ — QuizForum" %>
+<% content_for :head do %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<% end %>
+
+<%= render "shared/header", active: nil %>
+
+<main class="qf-main qf-main-home">
+  <%= link_to "← К вопросам", root_path, class: "qf-back" %>
+  <p class="qf-kicker">Рубрика ИИ · <%= @ai_pack.first.created_at.strftime("%d.%m") %></p>
+  <h1 class="qf-hero">Вопросы дня</h1>
+  <p class="qf-ai-about">9 свежих вопросов от нейросети каждый день. Новый пак в 17:00, ответы принимаются до 15:00 следующего дня.</p>
+
+  <% %w[легкое среднее сложное].each do |level| %>
+    <% group = @ai_pack.select { it.tags.include?(level) } %>
+    <% next if group.empty? %>
+    <h3 class="qf-ai-level"><%= level.capitalize %></h3>
+    <section class="qf-cards" aria-label="Вопросы дня — <%= level %>">
+      <% group.each do |question| %>
+        <%= link_to question_path(question), class: "qf-card-link" do %>
+          <article class="qf-card">
+            <div class="qf-card-top">
+              <span class="qf-card-tags"><%= question.tags.map { "##{it}" }.join(" ") %></span>
+              <span class="qf-card-attempts">ответили: <%= question.attempts.size %></span>
+            </div>
+            <h2 class="qf-card-title"><%= question_title_with_date(question) %></h2>
+            <div class="qf-card-meta">
+              <span class="qf-card-author"><%= question.author.name %><%= " • #{question.author.display_role}" if question.author.display_role.present? %></span>
+              <% if question.closing_soon? %>
+                <span class="qf-chip qf-chip-urgent">заканчивается · <%= time_left(question.deadline) %></span>
+              <% elsif question.open? %>
+                <span class="qf-chip">до <%= local_time_tag(question.deadline) %></span>
+              <% else %>
+                <span class="qf-chip">закрыт <%= local_time_tag(question.deadline) %></span>
+              <% end %>
+            </div>
+          </article>
+        <% end %>
+      <% end %>
+    </section>
+  <% end %>
+
+  <footer class="qf-footer">
+    <span>QuizForum</span>
+    <span>Рубрика ИИ · <%= @ai_pack.size %> вопросов</span>
+  </footer>
+</main>

@@ -18,11 +18,16 @@ Rails.application.routes.draw do
     end
     resources :reports, only: %i[ create ]
   end
+  namespace :api do
+    resources :ai_questions, only: %i[ create ]
+  end
   resource :leaderboard, only: %i[show]
+  get "ai" => "ai_packs#show", as: :ai_pack
   get "archive" => "archives#show", as: :archive
   resource :my_questions, only: %i[show]
   resource :profile, only: %i[show edit update] do
     patch :grant_role, on: :member
+    patch :toggle_ai_banner, on: :member
   end
   get "ui-kit" => "ui_kit#show", as: :ui_kit
   match "/auth/google_oauth2/callback" => "sessions#google_oauth2", via: %i[get post]

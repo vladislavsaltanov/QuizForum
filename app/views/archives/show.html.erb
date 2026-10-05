@@ -13,7 +13,15 @@
   <p class="qf-kicker">Архив · <%= pager[:count] %></p>
   <h1 class="qf-hero">Архив</h1>
 
-  <%= render "shared/filters", url: archive_path %>
+  <% if AiQuestions.enabled? %>
+    <nav class="qf-tabs" aria-label="Архивные рубрики">
+      <%= link_to "Все", archive_path(ai: "all"), class: "qf-pager-step", aria: { current: @ai_filter == "all" } %>
+      <%= link_to "Без ИИ", archive_path(ai: "0"), class: "qf-pager-step", aria: { current: @ai_filter == "0" } %>
+      <%= link_to "Только ИИ", archive_path(ai: "1"), class: "qf-pager-step", aria: { current: @ai_filter == "1" } %>
+    </nav>
+  <% end %>
+
+  <%= render "shared/filters", url: @ai_filter == "0" ? archive_path : archive_path(ai: @ai_filter) %>
 
   <section class="qf-cards" aria-label="Архив вопросов">
     <% if @questions.empty? %>
@@ -27,7 +35,7 @@
             <span class="qf-card-tags"><%= question.tags.map { "##{it}" }.join(" ") %></span>
             <span class="qf-card-attempts">ответили: <%= question.attempts.size %></span>
           </div>
-          <h2 class="qf-card-title"><%= question.title %></h2>
+          <h2 class="qf-card-title"><%= question_title_with_date(question) %></h2>
           <div class="qf-card-meta">
             <span class="qf-card-author"><%= question.author.name %><%= " • #{question.author.display_role}" if question.author.display_role.present? %></span>
             <span class="qf-chip">закрыт <%= local_time_tag(question.deadline) %></span>

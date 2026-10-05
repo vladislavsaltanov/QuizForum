@@ -73,3 +73,6 @@ end
 Comment.find_or_create_by!(question: python_q, user: anna, body: "А будет ли это работать на Python 2?") do |c|
   c.status = "approved"
 end
+
+# AI pack author: bot account daily questions are published under.
+AiQuestions.bot_user!
