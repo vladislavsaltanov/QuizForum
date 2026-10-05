@@ -23,7 +23,7 @@
     <% end %>
     · <%= @question.tags.map { "##{it}" }.join(" ") %>
   </p>
-  <h1 class="qf-qtitle"><%= @question.title %></h1>
+  <h1 class="qf-qtitle"><%= question_title_with_date(@question) %></h1>
 
   <div class="qf-panes">
     <section class="qf-pane" aria-label="Детали вопроса">

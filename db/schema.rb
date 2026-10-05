@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_23_214946) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_04_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -54,6 +54,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_214946) do
   end
 
   create_table "questions", force: :cascade do |t|
+    t.date "ai_batch"
+    t.boolean "ai_generated", default: false, null: false
     t.string "answer_type", default: "text", null: false
     t.bigint "author_id", null: false
     t.text "body", default: "", null: false
@@ -65,6 +67,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_214946) do
     t.string "tags", default: [], null: false, array: true
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.index ["ai_batch"], name: "index_questions_on_ai_batch_ai_only", where: "ai_generated"
     t.index ["author_id"], name: "index_questions_on_author_id"
   end
 

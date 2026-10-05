@@ -33,6 +33,17 @@
     <%= link_to "Таблица лидеров", leaderboard_path, class: "qf-ghost" %>
   </div>
 
+  <hr>
+  <h2 class="qf-section-title">Настройки</h2>
+  <%= form_with url: toggle_ai_banner_profile_path, method: :patch, class: "qf-form" do %>
+    <label class="qf-check">
+      <%= check_box_tag "hide_ai_banner", "1", cookies[:hide_ai_banner] == "1" %> Скрыть баннер ИИ-рубрики
+    </label>
+    <div class="qf-actions">
+      <button type="submit" class="qf-apply">Сохранить</button>
+    </div>
+  <% end %>
+
   <% if Current.user.admin? %>
     <h2 class="qf-section-title">Администрирование</h2>
     <%= form_with url: grant_role_profile_path, method: :patch, class: "qf-form" do %>

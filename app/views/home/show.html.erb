@@ -14,6 +14,8 @@
 
   <%= render "shared/filters", url: root_path %>
 
+  <%= render "ai_banner" if @ai_pack.any? %>
+
   <section class="qf-cards" aria-label="Вопросы">
     <% if @questions.empty? %>
       <p class="qf-empty">Ничего не найдено. Попробуйте смягчить фильтры.</p>
@@ -26,7 +28,7 @@
             <span class="qf-card-tags"><%= question.tags.map { "##{it}" }.join(" ") %></span>
             <span class="qf-card-attempts">ответили: <%= question.attempts.size %></span>
           </div>
-          <h2 class="qf-card-title"><%= question.title %></h2>
+          <h2 class="qf-card-title"><%= question_title_with_date(question) %></h2>
           <div class="qf-card-meta">
             <span class="qf-card-author"><%= question.author.name %><%= " • #{question.author.display_role}" if question.author.display_role.present? %></span>
             <% if question.closing_soon? %>

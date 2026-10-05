@@ -42,6 +42,18 @@ class ProfilesController < ApplicationController
     end
   end
 
+  # Toggles the AI banner via a persistent cookie; per-browser, no reauth needed.
+  def toggle_ai_banner
+    if params[:hide_ai_banner] == "1"
+      cookies[:hide_ai_banner] = { value: "1", expires: 1.year }
+      notice = "Баннер ИИ-рубрики скрыт."
+    else
+      cookies.delete(:hide_ai_banner)
+      notice = "Баннер ИИ-рубрики возвращён."
+    end
+    redirect_to profile_path, notice:
+  end
+
   # Admin-only cosmetic role grant; never part of mass-assigned params.
   def grant_role
     return head(:forbidden) unless Current.user&.admin?

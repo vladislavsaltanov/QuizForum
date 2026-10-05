@@ -13,6 +13,12 @@ module ApplicationHelper
     "false" => "похоже на неверный"
   }.freeze
 
+  # Title with the publish date in parens, AI packs only: "Из каких молекул состоит H2O (05.10)".
+  def question_title_with_date(question)
+    return question.title unless question.ai_generated?
+    "#{question.title} (#{question.created_at.strftime("%d.%m")})"
+  end
+
   # Human-readable jury suggestion name.
   def jury_label(label)
     JURY_LABELS.fetch(label.to_s, label.to_s)
@@ -42,8 +48,9 @@ module ApplicationHelper
   end
 
   # True when any list filter is set; the lists swap their empty-state wording on it.
+  # The archive AI switch counts only when it actually narrows (ИИ / Все), not on default.
   def filters_active?
-    params.values_at(:q, :author, :difficulty, :topic).any?(&:present?)
+    params.values_at(:q, :author, :difficulty, :topic).any?(&:present?) || params[:ai].in?(%w[1 all])
   end
 
   # Page numbers around the current one; :gap stands in for skipped pages.

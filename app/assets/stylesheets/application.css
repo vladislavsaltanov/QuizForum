@@ -241,6 +241,8 @@ html { scroll-behavior: smooth; }
 .qf-pager-count { margin-inline-start: 4px; }
 #comments-more { display: none; }
 .qf-divider { margin: 44px 0 0; }
+/* Bare <hr> (profile settings): match the section-title margin below so both gaps are 26px. */
+.qf-main > hr:not(.qf-divider) { margin-block: 26px 0; }
 .qf-list-top { margin-bottom: 20px; }
 a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
 .qf-label { font-family: var(--qf-mono); font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--qf-mute); margin: 14px 0 -2px; }
@@ -835,3 +837,39 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 .qf-modal::backdrop { background: rgb(24 18 14 / .45); }
 .qf-modal-title { margin: 0 0 .75rem; font-size: 1.05rem; }
 .qf-modal-list { margin: 0 0 1.25rem; padding-left: 1.1rem; display: grid; gap: .4rem; }
+
+/* AI banner + rubric page: animated gradient frame on the warm palette.
+ * Border-box gradient over a solid padding-box fill; @property spins the angle.
+ * No @property support = static gradient, still a frame. */
+@property --qf-ai-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+.qf-ai-banner-link { display: block; margin-block-end: 1.5rem; text-decoration: none; color: inherit; }
+.qf-ai-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: clamp(1rem, 0.875rem + 2vw, 1.625rem);
+  border: 2px solid transparent;
+  border-radius: var(--qf-radius-lg);
+  background:
+    linear-gradient(var(--qf-outer), var(--qf-outer)) padding-box,
+    linear-gradient(var(--qf-ai-angle), #8b5cf6, #22a39a, #e09132, #8b5cf6) border-box;
+  animation: qf-ai-spin 12s linear infinite;
+}
+@keyframes qf-ai-spin { to { --qf-ai-angle: 360deg; } }
+.qf-ai-banner-sub { margin: 0.35rem 0 0; font-size: 0.9rem; color: var(--qf-ink-soft); }
+.qf-ai-banner-side { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; font-family: var(--qf-mono); }
+.qf-ai-open { font-size: 1.5rem; font-weight: 700; }
+.qf-ai-about { margin: -0.5rem 0 1.5rem; color: var(--qf-ink-soft); }
+.qf-ai-date { font-size: 0.8125rem; font-weight: 600; color: var(--qf-mute); }
+.qf-ai-level {
+  margin: 1rem 0 0.75rem;
+  font-family: var(--qf-mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--qf-ink-soft);
+}
+.qf-tabs { display: flex; gap: 0.5rem; margin-block-end: 1rem; }
+@media (prefers-reduced-motion: reduce) {
+  .qf-ai-banner { animation: none; }
+}

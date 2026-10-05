@@ -58,7 +58,7 @@ class QuestionsController < ApplicationController
     moderation_blocked? if @question.valid?
     saved, @trustee_alert = @question.errors.empty? ? save_with_trustees : [ false, nil ]
     if saved
-      redirect_to @question, notice: "Вопрос обновён.", alert: @trustee_alert
+      redirect_to @question, notice: "Вопрос обновлён.", alert: @trustee_alert
     else
       @can_manage_trustees = @question.managed_by?(Current.user)
       flash.now[:alert] = @question.errors.full_messages.to_sentence.presence || "Не удалось сохранить. Повторите."
@@ -104,10 +104,12 @@ class QuestionsController < ApplicationController
     end
 
     # Laya sync-gate on public text including reference and explanation.
+    # Blob shape shared with AiQuestionIngest so both doors keep the same bar.
     def moderation_blocked?
-      moderation_text = [ @question.title, @question.body, @question.tags.join(" "),
-                      @question.reference_answer, @question.explanation,
-                      Array(@question.options).map { it["text"] }.join(" ") ].join("\n")
+      moderation_text = AiQuestionIngest.moderation_text(
+        title: @question.title, body: @question.body, tags: @question.tags,
+        reference_answer: @question.reference_answer, explanation: @question.explanation,
+        options: @question.options)
       verdict = ModerationClient.check(text: moderation_text)
       @question.errors.add(:base, "Отклонено проверкой: #{verdict.category}.") if verdict.verdict == :reject
       @question.errors.add(:base, "Проверка не удалась, попробуйте позже.") if verdict.verdict == :try_later
