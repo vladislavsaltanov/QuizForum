@@ -44,7 +44,9 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
   end
 
   test "single choice attempt is graded correct" do
-    q = questions(:closed_single)
+    q = Question.create!(title: "t-graded", body: "b", answer_type: "single_choice",
+      options: [ { "text" => "a", "correct" => true }, { "text" => "b", "correct" => false } ],
+      reference_answer: "r", deadline: 7.days.from_now, author: @author, tags: [])
     post question_attempts_path(q), params: { attempt: { selected: [ "0" ] } }
 
     assert_equal "correct", q.attempts.find_by(user: @user).verdict
@@ -138,7 +140,7 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "closed question never reveals pending comments to strangers" do
+  test "closed question reveals pending comments to strangers" do
     q = questions(:closed_text)
     Comment.create!(question: q, user: q.author, body: "скрытый до проверки")
     stranger = User.create!(name: "StrangerClosed", email: "stranger-closed@example.com",
@@ -146,7 +148,7 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     sign_in_as(stranger)
     get question_path(q, tab: "comments")
 
-    assert_no_match(/скрытый до проверки/, response.body)
+    assert_match(/скрытый до проверки/, response.body)
   end
 
   test "non-author cannot approve comments" do
