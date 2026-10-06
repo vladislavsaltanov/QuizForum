@@ -3,9 +3,10 @@ class AttemptsController < ApplicationController
   rate_limit to: 10, within: 3.minutes, only: %i[create verdict],
              with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
 
-  # Records the current user's attempt; model validations reject doubles and late posts.
+  # Saves the current user's attempt. Rejects late posts; the model rejects duplicates.
   def create
     @question = Question.find(params[:question_id])
+    return redirect_to @question, alert: "Дедлайн прошёл." if @question.closed?
     @attempt = @question.attempts.build(attempt_params.merge(user: Current.user))
     if @attempt.save
       # Text answers go to the OpenJev jury; choice verdicts are already set.

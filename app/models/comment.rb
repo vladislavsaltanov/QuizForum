@@ -16,10 +16,10 @@ class Comment < ApplicationRecord
     status == "approved"
   end
 
-  # Approved plus own comments; every status for the privileged viewer.
+  # Shows approved and own comments. Shows all comments to privileged users and after the deadline.
   def self.visible_for(question, user)
     scope = where(question: question)
-    return scope if question.privileged?(user)
+    return scope if question.privileged?(user) || question.closed?
     scope.where(status: "approved").or(scope.where(user: user))
   end
 
