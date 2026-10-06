@@ -99,6 +99,36 @@ class AttemptJuryJobTest < ActiveSupport::TestCase
 
     assert_equal "correct", @attempt.reload.verdict
   end
+
+  test "confident positive on revealed question broadcasts leaderboard refresh" do
+    revealed = Attempt.create!(question: questions(:closed_text),
+      user: users(:two), body: "Сжимающее отображение.")
+    with_grade(jury_result("positive", 1.0, false)) do
+      assert_turbo_stream_broadcasts "leaderboard" do
+        AttemptJuryJob.perform_now(revealed.id)
+      end
+    end
+
+    assert_equal "correct", revealed.reload.verdict
+  end
+
+  test "confident positive on open question broadcasts nothing" do
+    with_grade(jury_result("positive", 1.0, false)) do
+      assert_no_turbo_stream_broadcasts "leaderboard" do
+        AttemptJuryJob.perform_now(@attempt.id)
+      end
+    end
+  end
+
+  test "confident positive on revealed question streams verdict chips and stats" do
+    revealed = Attempt.create!(question: questions(:closed_text),
+      user: users(:two), body: "Сжимающее отображение.")
+    with_grade(jury_result("positive", 1.0, false)) do
+      assert_turbo_stream_broadcasts questions(:closed_text), count: 3 do
+        AttemptJuryJob.perform_now(revealed.id)
+      end
+    end
+  end
   private
     ORIGINAL_NEW = JuryClient.method(:new)
     ORIGINAL_CHECK = ModerationClient.method(:check)

@@ -1,0 +1,5 @@
+<div class="qf-stats" id="question-stats">
+  <div class="qf-stat"><span>Правильно</span><b class="<%= verdict_class("correct") %>"><%= stats.fetch("correct", 0) %></b></div>
+  <div class="qf-stat"><span>Почти, но нет</span><b class="<%= verdict_class("partial") %>"><%= stats.fetch("partial", 0) %></b></div>
+  <div class="qf-stat"><span>Неправильно</span><b class="<%= verdict_class("incorrect") %>"><%= stats.fetch("incorrect", 0) %></b></div>
+</div>

@@ -6,18 +6,10 @@ class ProfilesController < ApplicationController
   def show
     @published = @user.authored_questions.count
     @answered = @user.attempts.count
-    @score = @user.attempts.joins(:question)
-      .where(verdict: "correct")
-      .where("questions.deadline <= ?", Time.current).count
-    # Same ordering as LeaderboardsController so ranks agree.
-    counts = Attempt.joins(:question)
-      .where(verdict: "correct")
-      .where("questions.deadline <= ?", Time.current)
-      .group("attempts.user_id").count
-    users = User.where(id: counts.keys).index_by(&:id)
-    ranking = counts.filter_map { |uid, n| users[uid] && [ users[uid], n ] }
-      .sort_by { |u, n| [ -n, u.name ] }
+    # Same ranking as LeaderboardsController so ranks agree.
+    ranking = Attempt.revealed_points
     me = ranking.index { |u, _| u.id == @user.id }
+    @score = me ? ranking[me][1] : 0
     @rank = me && me + 1
   end
 

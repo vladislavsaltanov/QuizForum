@@ -113,6 +113,14 @@ class Question < ApplicationRecord
     answer_type == "multiple_choice"
   end
 
+  # Points for a correct verdict: 1/2/3 by difficulty, 1 when untagged.
+  DIFFICULTY_WEIGHTS = { "легкое" => 1, "среднее" => 2, "сложное" => 3 }.freeze
+
+  # Weight of this question in points.
+  def difficulty_weight
+    DIFFICULTY_WEIGHTS.fetch((tags & DIFFICULTIES).first, 1)
+  end
+
   # Option indexes flagged correct, as strings matching Attempt#selected.
   def correct_indices
     options.each_index.select { options[it]["correct"] }.map(&:to_s)

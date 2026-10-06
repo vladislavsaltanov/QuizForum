@@ -24,9 +24,14 @@ class AttemptJuryJob < ApplicationJob
     attempt.update!(jury_label: result.label, jury_score: result.score,
       jury_needs_review: needs_review, jury_reasons: reasons_text(result))
     verdict = map_verdict(result, needs_review)
+    return unless verdict
     # Conditional write: a late job never overwrites the author's verdict.
-    Attempt.where(id: attempt.id, verdict: "pending")
-      .update_all(verdict:, updated_at: Time.current) if verdict
+    updated = Attempt.where(id: attempt.id, verdict: "pending")
+      .update_all(verdict:, updated_at: Time.current)
+    return unless updated == 1
+    reloaded = attempt.reload
+    Turbo::StreamsChannel.broadcast_refresh_to("leaderboard") if reloaded.revealed_correct?
+    reloaded.broadcast_verdict_change if reloaded.question.closed?
   end
 
   private

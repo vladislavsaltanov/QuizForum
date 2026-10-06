@@ -10,6 +10,7 @@
 <main class="qf-main">
   <p class="qf-kicker">Рейтинг · верные ответы после дедлайна</p>
   <h1 class="qf-hero">Лидеры</h1>
+  <%= turbo_stream_from "leaderboard" %>
 
   <%= form_with url: leaderboard_path, method: :get, class: "qf-search", role: "search" do %>
     <div class="qf-filters">

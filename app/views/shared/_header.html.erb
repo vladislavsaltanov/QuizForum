@@ -1,5 +1,5 @@
 <header class="qf-header">
-  <span class="qf-logo">QuizForum</span>
+  <%= link_to "QuizForum", root_path, class: "qf-logo" %>
   <nav class="qf-nav" aria-label="Основная навигация">
     <% if local_assigns[:active] == "main" %>
       <span class="qf-nav-item is-active" aria-current="page">Главный экран</span>

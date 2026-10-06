@@ -1,5 +1,6 @@
 Rails.application.routes.draw do
   root "home#show"
+  match "/404", to: "errors#not_found", via: :all
   resource :session
   resources :registrations, only: %i[ new create ]
   resources :confirmations, param: :token, only: %i[ new create ] do

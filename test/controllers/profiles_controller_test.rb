@@ -24,7 +24,7 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert_select ".qf-id-card", text: /one@example\.com/
     assert_select ".qf-stat", text: /Опубликовано вопросов/
     assert_select ".qf-stat", text: /Дано ответов/
-    assert_select ".qf-stat", text: /Верных ответов/
+    assert_select ".qf-stat", text: /Баллов/
     assert_select ".qf-id-card .qf-chip", text: "#1 в рейтинге"
   end
 

@@ -261,4 +261,46 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     assert_redirected_to question_path(q, tab: "comments")
     assert_equal "approved", comment.reload.status
   end
+
+  test "answers tab subscribes to the question stream and arms the reveal timer" do
+    get question_path(questions(:open_text))
+
+    assert_response :success
+    assert_select "turbo-frame#question-answers[data-controller='reveal']"
+    assert_select "turbo-frame#question-answers[data-reveal-url-value=?]", question_path(questions(:open_text))
+  end
+
+  test "verdict on closed question streams chips and stats" do
+    q = questions(:closed_single)
+    attempt = Attempt.create!(question: q, user: @user, selected: [ "1" ])
+    sign_in_as(@author)
+    assert_turbo_stream_broadcasts q, count: 3 do
+      patch verdict_question_attempt_path(q, attempt), params: { attempt: { verdict: "correct" } }
+    end
+  end
+
+  test "verdict on open question streams nothing" do
+    q = questions(:open_text)
+    attempt = Attempt.create!(question: q, user: @user, body: "рано")
+    sign_in_as(@author)
+    assert_no_turbo_stream_broadcasts q do
+      patch verdict_question_attempt_path(q, attempt), params: { attempt: { verdict: "correct" } }
+    end
+  end
+
+  test "attempt submit escapes the answers frame" do
+    get question_path(questions(:open_text))
+
+    assert_select 'form.qf-form[data-turbo-frame="_top"]'
+  end
+
+  test "share and composer use stimulus, not inline handlers" do
+    get question_path(questions(:open_text))
+
+    assert_select "button[data-controller='share'][data-action='click->share#copy']", minimum: 1
+    get question_path(questions(:open_text), tab: "comments")
+
+    assert_select "textarea[data-controller='composer'][data-action='keydown->composer#send']"
+    assert_no_match(/onkeydown=/, response.body)
+  end
 end

@@ -24,6 +24,8 @@ class AttemptsController < ApplicationController
     verdict = params.expect(attempt: [ :verdict ])[:verdict]
     return head(:bad_request) unless Attempt::MANUAL_VERDICTS.include?(verdict)
     @attempt.update!(verdict:)
+    Turbo::StreamsChannel.broadcast_refresh_to("leaderboard") if @attempt.revealed_correct?
+    @attempt.broadcast_verdict_change if @attempt.question.closed?
     redirect_to @attempt.question, notice: "Оценка обновлена."
   end
 
