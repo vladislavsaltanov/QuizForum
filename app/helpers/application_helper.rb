@@ -50,7 +50,7 @@ module ApplicationHelper
   # True when any list filter is set; the lists swap their empty-state wording on it.
   # The archive AI switch counts only when it actually narrows (ИИ / Все), not on default.
   def filters_active?
-    params.values_at(:q, :author, :difficulty, :topic).any?(&:present?) || params[:ai].in?(%w[1 all])
+    params.values_at(:q, :author, :difficulty, :topic, :date_from, :date_to).any?(&:present?) || params[:ai].in?(%w[1 all])
   end
 
   # Page numbers around the current one; :gap stands in for skipped pages.

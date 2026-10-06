@@ -9,7 +9,7 @@
 
 <main class="qf-main qf-main-home">
   <% pager = @pagers[:page] %>
-  <p class="qf-kicker">Открытые вопросы · <%= pager[:count] %></p>
+  <p class="qf-kicker"><%= @date_filter_active ? "Вопросы по дате" : "Открытые вопросы" %> · <%= pager[:count] %></p>
   <h1 class="qf-hero">Вопросы</h1>
 
   <%= render "shared/filters", url: root_path %>
@@ -31,7 +31,9 @@
           <h2 class="qf-card-title"><%= question_title_with_date(question) %></h2>
           <div class="qf-card-meta">
             <span class="qf-card-author"><%= question.author.name %><%= " • #{question.author.display_role}" if question.author.display_role.present? %></span>
-            <% if question.closing_soon? %>
+            <% if question.closed? %>
+              <span class="qf-chip">закрыт <%= local_time_tag(question.deadline) %></span>
+            <% elsif question.closing_soon? %>
               <span class="qf-chip qf-chip-urgent">заканчивается · <%= time_left(question.deadline) %></span>
             <% else %>
               <span class="qf-chip">до <%= local_time_tag(question.deadline) %></span>
@@ -53,6 +55,6 @@
 
   <footer class="qf-footer">
     <span>QuizForum</span>
-    <span><%= pager[:count] %> открытых вопросов</span>
+    <span><%= @date_filter_active ? "#{pager[:count]} вопросов по дате" : "#{pager[:count]} открытых вопросов" %></span>
   </footer>
 </main>
