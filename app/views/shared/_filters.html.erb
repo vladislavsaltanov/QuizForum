@@ -1,14 +1,39 @@
-<%# Search and filter form shared by the landing feed and the archive. Both list
-    questions, both offer the same narrowing; only url differs. %>
+<%# Search and filters shared by Home and Archive. Date range on Home also searches archived humans. %>
+<% date_label = if @date_from && @date_to
+  "#{@date_from.strftime('%d.%m')}–#{@date_to.strftime('%d.%m')}"
+elsif @date_from
+  "с #{@date_from.strftime('%d.%m')}"
+elsif @date_to
+  "до #{@date_to.strftime('%d.%m')}"
+else
+  "Дата"
+end %>
 <%= form_with url: url, method: :get, class: "qf-search", role: "search" do %>
   <%= search_field_tag :q, @q, placeholder: "Найти вопрос…", class: "qf-search-input", "aria-label": "Поиск вопросов" %>
   <div class="qf-filters">
     <%= select_tag :author, options_for_select([ [ "Все авторы", "" ] ] + @authors.map { [ it, it ] }, @author), class: "qf-filter", "aria-label": "Автор" %>
     <%= select_tag :difficulty, options_for_select([ [ "Любая сложность", "" ] ] + Question::DIFFICULTIES.map { [ it.capitalize, it ] }, @difficulty), class: "qf-filter", "aria-label": "Сложность" %>
     <%= select_tag :topic, options_for_select([ [ "Все темы", "" ] ] + @topics.map { [ "##{it}", it ] }, @topic), class: "qf-filter", "aria-label": "Тема" %>
+    <button type="button" class="qf-filter" popovertarget="qf-date-range" aria-haspopup="dialog" aria-controls="qf-date-range"><%= date_label %></button>
+    <div id="qf-date-range" popover="auto" class="qf-modal-card" role="dialog" aria-label="Выбор диапазона дат">
+      <h2 class="qf-modal-title">Дата публикации</h2>
+      <div class="qf-form">
+        <%= label_tag :date_from, "С даты", class: "qf-label" %>
+        <%= date_field_tag :date_from, @date_from, class: "qf-input" %>
+        <%= label_tag :date_to, "По дату", class: "qf-label" %>
+        <%= date_field_tag :date_to, @date_to, class: "qf-input" %>
+      </div>
+      <div class="qf-actions">
+        <button type="submit" class="qf-apply">Применить</button>
+        <button type="button" class="qf-ghost" popovertarget="qf-date-range" popovertargetaction="hide">Закрыть</button>
+      </div>
+    </div>
     <button type="submit" class="qf-apply">Найти</button>
     <% if filters_active? %>
       <%= link_to "Сбросить", url, class: "qf-reset" %>
     <% end %>
   </div>
+  <% if @date_filter_error %>
+    <p class="qf-alert" role="alert">Проверьте диапазон дат.</p>
+  <% end %>
 <% end %>
