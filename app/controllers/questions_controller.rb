@@ -29,7 +29,7 @@ class QuestionsController < ApplicationController
   # Publishes a question; trustee list syncs only when the form sent the field.
   def create
     @question = Current.user.authored_questions.build(question_params)
-    @question.tags = params[:question][:tags_string].to_s.split(",").map(&:strip).reject(&:empty?)
+    @question.tags = parse_tags
     @question.options = parse_options if @question.choice?
     moderation_blocked? if @question.valid?
     saved, @trustee_alert = @question.errors.empty? ? save_with_trustees : [ false, nil ]
@@ -53,7 +53,7 @@ class QuestionsController < ApplicationController
     @question = Question.find(params[:id])
     return head(:forbidden) unless editable?(@question)
     @question.assign_attributes(question_params)
-    @question.tags = params[:question][:tags_string].to_s.split(",").map(&:strip).reject(&:empty?)
+    @question.tags = parse_tags
     @question.options = parse_options if @question.choice?
     moderation_blocked? if @question.valid?
     saved, @trustee_alert = @question.errors.empty? ? save_with_trustees : [ false, nil ]
@@ -142,6 +142,15 @@ class QuestionsController < ApplicationController
     # Whitelisted question form fields.
     def question_params
       params.expect(question: [ :title, :body, :answer_type, :deadline, :reference_answer, :explanation ])
+    end
+
+    # Difficulty arrives from its own select; typed difficulty words merge into it.
+    def parse_tags
+      tags = params[:question][:tags_string].to_s.split(",").map(&:strip).reject(&:empty?)
+      tags -= Question::DIFFICULTIES
+      difficulty = params[:question][:difficulty].to_s.strip
+      tags << difficulty if Question::DIFFICULTIES.include?(difficulty)
+      tags
     end
 
     # Zips parallel text/correct form arrays into option hashes, skipping blank rows.

@@ -1,0 +1,14 @@
+<% content_for :title, "Страница не найдена" %>
+
+<main class="qf-main">
+  <p class="qf-kicker">Ошибка 404</p>
+  <h1 class="qf-hero">Такой страницы нет</h1>
+  <p class="qf-empty">Адрес неверный или вопрос уже удалён — загляните на главный экран.</p>
+  <div class="qf-actions">
+    <%= link_to "На главный экран", root_path, class: "qf-apply" %>
+  </div>
+  <footer class="qf-footer">
+    <span>QuizForum</span>
+    <span>404</span>
+  </footer>
+</main>

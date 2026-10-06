@@ -33,6 +33,22 @@ class QuestionsCreationTest < ActionDispatch::IntegrationTest
     assert_redirected_to question_path(q)
   end
 
+  test "creates question with difficulty from its own select" do
+    post questions_path, params: { question: {
+      title: "Со сложностью", body: "Условие", answer_type: "text",
+      deadline: "2030-01-01T12:00", reference_answer: "Ответ",
+      difficulty: "сложное", tags_string: "программирование, легкое"
+    } }
+
+    assert_equal %w[программирование сложное], Question.find_by!(title: "Со сложностью").tags
+  end
+
+  test "new form separates difficulty select from tags" do
+    get new_question_path
+
+    assert_select "select[name='question[difficulty]']"
+  end
+
   test "creates single choice with correct flags" do
     post questions_path, params: { question: {
       title: "Выбор", body: "Условие", answer_type: "single_choice",
@@ -79,6 +95,16 @@ class QuestionsCreationTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_includes response.body, "Добавить вариант ответа"
     assert_equal 2, response.body.scan("question[options_text]").size
+  end
+
+  test "question form is stimulus-driven without inline scripts" do
+    get new_question_path
+
+    assert_response :success
+    assert_select "form[data-controller='question-form']"
+    assert_select "select[data-action='change->question-form#sync']"
+    assert_select "button[data-action='click->question-form#add']"
+    assert_no_match(/<script>\s*const qfType/, response.body)
   end
 
   test "rejects choice without correct answer" do

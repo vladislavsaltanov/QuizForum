@@ -1,4 +1,4 @@
-<%= form_with model: question, class: "qf-form" do |f| %>
+<%= form_with model: question, class: "qf-form", data: { controller: "question-form", action: "submit->question-form#toUTC" } do |f| %>
   <% if question.errors.any? %>
     <div class="qf-alert" role="alert"><%= question.errors.full_messages.to_sentence %></div>
   <% end %>
@@ -10,11 +10,11 @@
   <%= f.text_area :body, rows: 5, required: true, class: "qf-input", placeholder: "Условие, контекст, примеры…" %>
 
   <%= f.label :answer_type, "Тип ответа", class: "qf-label" %>
-  <%= f.select :answer_type, [[ "Свободный текст", "text" ], [ "Код", "code" ], [ "Один вариант", "single_choice" ], [ "Несколько вариантов", "multiple_choice" ]], {}, class: "qf-input", id: "question_answer_type" %>
+  <%= f.select :answer_type, [[ "Свободный текст", "text" ], [ "Код", "code" ], [ "Один вариант", "single_choice" ], [ "Несколько вариантов", "multiple_choice" ]], {}, class: "qf-input", id: "question_answer_type", data: { question_form_target: "type", action: "change->question-form#sync" } %>
 
-  <fieldset id="qf-options">
+  <fieldset id="qf-options" data-question-form-target="options">
     <legend class="qf-label">Варианты (только для типов с выбором)</legend>
-    <div id="qf-opt-list">
+    <div id="qf-opt-list" data-question-form-target="list">
       <% rows = [question.options.size, 2].max %>
       <% rows.times do |i| %>
         <% opt = question.options[i] || {} %>
@@ -23,21 +23,24 @@
           <label class="qf-check">
             <%= check_box_tag "question[options_correct][]", i, opt["correct"] %> верный
           </label>
-          <button type="button" class="qf-ghost qf-opt-remove">Убрать</button>
+          <button type="button" class="qf-ghost qf-opt-remove" data-action="click->question-form#remove">Убрать</button>
         </div>
       <% end %>
     </div>
-    <button type="button" class="qf-ghost" id="qf-add-opt">Добавить вариант ответа</button>
+    <button type="button" class="qf-ghost" data-question-form-target="add" data-action="click->question-form#add">Добавить вариант ответа</button>
     <p class="qf-hint">От 2 до 8 вариантов, пустые строки отбрасываются. Для одиночного выбора отметьте ровно один.</p>
   </fieldset>
 
   <%= f.label :deadline, "Дедлайн", class: "qf-label" %>
-  <%= f.datetime_field :deadline, required: true, class: "qf-input" %>
+  <%= f.datetime_field :deadline, required: true, class: "qf-input", data: { question_form_target: "deadline" } %>
+
+  <%= label_tag "question[difficulty]", "Сложность", class: "qf-label" %>
+  <%= select_tag "question[difficulty]", options_for_select([ [ "Без сложности", "" ] ] + Question::DIFFICULTIES.map { [ it.capitalize, it ] }, (question.tags & Question::DIFFICULTIES).first), class: "qf-input" %>
 
   <%= label_tag "question[tags_string]", "Теги через запятую", class: "qf-label" %>
-  <%= text_field_tag "question[tags_string]", question.tags.join(", "), class: "qf-input", placeholder: "программирование, среднее" %>
+  <%= text_field_tag "question[tags_string]", (question.tags - Question::DIFFICULTIES).join(", "), class: "qf-input", placeholder: "программирование" %>
 
-  <div id="qf-reference-wrap">
+  <div id="qf-reference-wrap" data-question-form-target="reference">
     <%= f.label :reference_answer, "Правильный ответ (откроется после дедлайна)", class: "qf-label" %>
     <%= f.text_area :reference_answer, rows: 4, class: "qf-input" %>
   </div>
@@ -56,70 +59,3 @@
   </div>
 <% end %>
 
-<script>
-  const qfType = document.getElementById("question_answer_type");
-  const qfOpts = document.getElementById("qf-options");
-  const qfRef = document.getElementById("qf-reference-wrap");
-  const qfSync = () => { const choice = qfType.value === "single_choice" || qfType.value === "multiple_choice"; qfOpts.hidden = !choice; qfRef.hidden = choice; };
-  qfType.addEventListener("change", qfSync); qfSync();
-</script>
-<script>
-  {
-    // Dynamic option rows: 2 min, 8 max. Reindex keeps checkbox values
-    // aligned with text order so parse_options zips correctly.
-    const list = document.getElementById("qf-opt-list");
-    const addBtn = document.getElementById("qf-add-opt");
-    if (list && addBtn) {
-      const MIN = 2, MAX = 8;
-      const rows = () => [...list.querySelectorAll(".qf-opt-row")];
-      const reindex = () => {
-        rows().forEach((row, idx) => {
-          const text = row.querySelector('input[type="text"]');
-          const check = row.querySelector('input[type="checkbox"]');
-          if (text) { text.placeholder = `Вариант ${idx + 1}`; text.setAttribute("aria-label", `Вариант ${idx + 1}`); }
-          if (check) check.value = idx;
-          const rm = row.querySelector(".qf-opt-remove");
-          if (rm) rm.hidden = rows().length <= MIN;
-        });
-        addBtn.hidden = rows().length >= MAX;
-      };
-      addBtn.addEventListener("click", () => {
-        if (rows().length >= MAX) return;
-        const clone = rows().at(-1).cloneNode(true);
-        clone.querySelector('input[type="text"]').value = "";
-        const check = clone.querySelector('input[type="checkbox"]');
-        check.checked = false;
-        list.appendChild(clone);
-        reindex();
-        list.lastElementChild.querySelector('input[type="text"]').focus();
-      });
-      list.addEventListener("click", (e) => {
-        const rm = e.target.closest(".qf-opt-remove");
-        if (!rm || rows().length <= MIN) return;
-        rm.closest(".qf-opt-row").remove();
-        reindex();
-      });
-      reindex();
-    }
-  }
-</script>
-<script>
-  {
-    // datetime-local carries no zone; server speaks UTC. Show local wall, send UTC wall back.
-    // Seconds survive both directions on purpose: the browser anchors its step grid to them,
-    // so truncating them leaves the field step-invalid and permanently unsubmittable.
-    const qfDeadline = document.querySelector('input[name="question[deadline]"]');
-    if (qfDeadline && qfDeadline.value) {
-      const asUTC = new Date(qfDeadline.value + "Z");
-      if (!isNaN(asUTC)) {
-        const pad = (n) => String(n).padStart(2, "0");
-        const wall = (d, utc) => `${utc ? d.getUTCFullYear() : d.getFullYear()}-${pad(utc ? d.getUTCMonth() + 1 : d.getMonth() + 1)}-${pad(utc ? d.getUTCDate() : d.getDate())}T${pad(utc ? d.getUTCHours() : d.getHours())}:${pad(utc ? d.getUTCMinutes() : d.getMinutes())}:${pad(utc ? d.getUTCSeconds() : d.getSeconds())}`;
-        qfDeadline.value = wall(asUTC, false);
-        qfDeadline.form.addEventListener("submit", () => {
-          const local = new Date(qfDeadline.value);
-          if (!isNaN(local)) { qfDeadline.value = wall(local, true); }
-        });
-      }
-    }
-  }
-</script>

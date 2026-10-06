@@ -74,3 +74,5 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
   // Web fonts land after first paint and shift every row.
   document.fonts?.ready.then(measure);
 }
+import "controllers"
+

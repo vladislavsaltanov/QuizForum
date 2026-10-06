@@ -17,7 +17,34 @@ class Attempt < ApplicationRecord
   validate :answer_present
   validate :selected_indices_valid, if: -> { question&.choice? }
 
+  # Points per user for correct verdicts on revealed questions, highest first.
+  # ponytail: Ruby sum over correct attempts, not SQL; fine at forum scale.
+  def self.revealed_points(difficulty: nil, topic: nil)
+    scope = joins(:question).where(verdict: "correct").where("questions.deadline <= ?", Time.current)
+    scope = scope.where("? = ANY (questions.tags)", difficulty) if difficulty.present?
+    scope = scope.where("? = ANY (questions.tags)", topic) if topic.present?
+    points = Hash.new(0)
+    scope.includes(:question).find_each { points[it.user_id] += it.question.difficulty_weight }
+    users = User.where(id: points.keys).index_by(&:id)
+    points.filter_map { |uid, n| users[uid] && [ users[uid], n ] }.sort_by { |u, n| [ -n, u.name ] }
+  end
+
   before_create :grade_choice!
+
+  # Correct verdict on a revealed question: the only state the leaderboard counts.
+  def revealed_correct?
+    verdict == "correct" && question.closed?
+  end
+
+  # Streams the live verdict chips and stats; call only on closed questions.
+  def broadcast_verdict_change
+    stats = question.attempts.group(:verdict).count
+    broadcast_replace_to(question, target: "question-stats", partial: "questions/stats", locals: { stats: })
+    broadcast_replace_to(question, target: ActionView::RecordIdentifier.dom_id(self, :verdict),
+      partial: "attempts/chip", locals: { attempt: self, prefix: :verdict })
+    broadcast_replace_to(question, target: ActionView::RecordIdentifier.dom_id(self, :my_verdict),
+      partial: "attempts/chip", locals: { attempt: self, prefix: :my_verdict })
+  end
 
   private
     # Choice answers need selected options, text answers need a body.

@@ -31,7 +31,7 @@
       <p class="qf-hint">Также ответили: <%= @respondent_names.join(", ") %></p>
     <% end %>
   <% else %>
-    <%= form_with url: question_attempts_path(@question), class: "qf-form" do |f| %>
+    <%= form_with url: question_attempts_path(@question), class: "qf-form", data: { turbo_frame: "_top" } do |f| %>
       <% case @question.answer_type %>
       <% when "text" %>
         <%= text_area_tag "attempt[body]", nil, rows: 10, placeholder: "Ваш ответ…", class: "qf-input qf-answer-area", "aria-label": "Ответ" %>
@@ -55,7 +55,7 @@
       <% end %>
       <div class="qf-actions">
         <button type="submit" class="qf-apply">Отправить</button>
-        <button type="button" class="qf-ghost" onclick="navigator.clipboard.writeText(location.href)">Поделиться</button>
+        <button type="button" class="qf-ghost" data-controller="share" data-action="click->share#copy">Поделиться</button>
       </div>
     <% end %>
     <% if @respondent_names.any? %>
@@ -63,14 +63,10 @@
     <% end %>
   <% end %>
 <% else %>
-  <div class="qf-stats">
-    <div class="qf-stat"><span>Правильно</span><b class="<%= verdict_class("correct") %>"><%= @stats.fetch("correct", 0) %></b></div>
-    <div class="qf-stat"><span>Почти, но нет</span><b class="<%= verdict_class("partial") %>"><%= @stats.fetch("partial", 0) %></b></div>
-    <div class="qf-stat"><span>Неправильно</span><b class="<%= verdict_class("incorrect") %>"><%= @stats.fetch("incorrect", 0) %></b></div>
-  </div>
+  <%= render "stats", stats: @stats %>
 
   <% if @my_attempt %>
-    <h2 class="qf-section-title">Ваш ответ · <span class="qf-chip <%= verdict_class(@my_attempt.verdict) %>"><%= verdict_label(@my_attempt.verdict) %></span></h2>
+    <h2 class="qf-section-title">Ваш ответ · <%= render "attempts/chip", attempt: @my_attempt, prefix: :my_verdict %></h2>
     <div class="qf-attempt"><%= render "attempt_body", attempt: @my_attempt %></div>
     <%= render "jury_block", attempt: @my_attempt %>
   <% end %>
@@ -99,7 +95,7 @@
     <div class="qf-attempt">
       <div class="qf-attempt-head">
         <span class="qf-attempt-who"><%= avatar_tag(attempt.user.name, size: :sm) %><%= attempt.user.name %></span>
-        <span class="qf-chip <%= verdict_class(attempt.verdict) %>"><%= verdict_label(attempt.verdict) %></span>
+        <%= render "attempts/chip", attempt: attempt, prefix: :verdict %>
       </div>
       <% if @is_author %>
         <span class="qf-hint qf-answered-at">Ответ дан: <%= local_time_tag(attempt.created_at) %></span>
@@ -111,7 +107,7 @@
   </div>
 
   <div class="qf-actions">
-    <%= button_to "Пожаловаться", question_reports_path(@question), class: "qf-ghost" %>
-    <button type="button" class="qf-ghost" onclick="navigator.clipboard.writeText(location.href)">Поделиться</button>
+    <%= button_to "Пожаловаться", question_reports_path(@question), class: "qf-ghost", form: { data: { turbo_frame: "_top" } } %>
+    <button type="button" class="qf-ghost" data-controller="share" data-action="click->share#copy">Поделиться</button>
   </div>
 <% end %>
