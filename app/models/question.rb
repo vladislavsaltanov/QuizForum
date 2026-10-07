@@ -22,6 +22,7 @@ class Question < ApplicationRecord
   validates :answer_type, inclusion: { in: ANSWER_TYPES }
   before_validation :compact_options, if: :choice?
   validate :options_complete, if: :choice?
+  validate :code_languages_valid
 
   # Deadline still in the future.
   def open?
@@ -113,6 +114,14 @@ class Question < ApplicationRecord
     answer_type == "multiple_choice"
   end
 
+  # Code answer graded by differential fuzzing (see design doc 2026-10-07).
+  def code?
+    answer_type == "code"
+  end
+
+  # Languages the diff-fuzzing checker may grade (spec section 1).
+  CODE_LANGUAGES = %w[python javascript typescript ruby c++ c# java go].freeze
+
   # Points for a correct verdict: 1/2/3 by difficulty, 1 when untagged.
   DIFFICULTY_WEIGHTS = { "легкое" => 1, "среднее" => 2, "сложное" => 3 }.freeze
 
@@ -180,6 +189,25 @@ class Question < ApplicationRecord
         text = o["text"].to_s.strip
         next if text.empty?
         { "text" => text, "correct" => !!o["correct"] }
+      end
+    end
+
+    # Language allowlist + reference language apply to code questions only;
+    # stray languages on other types are rejected so they cannot leak into grading.
+    def code_languages_valid
+      if code?
+        Array(code_languages).each do |lang|
+          errors.add(:code_languages, :inclusion) unless CODE_LANGUAGES.include?(lang)
+        end
+        if reference_language.present?
+          errors.add(:reference_language, :inclusion) unless CODE_LANGUAGES.include?(reference_language)
+          if code_languages.present? && !code_languages.include?(reference_language)
+            errors.add(:reference_language, :inclusion)
+          end
+        end
+      else
+        errors.add(:code_languages, :present) if code_languages.present?
+        errors.add(:reference_language, :present) if reference_language.present?
       end
     end
 
