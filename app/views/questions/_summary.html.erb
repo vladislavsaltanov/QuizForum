@@ -2,7 +2,7 @@
 <%# Built from the already-scoped @attempts, so visibility is free; pending skipped. %>
 <% grouped = attempts.group_by(&:verdict) %>
 <% rows = { "partial" => "Частично", "incorrect" => "Неправильно", "correct" => "Правильно" }.filter_map do |verdict, label| %>
-<% names = Array(grouped[verdict]).map { |attempt| attempt.user.name } %>
+<% names = Array(grouped[verdict]).map { |attempt| "#{attempt.user.name} (#{attempt.user.email})" } %>
 <% [ verdict, label, names ] if names.any? %>
 <% end %>
 <% if rows.any? %>

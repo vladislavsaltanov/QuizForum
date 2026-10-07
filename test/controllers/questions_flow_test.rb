@@ -364,6 +364,7 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     assert_select ".qf-summary-row", 3
     summary_text = css_select(".qf-summary").text
     assert_match(/Частично.*Three.*Неправильно.*Two.*Правильно.*One/m, summary_text)
+    assert_match(/three@example\.com/, summary_text)
     assert_no_match(/Four/, summary_text)
     assert_select "details.qf-answers-details:not([open])", 1
 

@@ -447,6 +447,10 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 
 .qf-reference { border-style: dashed; }
 .qf-code { font-family: var(--qf-mono); font-size: 13px; white-space: pre-wrap; }
+
+/* Compact attempt bodies only: question/reference/explanation keep editorial 17px. */
+.qf-attempt .qf-body { font-size: 15px; padding: 12px 14px; line-height: 1.5; }
+.qf-attempt .qf-body.qf-code { font-size: 12px; }
 .qf-lang { font-family: var(--qf-mono); font-size: 12px; color: var(--qf-mute); margin: 0 0 6px; }
 
 .qf-tabs { display: flex; gap: 8px; margin-bottom: 0px; }
