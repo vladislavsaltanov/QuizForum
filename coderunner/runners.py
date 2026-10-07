@@ -214,16 +214,25 @@ def gen_inputs(seed, count, arity):
     rng = random.Random(seed)
     cases = []  # type: list
     if arity == 1:
-        cases = [[value] for value in EDGE_INTS]
-        for value in EDGE_INTS:
-            cases.append([[value]])
-        cases += [[], [[]], [""], ["abc"], [[1, 2, 3]], [[-5, 0, 5]]]
+        # Round-robin across types from position 0: small-N consumers (like
+        # the 10-case creation dry-run) must see every shape, not scalars only.
+        scalars = [[value] for value in EDGE_INTS]
+        singles = [[[value]] for value in EDGE_INTS]
+        mixed = [[], [""], ["abc"], [[]], [[1, 2, 3]], [[-5, 0, 5]],
+                 ["hello world"], [[0]], ["a"], ["x" * 100]]
+        for i in range(max(len(scalars), len(singles), len(mixed))):
+            for group in (scalars, singles, mixed):
+                if i < len(group):
+                    cases.append(group[i])
     elif arity == 2:
+        intpairs = []
         for value in EDGE_INTS[:8]:
-            cases.append([value, value])
-            cases.append([0, value])
-            cases.append([value, 0])
-        cases += [[[1, 2, 3], 2], [[], 0], [[5], -1]]
+            intpairs += [[value, value], [0, value], [value, 0]]
+        mixed2 = [[[1, 2, 3], 2], [[], 0], [[5], -1], [[0], [1]], [["a"], ["b"]]]
+        for i in range(max(len(intpairs), len(mixed2))):
+            for group in (intpairs, mixed2):
+                if i < len(group):
+                    cases.append(group[i])
     elif arity > 2:
         cases += [[0] * arity, [1] * arity,
                   list(range(arity)), [-1] * arity]
