@@ -438,15 +438,15 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   background: var(--qf-inner);
   border: 2px solid var(--qf-border);
   border-radius: 14px;
-  padding: 16px 20px;
-  line-height: 1.6;
+  padding: 12px 14px;
+  line-height: 1.5;
   overflow-wrap: break-word;
 }
 .qf-body p { margin: 0 0 0.8em; }
 .qf-body p:last-child { margin-bottom: 0; }
 
 .qf-reference { border-style: dashed; }
-.qf-code { font-family: var(--qf-mono); font-size: 14px; white-space: pre-wrap; }
+.qf-code { font-family: var(--qf-mono); font-size: 13px; white-space: pre-wrap; }
 .qf-lang { font-family: var(--qf-mono); font-size: 12px; color: var(--qf-mute); margin: 0 0 6px; }
 
 .qf-tabs { display: flex; gap: 8px; margin-bottom: 0px; }
@@ -544,9 +544,14 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   background: var(--qf-outer);
   border: 1.5px solid var(--qf-border);
   border-radius: 14px;
-  padding: 14px 18px;
-  margin-bottom: 12px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
 }
+
+.qf-summary { display: grid; gap: 6px; margin-bottom: 10px; }
+.qf-summary-row { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
+.qf-summary-names { color: var(--qf-ink-soft); }
+.qf-answers-details > summary { cursor: pointer; }
 
 .qf-attempt-head {
   display: flex;
@@ -695,7 +700,7 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 
 /* Serif body text: editorial, less generated-looking. */
 .qf-body { font-family: Georgia, 'Times New Roman', serif; font-size: 17px; }
-.qf-body.qf-code, .qf-code { font-family: var(--qf-mono); }
+.qf-body.qf-code, .qf-code { font-family: var(--qf-mono); margin-bottom: 12px; }
 
 .qf-answer-area { min-height: 320px; line-height: 1.65; resize: vertical; }
 textarea.qf-answer-area.qf-code { min-height: 380px; }
@@ -821,12 +826,12 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 .qf-auth .qf-form > .qf-apply { margin-block-start: 0.5rem; }
 
 /* Verdict confirm: native details modal, fullscreen veil, no JS. */
-.qf-verdict-confirm > summary { display: inline-block; list-style: none; }
+.qf-verdict-confirm > summary { display: inline-block; list-style: none; margin-top: 12px; }
 .qf-verdict-confirm > summary::-webkit-details-marker { display: none; }
 .qf-verdict-confirm > summary::marker { content: ""; }
 .qf-verdict-confirm[open] > .qf-modal-veil { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgb(0 0 0 / .45); }
 .qf-modal-card { background: var(--qf-paper); border: 1.5px solid var(--qf-border); border-radius: var(--qf-radius-lg); padding: 20px 22px; width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; }
-.qf-modal-card .qf-actions { margin-top: 32px; }
+.qf-modal-card .qf-actions { margin-top: 16px; margin-bottom: 8px; }
 .qf-modal-card .qf-actions > :last-child { margin-left: auto; }
 .qf-modal-card .qf-section-title { margin-top: 13px; }
 .qf-jury > .qf-hint { display: block; margin: 14px 0 12px; }

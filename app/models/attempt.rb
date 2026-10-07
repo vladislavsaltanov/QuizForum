@@ -44,6 +44,9 @@ class Attempt < ApplicationRecord
       partial: "attempts/chip", locals: { attempt: self, prefix: :verdict })
     broadcast_replace_to(question, target: ActionView::RecordIdentifier.dom_id(self, :my_verdict),
       partial: "attempts/chip", locals: { attempt: self, prefix: :my_verdict })
+    # Summary only here (closed): the stream is shared, pre-deadline grouping must not leak.
+    broadcast_replace_to(question, target: "question-summary",
+      partial: "questions/summary", locals: { attempts: question.attempts.includes(:user).order(:created_at) })
   end
 
   # Own chip only, safe pre-deadline (no stats, no чужих ответов). Sent twice:

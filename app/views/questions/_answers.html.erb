@@ -5,6 +5,9 @@
     <% if @attempts.empty? %>
       <p class="qf-empty">Пока никто не ответил.</p>
     <% end %>
+    <%= render "summary", attempts: @attempts %>
+    <details class="qf-answers-details">
+      <summary class="qf-section-title">Все ответы · <%= @attempts.size %></summary>
     <div class="qf-chat">
     <% @attempts.each do |attempt| %>
       <div class="qf-attempt">
@@ -18,6 +21,7 @@
       </div>
     <% end %>
     </div>
+    </details>
   <% elsif @my_attempt %>
     <div class="qf-attempt">
       <div class="qf-attempt-head">
@@ -90,7 +94,9 @@
     <div class="qf-body"><%= simple_format(@question.explanation) %></div>
   <% end %>
 
-  <h2 class="qf-section-title">Все ответы · <%= @attempts.size %></h2>
+  <%= render "summary", attempts: @attempts %>
+  <details class="qf-answers-details">
+    <summary class="qf-section-title">Все ответы · <%= @attempts.size %></summary>
   <div class="qf-chat">
   <% @attempts.each do |attempt| %>
     <div class="qf-attempt">
@@ -106,6 +112,7 @@
     </div>
   <% end %>
   </div>
+  </details>
 
   <div class="qf-actions">
     <%= button_to "Пожаловаться", question_reports_path(@question), class: "qf-ghost", form: { data: { turbo_frame: "_top" } } %>

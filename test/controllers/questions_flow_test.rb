@@ -274,7 +274,7 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     q = questions(:closed_single)
     attempt = Attempt.create!(question: q, user: @user, selected: [ "1" ])
     sign_in_as(@author)
-    assert_turbo_stream_broadcasts q, count: 3 do
+    assert_turbo_stream_broadcasts q, count: 4 do
       patch verdict_question_attempt_path(q, attempt), params: { attempt: { verdict: "correct" } }
     end
   end
@@ -346,5 +346,46 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to question_path(q)
     assert_equal [], q.reload.code_languages
+  end
+
+  test "closed summary groups names partial incorrect correct and hides pending" do
+    q = questions(:closed_text)
+    u3 = User.create!(name: "Three", email: "three@example.com", password: "password12345")
+    u4 = User.create!(name: "Four", email: "four@example.com", password: "password12345")
+    { users(:one) => [ "correct", "body-one" ], users(:two) => [ "incorrect", "body-two" ],
+      u3 => [ "partial", "body-three" ], u4 => [ "pending", "body-four" ] }.each do |user, (verdict, body)|
+      attempt = Attempt.create!(question: q, user: user, body: body)
+      attempt.update_columns(verdict: verdict)
+    end
+    sign_in_as(users(:two))
+    get question_path(q)
+
+    assert_response :success
+    assert_select ".qf-summary-row", 3
+    summary_text = css_select(".qf-summary").text
+    assert_match(/Частично.*Three.*Неправильно.*Two.*Правильно.*One/m, summary_text)
+    assert_no_match(/Four/, summary_text)
+    assert_select "details.qf-answers-details:not([open])", 1
+
+    sign_in_as(u4)
+    get question_path(q)
+    assert_response :success
+    assert_select ".qf-summary", 1
+  end
+
+  test "open author sees summary but stranger does not" do
+    q = questions(:open_text)
+    a1 = Attempt.create!(question: q, user: users(:two), body: "b1")
+    a1.update_columns(verdict: "correct")
+    a2 = Attempt.create!(question: q, user: User.create!(name: "Oth", email: "oth@example.com", password: "password12345"), body: "b2")
+    a2.update_columns(verdict: "incorrect")
+    sign_in_as(@author)
+    get question_path(q)
+    assert_select ".qf-summary", 1
+
+    stranger = User.create!(name: "Stranger", email: "stranger@example.com", password: "password12345")
+    sign_in_as(stranger)
+    get question_path(q)
+    assert_select ".qf-summary", 0
   end
 end

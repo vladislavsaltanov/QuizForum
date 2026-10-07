@@ -154,7 +154,7 @@ class AttemptCodeCheckJobTest < ActiveSupport::TestCase
   test "confident pass on revealed question streams verdict chips and stats" do
     @question.update!(deadline: 1.day.ago)
     with_check(check_result(3, 3, false)) do
-      assert_turbo_stream_broadcasts @question, count: 5 do
+      assert_turbo_stream_broadcasts @question, count: 6 do
         AttemptCodeCheckJob.perform_now(@attempt.id)
       end
     end
