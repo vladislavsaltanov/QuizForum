@@ -55,6 +55,26 @@ services:
       retries: 60
       start_period: 20m
 
+  coderunner:
+    build: ./coderunner
+    restart: unless-stopped
+    environment:
+      CODERUNNER_HOST: "0.0.0.0"
+    # No weights volume (unlike sidecar): stateless execution, tmpfs only.
+    cpus: 2.0
+    mem_limit: 1g
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import json,urllib.request; json.load(urllib.request.urlopen('http://127.0.0.1:8001/up'))\""] # yamllint disable-line rule:line-length
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 1m
+
   web:
     build: .
     restart: unless-stopped
@@ -70,6 +90,7 @@ services:
       REDIS_URL: redis://redis:6379/1
       LAYA_SIDECAR_URL: http://sidecar:8000
       JURY_SIDECAR_URL: http://sidecar:8000
+      CODERUNNER_URL: http://coderunner:8001
       SOLID_QUEUE_IN_PUMA: "1"
       FORCE_SSL: ${FORCE_SSL:-false}
     ports:
