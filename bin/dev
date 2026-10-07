@@ -35,13 +35,18 @@ if [ "${LAYA_SIDECAR_URL:-}" = "" ]; then
   }
 fi
 
+CODERUNNER_PORT="${CODERUNNER_PORT:-8001}"
+if [ "${CODERUNNER_URL:-}" = "" ] && curl -sf -o /dev/null "http://localhost:${CODERUNNER_PORT}/up" 2>/dev/null; then
+  # A live runner (e.g. from a previous boot) is reused as-is.
+  export CODERUNNER_URL="http://localhost:${CODERUNNER_PORT}"
+  echo "reusing coderunner at $CODERUNNER_URL" >&2
+fi
 if [ "${CODERUNNER_URL:-}" = "" ]; then
   CODERUNNER_PYBIN="$(command -v python3.12 || command -v python3)"
   if [ -z "$CODERUNNER_PYBIN" ]; then
     echo "python3.12 or python3 required for coderunner" >&2
     exit 1
   fi
-  CODERUNNER_PORT="${CODERUNNER_PORT:-8001}"
   "$CODERUNNER_PYBIN" coderunner/server.py "$CODERUNNER_PORT" >log/coderunner.log 2>&1 &
   CODERUNNER_PID=$!
   export CODERUNNER_URL="http://localhost:${CODERUNNER_PORT}"

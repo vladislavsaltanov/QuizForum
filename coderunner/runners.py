@@ -112,11 +112,15 @@ def write_program(tmpdir, stem, language, code):
     if language == "python":
         code = textwrap.dedent(code)
     path = os.path.join(tmpdir, "%s.%s" % (stem, EXTS[language]))  # noqa: path stem is server-chosen ('ref'/'att'), never user input
-    with open(path, "w", encoding="utf-8") as handle:
-        handle.write(code)
-        if not code.endswith("\n"):
-            handle.write("\n")
-        handle.write(DRIVERS[language])
+    try:
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(code)
+            if not code.endswith("\n"):
+                handle.write("\n")
+            handle.write(DRIVERS[language])
+    except OSError as exc:
+        # Callers treat this as runner failure: 500, job retries, stays pending.
+        raise RuntimeError(f"cannot write program file: {exc}") from exc
     return path
 
 
