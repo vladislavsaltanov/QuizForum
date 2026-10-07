@@ -16,3 +16,15 @@ namespace :ai do
     abort "DATE must be YYYY-MM-DD, got #{args[:date].inspect}."
   end
 end
+
+namespace :ai do
+  desc "Wipe every AI pack and generate today's pack fresh right now (humans untouched)"
+  task refresh: :environment do
+    # Rake logs to the log file only; mirror job logs to the console too.
+    Rails.logger.broadcast_to(ActiveSupport::Logger.new($stdout))
+    wiped = Question.ai.destroy_all.size
+    puts "Deleted #{wiped} AI questions in total."
+    AiDailyGenerateJob.perform_now(batch: AiQuestions.today.to_s)
+    puts "Today's pack now holds #{Question.ai.where(ai_batch: AiQuestions.today).count} AI questions."
+  end
+end
