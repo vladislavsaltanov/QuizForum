@@ -15,7 +15,7 @@ class AttemptsController < ApplicationController
     if @attempt.save
       if @question.code?
         AttemptCodeCheckJob.perform_later(@attempt.id)
-        redirect_to question_path(@question, checking: @attempt.id), notice: "Ответ отправлен на проверку."
+        redirect_to @question, notice: "Ответ отправлен на проверку."
       elsif @question.choice?
         # Choice verdicts are already set; no job.
         redirect_to @question, notice: "Ответ отправлен на модерацию."

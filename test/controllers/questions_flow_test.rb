@@ -317,28 +317,6 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     assert_select "select[name='attempt[language]'] option[value='go']", 0
   end
 
-  test "checking flag with own code attempt renders pending modal" do
-    q = questions(:open_code)
-    mine = Attempt.create!(question: q, user: @user, body: "my code", language: "python")
-    get question_path(q, checking: mine.id)
-
-    assert_response :success
-    assert_select "dialog[data-controller='checking'][open]", 1
-    assert_match(/Ваш ответ проверяется, подождите/, response.body)
-    assert_select "dialog[data-controller='checking'] #my_verdict_attempt_#{mine.id}", 1
-  end
-
-  test "checking flag with another user's attempt renders no modal or foreign data" do
-    q = @author.authored_questions.create!(title: "Код", body: "Тело",
-      answer_type: "code", deadline: 7.days.from_now, reference_answer: "def solve(a):\n  return a")
-    foreign = Attempt.create!(question: q, user: @author, body: "чужой секретный код", language: "python")
-    get question_path(q, checking: foreign.id)
-
-    assert_response :success
-    assert_no_match(/чужой секретный код/, response.body)
-    assert_select "dialog[data-controller='checking']", 0
-  end
-
   test "updating text question with blank languages succeeds" do
     q = questions(:open_text)
     sign_in_as(@author)

@@ -49,15 +49,6 @@ class Attempt < ApplicationRecord
       partial: "questions/summary", locals: { attempts: question.attempts.includes(:user).order(:created_at) })
   end
 
-  # Own chip only, safe pre-deadline (no stats, no чужих ответов). Sent twice:
-  # the page chip and the checking-modal copy share one dom id by design,
-  # each replace updates the first remaining match; a missing copy is a no-op.
-  def broadcast_own_verdict_change
-    2.times do
-      broadcast_replace_to(question, target: ActionView::RecordIdentifier.dom_id(self, :my_verdict),
-        partial: "attempts/chip", locals: { attempt: self, prefix: :my_verdict })
-    end
-  end
 
   private
     # Choice answers need selected options, text answers need a body.

@@ -45,8 +45,6 @@ class AttemptCodeCheckJob < ApplicationJob
     return unless updated == 1
     reloaded = attempt.reload
     Turbo::StreamsChannel.broadcast_refresh_to("leaderboard") if reloaded.revealed_correct?
-    # Own chip always (drives the checking modal); stats + чужие чипы stay closed-only.
-    reloaded.broadcast_own_verdict_change
     reloaded.broadcast_verdict_change if reloaded.question.closed?
   end
 

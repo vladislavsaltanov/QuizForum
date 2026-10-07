@@ -204,7 +204,7 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
     assert_no_match(/Подсказка/, response.body)
   end
 
-  test "code create enqueues code check job with checking flag" do
+  test "code create enqueues code check job without checking flag" do
     q = questions(:open_code)
     sign_in_as(@respondent)
     assert_enqueued_with(job: AttemptCodeCheckJob) do
@@ -215,7 +215,7 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
     end
 
     attempt = q.attempts.find_by(user: @respondent)
-    assert_redirected_to question_path(q, checking: attempt.id)
+    assert_redirected_to question_path(q)
   end
 
   test "code create with disallowed language is rejected without job" do
