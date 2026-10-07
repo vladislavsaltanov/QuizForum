@@ -8,10 +8,13 @@ class AiRefreshTaskTest < ActiveSupport::TestCase
     Rake::Task["ai:refresh"].reenable
   end
 
-  test "wipes all AI packs, keeps humans, regenerates today" do
+  test "wipes open AI packs, keeps humans and revealed packs, regenerates today" do
     old_pack = AiQuestions.today - 5
     Question.create!(title: "Старый ИИ", body: "Тело", answer_type: "text",
       deadline: 7.days.from_now, reference_answer: "Ответ",
+      author: users(:one), ai_generated: true, ai_batch: old_pack)
+    revealed = Question.create!(title: "Раскрытый ИИ", body: "Тело", answer_type: "text",
+      deadline: 1.day.ago, reference_answer: "Ответ",
       author: users(:one), ai_generated: true, ai_batch: old_pack)
     human = Question.create!(title: "Живой", body: "Тело", answer_type: "text",
       deadline: 7.days.from_now, reference_answer: "Ответ", author: users(:one))
@@ -34,6 +37,7 @@ class AiRefreshTaskTest < ActiveSupport::TestCase
 
     assert_equal 9, Question.ai.where(ai_batch: AiQuestions.today).count
     assert Question.exists?(human.id)
+    assert Question.exists?(revealed.id)
   ensure
     ENV.delete("GEMINI_API_KEY")
     class << GeminiClient

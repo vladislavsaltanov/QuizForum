@@ -18,12 +18,12 @@ namespace :ai do
 end
 
 namespace :ai do
-  desc "Wipe every AI pack and generate today's pack fresh right now (humans untouched)"
+  desc "Wipe open AI packs and generate today's pack fresh right now (humans and revealed packs untouched)"
   task refresh: :environment do
     # Rake logs to the log file only; mirror job logs to the console too.
     Rails.logger.broadcast_to(ActiveSupport::Logger.new($stdout))
-    wiped = Question.ai.destroy_all.size
-    puts "Deleted #{wiped} AI questions in total."
+    wiped = Question.ai.where("questions.deadline > ?", Time.current).destroy_all.size
+    puts "Deleted #{wiped} open AI questions."
     AiDailyGenerateJob.perform_now(batch: AiQuestions.today.to_s)
     puts "Today's pack now holds #{Question.ai.where(ai_batch: AiQuestions.today).count} AI questions."
   end
