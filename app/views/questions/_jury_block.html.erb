@@ -1,5 +1,9 @@
 <% if @is_author %>
   <div class="qf-jury">
+    <% if attempt.code_reasons.present? %>
+      <span class="qf-hint">Проверка кода: <%= attempt.code_passed %>/<%= attempt.code_total %> пройдено</span>
+      <div class="qf-body"><%= simple_format(attempt.code_reasons) %></div>
+    <% end %>
     <% if attempt.jury_label.present? %>
       <span class="qf-hint">Подсказка: <%= jury_summary(attempt) %></span>
       <% if attempt.jury_reasons.present? %>

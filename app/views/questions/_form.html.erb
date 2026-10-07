@@ -12,6 +12,18 @@
   <%= f.label :answer_type, "Тип ответа", class: "qf-label" %>
   <%= f.select :answer_type, [[ "Свободный текст", "text" ], [ "Код", "code" ], [ "Один вариант", "single_choice" ], [ "Несколько вариантов", "multiple_choice" ]], {}, class: "qf-input", id: "question_answer_type", data: { question_form_target: "type", action: "change->question-form#sync" } %>
 
+  <fieldset id="qf-code-langs" data-question-form-target="codelangs">
+    <legend class="qf-label">Языки кода (не выбрано ничего = любой)</legend>
+    <%= hidden_field_tag "question[code_languages][]", "" %>
+    <% Question::CODE_LANGUAGES.each_with_index do |lang, i| %>
+      <label class="qf-check" for="question_code_language_<%= i %>">
+        <%= check_box_tag "question[code_languages][]", lang, Array(question.code_languages).include?(lang), id: "question_code_language_#{i}" %> <%= lang %>
+      </label>
+    <% end %>
+    <%= f.label :reference_language, "Язык эталона", class: "qf-label" %>
+    <%= f.select :reference_language, options_for_select([[ "—", "" ]] + Question::CODE_LANGUAGES.map { [ it, it ] }, question.reference_language), {}, class: "qf-input" %>
+  </fieldset>
+
   <fieldset id="qf-options" data-question-form-target="options">
     <legend class="qf-label">Варианты (только для типов с выбором)</legend>
     <div id="qf-opt-list" data-question-form-target="list">

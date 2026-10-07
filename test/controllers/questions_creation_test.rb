@@ -210,6 +210,30 @@ class QuestionsCreationTest < ActionDispatch::IntegrationTest
     assert_redirected_to question_path(Question.find_by!(title: "Без раннера"))
   end
 
+  test "unchecked languages mean any" do
+    with_dry_run(CodeRunnerClient::Result.new(10, 10, true, false, [ "passed 10 of 10 cases" ], [])) do
+      post questions_path, params: { question: {
+        title: "Любой", body: "Напишите solve.", answer_type: "code",
+        deadline: "2030-01-01T12:00", reference_answer: "def solve(a):\n  return a",
+        code_languages: [ "" ], reference_language: "python"
+      } }
+    end
+
+    assert_equal [], Question.find_by!(title: "Любой").code_languages
+  end
+
+  test "update can clear languages back to any" do
+    q = Question.create!(title: "Строгий", body: "Напишите solve.", answer_type: "code",
+      deadline: "2030-01-01T12:00", reference_answer: "def solve(a):\n  return a",
+      code_languages: [ "python" ], reference_language: "python",
+      author: users(:one))
+    with_dry_run(CodeRunnerClient::Result.new(10, 10, true, false, [ "passed 10 of 10 cases" ], [])) do
+      patch question_path(q), params: { question: { code_languages: [ "" ] } }
+    end
+
+    assert_equal [], q.reload.code_languages
+  end
+
   private
     ORIGINAL_DRY_RUN_NEW = CodeRunnerClient.method(:new)
 
@@ -230,5 +254,15 @@ class QuestionsCreationTest < ActionDispatch::IntegrationTest
     } }
 
     assert_equal "Потому что так.", Question.find_by!(title: "С разбором").explanation
+  end
+
+  test "code question form renders language checkboxes and reference select" do
+    get new_question_path
+
+    assert_response :success
+    Question::CODE_LANGUAGES.each do |lang|
+      assert_select "input[type=checkbox][name='question[code_languages][]'][value='#{lang}']", 1
+    end
+    assert_select "select[name='question[reference_language]']", 1
   end
 end

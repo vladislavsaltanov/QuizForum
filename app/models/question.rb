@@ -21,6 +21,7 @@ class Question < ApplicationRecord
   validates :reference_answer, presence: true, unless: :choice?
   validates :answer_type, inclusion: { in: ANSWER_TYPES }
   before_validation :compact_options, if: :choice?
+  before_validation :compact_code_languages, if: :code?
   validate :options_complete, if: :choice?
   validate :code_languages_valid
 
@@ -190,6 +191,11 @@ class Question < ApplicationRecord
         next if text.empty?
         { "text" => text, "correct" => !!o["correct"] }
       end
+    end
+
+    # The unchecked-everything hidden field arrives as ["" blank]; "any" is [].
+    def compact_code_languages
+      self.code_languages = Array(code_languages).map(&:to_s).map(&:strip).reject(&:empty?)
     end
 
     # Language allowlist + reference language apply to code questions only;

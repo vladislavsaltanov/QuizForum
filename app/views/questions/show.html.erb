@@ -70,6 +70,20 @@
         <%= turbo_frame_tag "question-answers", data: { controller: "reveal", reveal_deadline_value: @question.deadline.iso8601, reveal_url_value: question_path(@question) } do %>
           <%= render "answers" %>
         <% end %>
+        <% checking_attempt = Attempt.find_by(id: params[:checking]) %>
+        <% unless checking_attempt&.question_id == @question.id && checking_attempt.user_id == Current.user&.id && @question.code? && checking_attempt.verdict == "pending" %>
+          <% checking_attempt = nil %>
+        <% end %>
+        <% if checking_attempt %>
+          <style>.qf-spinner{width:28px;height:28px;margin:12px auto 0;border:3px solid var(--qf-border);border-top-color:var(--qf-ink-soft);border-radius:50%;animation:qf-check-spin 1s linear infinite}@keyframes qf-check-spin{to{transform:rotate(360deg)}}</style>
+          <dialog open class="qf-modal" data-controller="checking"
+            data-checking-pending-value="<%= verdict_label("pending") %>"
+            data-checking-delayed-value="Проверка задерживается — результат появится на странице позже.">
+            <p class="qf-modal-title" data-checking-target="message">Ваш ответ проверяется, подождите</p>
+            <div class="qf-spinner" aria-hidden="true"></div>
+            <span hidden data-checking-target="verdict"><%= render "attempts/chip", attempt: checking_attempt, prefix: :my_verdict %></span>
+          </dialog>
+        <% end %>
       <% else %>
         <%= turbo_stream_from @question %>
         <div id="comments" class="qf-chat">

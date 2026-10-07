@@ -3,7 +3,7 @@ import { Controller } from "@hotwired/stimulus"
 // Owns the question form: type sync, option rows, deadline zone.
 // Inline scripts do not run reliably on Turbo re-renders; connect() always does.
 export default class extends Controller {
-  static targets = ["type", "options", "reference", "list", "add", "deadline"]
+  static targets = ["type", "options", "reference", "codelangs", "list", "add", "deadline"]
 
   connect() {
     this.sync()
@@ -13,9 +13,11 @@ export default class extends Controller {
 
   // Options and reference visibility follows the answer type.
   sync() {
-    const choice = this.typeTarget.value === "single_choice" || this.typeTarget.value === "multiple_choice"
+    const type = this.typeTarget.value
+    const choice = type === "single_choice" || type === "multiple_choice"
     this.optionsTarget.hidden = !choice
     this.referenceTarget.hidden = choice
+    this.codelangsTarget.hidden = type !== "code"
   }
 
   // Dynamic option rows: 2 min, 8 max. Reindex keeps checkbox values
