@@ -326,4 +326,4 @@ assert not any("tmp" in r and "/" in r for r in body["reasons"]), body["reasons"
 print("error-line: first stderr line reported, paths scrubbed", flush=True)
 
 httpd.shutdown()
-print(f"coderunner: {passed}/31 pairs + 8 security asserts OK")
+print(f"coderunner: {passed}/31 pairs + 9 security asserts OK")
