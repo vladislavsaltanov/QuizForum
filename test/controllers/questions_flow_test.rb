@@ -367,4 +367,16 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     get question_path(q)
     assert_select ".qf-summary", 0
   end
+  test "stranger pre-deadline sees examples but not reference" do
+    q = @author.authored_questions.create!(title: "Код", body: "Тело",
+      answer_type: "code", deadline: 7.days.from_now, reference_answer: "def solve(a):\n  return a",
+      example_input: "[1]", example_output: "1")
+    stranger = User.create!(name: "ExStranger", email: "exstranger@example.com", password: "password12345")
+    sign_in_as(stranger)
+    get question_path(q)
+
+    assert_response :success
+    assert_match(/\[1\]/, response.body)
+    assert_no_match(/def solve/, response.body)
+  end
 end

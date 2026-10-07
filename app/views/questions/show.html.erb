@@ -42,6 +42,15 @@
       <h2 class="qf-section-title">Описание</h2>
       <div class="qf-body"><%= simple_format(@question.body) %></div>
 
+      <% if @question.code? && (@question.example_input.present? || @question.example_output.present?) %>
+        <h2 class="qf-section-title">Пример</h2>
+        <div class="qf-body qf-code"><% if @question.example_input.present? %>Вход:
+<%= @question.example_input %><% end %><% if @question.example_output.present? %>
+
+Выход:
+<%= @question.example_output %><% end %></div>
+      <% end %>
+
       <% if @question.open? && @is_author %>
         <% unless @question.choice? %>
           <h2 class="qf-section-title">Ответ автора</h2>

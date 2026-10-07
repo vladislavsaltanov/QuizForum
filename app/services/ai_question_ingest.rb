@@ -5,9 +5,10 @@ class AiQuestionIngest
   Result = Data.define(:questions, :errors, :conflict)
 
   # One moderation blob shape for the human form and the AI packs alike.
-  def self.moderation_text(title:, body:, tags:, reference_answer:, explanation:, options:)
+  def self.moderation_text(title:, body:, tags:, reference_answer:, explanation:, options:, example_input: nil, example_output: nil)
     [ title, body, Array(tags).join(" "), reference_answer, explanation,
-      Array(options).map { it.to_h["text"] || it.to_h[:text] }.join(" ") ].join("\n")
+      Array(options).map { it.to_h["text"] || it.to_h[:text] }.join(" "),
+      example_input, example_output ].join("\n")
   end
 
   # items: 9 hashes (string/symbol keys): title, body, answer_type,

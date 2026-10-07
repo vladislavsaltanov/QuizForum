@@ -234,6 +234,21 @@ class QuestionsCreationTest < ActionDispatch::IntegrationTest
     assert_equal [], q.reload.code_languages
   end
 
+  test "creates code question with examples" do
+    with_dry_run(CodeRunnerClient::Result.new(10, 10, true, false, [ "passed 10 of 10 cases" ], [])) do
+      post questions_path, params: { question: {
+        title: "С примером", body: "Напишите solve.", answer_type: "code",
+        deadline: "2030-01-01T12:00", reference_answer: "def solve(a):\n  return a",
+        code_languages: [ "python" ], reference_language: "python",
+        example_input: "[1, 2, 3]", example_output: "6"
+      } }
+    end
+
+    q = Question.find_by!(title: "С примером")
+    assert_equal "[1, 2, 3]", q.example_input
+    assert_equal "6", q.example_output
+  end
+
   private
     ORIGINAL_DRY_RUN_NEW = CodeRunnerClient.method(:new)
 

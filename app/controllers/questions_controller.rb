@@ -113,6 +113,7 @@ class QuestionsController < ApplicationController
       moderation_text = AiQuestionIngest.moderation_text(
         title: @question.title, body: @question.body, tags: @question.tags,
         reference_answer: @question.reference_answer, explanation: @question.explanation,
+        example_input: @question.example_input, example_output: @question.example_output,
         options: @question.options)
       verdict = ModerationClient.check(text: moderation_text)
       @question.errors.add(:base, "Отклонено проверкой: #{verdict.category}.") if verdict.verdict == :reject
@@ -162,7 +163,7 @@ class QuestionsController < ApplicationController
     # Whitelisted question form fields.
     def question_params
       params.expect(question: [ :title, :body, :answer_type, :deadline, :reference_answer,
-        :explanation, :reference_language, { code_languages: [] } ])
+        :explanation, :reference_language, :example_input, :example_output, { code_languages: [] } ])
     end
 
     # Difficulty arrives from its own select; typed difficulty words merge into it.

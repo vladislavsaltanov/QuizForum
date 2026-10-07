@@ -17,7 +17,7 @@ class Question < ApplicationRecord
   validates :title, :deadline, presence: true
   validates :body, presence: true
   validates :title, length: { maximum: 200 }
-  validates :body, :reference_answer, :explanation, length: { maximum: 20_000 }, allow_nil: true
+  validates :body, :reference_answer, :explanation, :example_input, :example_output, length: { maximum: 20_000 }, allow_nil: true
   validates :reference_answer, presence: true, unless: :choice?
   validates :answer_type, inclusion: { in: ANSWER_TYPES }
   before_validation :compact_options, if: :choice?

@@ -57,6 +57,14 @@
     <%= f.text_area :reference_answer, rows: 4, class: "qf-input" %>
   </div>
 
+  <fieldset id="qf-examples" data-question-form-target="examples">
+    <legend class="qf-label">Пример (виден всем сразу, в грейдинге не участвует)</legend>
+    <%= f.label :example_input, "Вход", class: "qf-label" %>
+    <%= f.text_area :example_input, rows: 3, class: "qf-input qf-code", placeholder: "[1, 2, 3]" %>
+    <%= f.label :example_output, "Выход", class: "qf-label" %>
+    <%= f.text_area :example_output, rows: 3, class: "qf-input qf-code", placeholder: "6" %>
+  </fieldset>
+
   <%= f.label :explanation, "Объяснение ответа (необязательно, откроется после дедлайна)", class: "qf-label" %>
   <%= f.text_area :explanation, rows: 3, class: "qf-input", placeholder: "Почему так — разбор, подсказки…" %>
 
