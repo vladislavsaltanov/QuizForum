@@ -17,13 +17,12 @@ class AttemptCodeCheckJob < ApplicationJob
   def perform(attempt_id)
     attempt = Attempt.find(attempt_id)
     question = attempt.question
-    # Code is executed, never fed to an LLM: prompt-injection screening is
-    # meaningless for code and false-rejects plain programs, so moderation
-    # presets only (mat/toxicity still screened).
+    # A rejected screen never blocks grading: sandboxed execution is safe and
+    # the verdict is factual (repetitive code trips the spam preset). The flag
+    # forces author review instead.
     screen = ModerationClient.check(text: attempt.body.to_s.truncate(MAX_BODY_CHARS),
       presets: %w[moderation_questions])
-    # Injected instructions never reach the runner; the attempt stays pending.
-    return if screen.verdict == :reject
+    forced_review = screen.verdict == :reject ? "модерация: #{screen.category}" : nil
     attempt_lang = attempt.language.presence || question.reference_language.presence || "python"
     reference_lang = question.reference_language.presence || attempt_lang
     result = CodeRunnerClient.new.run_check(
@@ -32,10 +31,11 @@ class AttemptCodeCheckJob < ApplicationJob
       language: attempt_lang, reference_language: reference_lang,
       seed: question.id, cases: FULL_CASES)
     raise CheckFailed, "coderunner unavailable" if result.nil?
-    needs_review = result.needs_review || screen.verdict == :review
+    needs_review = result.needs_review || screen.verdict == :review || forced_review
+    reasons = (result.reasons + [ forced_review ].compact).join("\n").presence
     # update_columns: grading columns only, never revalidates the frozen body.
     attempt.update_columns(code_passed: result.passed, code_total: result.total,
-      code_needs_review: needs_review, code_reasons: result.reasons.join("\n").presence,
+      code_needs_review: needs_review, code_reasons: reasons,
       updated_at: Time.current)
     verdict = map_verdict(result, needs_review)
     return unless verdict

@@ -88,21 +88,16 @@ class AttemptCodeCheckJobTest < ActiveSupport::TestCase
     assert_equal 3, @attempt.code_passed
   end
 
-  test "rejected injection never reaches the runner and stays pending" do
-    CodeRunnerClient.define_singleton_method(:new) do |*|
-      fake = Object.new
-      fake.define_singleton_method(:run_check) { |*_, **_| flunk "rejected text reached the runner" }
-      fake
-    end
-    with_screen(ModerationClient::Result.new(:reject, "prompt_injection")) do
-      AttemptCodeCheckJob.perform_now(@attempt.id)
+  test "rejected screen still grades but forces author review" do
+    with_screen(ModerationClient::Result.new(:reject, "спам")) do
+      with_check(check_result(3, 3, false)) { AttemptCodeCheckJob.perform_now(@attempt.id) }
     end
 
     @attempt.reload
     assert_equal "pending", @attempt.verdict
-    assert_nil @attempt.code_passed
-  ensure
-    CodeRunnerClient.define_singleton_method(:new, ORIGINAL_CHECK_NEW)
+    assert_equal 3, @attempt.code_passed
+    assert @attempt.code_needs_review
+    assert_includes @attempt.code_reasons, "модерация: спам"
   end
 
   test "screen review forces needs_review on confident pass" do
