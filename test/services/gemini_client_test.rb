@@ -18,7 +18,22 @@ class GeminiClientTest < ActiveSupport::TestCase
     client = stubbed_client({ @primary => nil, @fallback => pack_payload })
 
     assert_equal 9, client.generate_pack.size
-    assert_equal [ @primary, @fallback ], client.used_models
+    assert_equal [ @primary ] * 3 + [ @fallback ], client.used_models
+  end
+
+  test "transient primary failure retries the same model before fallback" do
+    calls = Hash.new(0)
+    payload = pack_payload
+    client = GeminiClient.new
+    client.define_singleton_method(:request) do |_, model:|
+      calls[model] += 1
+      calls[model] < 3 ? nil : payload
+    end
+    client.define_singleton_method(:sleep) { |*| }
+
+    assert_equal 9, client.generate_pack.size
+    assert_equal 3, calls[@primary]
+    assert_equal 0, calls[@fallback]
   end
 
   test "both models failing returns nil" do
@@ -50,6 +65,7 @@ class GeminiClientTest < ActiveSupport::TestCase
     # Client with the HTTP layer swapped for a canned payload map; records models tried.
     def stubbed_client(payloads)
       client = GeminiClient.new
+      client.define_singleton_method(:sleep) { |*| }
       client.instance_variable_set(:@payloads, payloads)
       client.instance_variable_set(:@used_models, [])
       def client.used_models

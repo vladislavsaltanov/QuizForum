@@ -10,19 +10,27 @@ class GeminiClient
   # Gemma fallback thinks out loud; trivial prompts already take ~40s.
   READ_TIMEOUT = 300
 
+  # Transient 503s and empty responses: each model gets several attempts
+  # with a short breather before moving to the next one.
+  ATTEMPTS = 3
+  RETRY_DELAY = 5
+
   # Generates one 9-pack: 3 per difficulty, distinct topics, Russian.
   # recent_titles keeps the model from repeating the last packs.
   # Falls back to the spare model when the primary fails.
   def generate_pack(difficulties: Question::DIFFICULTIES, recent_titles: [])
     text = prompt(difficulties, recent_titles)
     [ self.class.model, self.class.fallback_model ].uniq.each do |model|
-      Rails.logger.info("[Gemini] requesting pack from #{model}...")
-      items = extract(request(text, model:), model:)
-      if items.is_a?(Array) && items.size == AiQuestions::PACK_SIZE
-        Rails.logger.info("[Gemini] #{model} returned #{items.size} items.")
-        return items
+      ATTEMPTS.times do |attempt|
+        Rails.logger.info("[Gemini] requesting pack from #{model} (attempt #{attempt + 1})...")
+        items = extract(request(text, model:), model:)
+        if items.is_a?(Array) && items.size == AiQuestions::PACK_SIZE
+          Rails.logger.info("[Gemini] #{model} returned #{items.size} items.")
+          return items
+        end
+        Rails.logger.warn("[Gemini] #{model} gave no usable pack.")
+        sleep(RETRY_DELAY) unless attempt == ATTEMPTS - 1
       end
-      Rails.logger.warn("[Gemini] #{model} gave no usable pack.")
     end
     Rails.logger.error("[Gemini] all models failed.")
     nil
@@ -44,6 +52,8 @@ class GeminiClient
         #{avoid.any? ? "Не повторяй эти темы и формулировки:\n#{avoid.map { "- #{it}" }.join("\n")}" : ""}
         Типы ответов: text (свободный текст с правильным ответом и объяснением) или single_choice (2-4 варианта, ровно один верный).
         Вопросы должны быть конкретными, с однозначным ответом, без подвоха ради подвоха.
+        Без персональных данных где бы то ни было: никаких имён частных лиц, адресов, телефонов, email — ни в условии, ни в ответе, ни в объяснении.
+        Факты и примеры в вопросах должны быть проверяемыми.
       TEXT
     end
 
