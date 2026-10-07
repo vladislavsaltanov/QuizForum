@@ -40,7 +40,7 @@ plugin :solid_queue if ENV["SOLID_QUEUE_IN_PUMA"]
 # Self-heal on every boot: downtime may have skipped generation and the next
 # hourly tick may be far away — enqueue one ensure check right away. Never
 # breaks boot; the job itself is idempotent.
-on_booted do
+after_booted do
   begin
     AiPackEnsureJob.perform_later
     Rails.logger.info("[AI] pack ensure enqueued on boot.")
