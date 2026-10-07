@@ -12,6 +12,9 @@ production:
   code_check_recheck:
     command: "AttemptRecheckJob.perform_later"
     schedule: every hour
+  ai_pack_ensure:
+    command: "AiPackEnsureJob.perform_later"
+    schedule: every hour
 development:
   ai_daily_generate:
     command: "AiDailyGenerateJob.perform_later"
@@ -21,4 +24,7 @@ development:
     schedule: every day at 15:00
   code_check_recheck:
     command: "AttemptRecheckJob.perform_later"
+    schedule: every hour
+  ai_pack_ensure:
+    command: "AiPackEnsureJob.perform_later"
     schedule: every hour
