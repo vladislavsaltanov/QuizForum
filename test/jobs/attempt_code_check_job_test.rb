@@ -89,7 +89,7 @@ class AttemptCodeCheckJobTest < ActiveSupport::TestCase
   end
 
   test "rejected screen still grades but forces author review" do
-    with_screen(ModerationClient::Result.new(:reject, "спам")) do
+    with_screen(ModerationClient::Result.new(:reject, "мат")) do
       with_check(check_result(3, 3, false)) { AttemptCodeCheckJob.perform_now(@attempt.id) }
     end
 
@@ -97,7 +97,17 @@ class AttemptCodeCheckJobTest < ActiveSupport::TestCase
     assert_equal "pending", @attempt.verdict
     assert_equal 3, @attempt.code_passed
     assert @attempt.code_needs_review
-    assert_includes @attempt.code_reasons, "модерация: спам"
+    assert_includes @attempt.code_reasons, "модерация: мат"
+  end
+
+  test "noise screens never force review" do
+    with_screen(ModerationClient::Result.new(:reject, "спам")) do
+      with_check(check_result(3, 3, false)) { AttemptCodeCheckJob.perform_now(@attempt.id) }
+    end
+
+    @attempt.reload
+    assert_equal "correct", @attempt.verdict
+    assert_not @attempt.code_needs_review
   end
 
   test "screen review forces needs_review on confident pass" do

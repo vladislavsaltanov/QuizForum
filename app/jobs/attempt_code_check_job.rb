@@ -22,7 +22,7 @@ class AttemptCodeCheckJob < ApplicationJob
     # forces author review instead.
     screen = ModerationClient.check(text: attempt.body.to_s.truncate(MAX_BODY_CHARS),
       presets: %w[moderation_questions])
-    forced_review = screen.verdict == :reject ? "модерация: #{screen.category}" : nil
+    forced_review = screen.verdict == :reject && code_review_worthy?(screen.category) ? "модерация: #{screen.category}" : nil
     attempt_lang = attempt.language.presence || question.reference_language.presence || "python"
     reference_lang = question.reference_language.presence || attempt_lang
     result = CodeRunnerClient.new.run_check(
@@ -51,6 +51,12 @@ class AttemptCodeCheckJob < ApplicationJob
   end
 
   private
+    # Screens meaningless for executed code (repetitive programs trip them);
+    # toxicity, threats, slurs and secrets still force author review.
+    def code_review_worthy?(category)
+      ![ "спам", "внедрение инструкций", "попытка обхода", "оффтопик" ].include?(category.to_s)
+    end
+
     # Decisive runner outcomes map to verdicts; anything under review maps to nothing.
     def map_verdict(result, needs_review)
       return if needs_review

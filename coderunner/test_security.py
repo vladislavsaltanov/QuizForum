@@ -140,6 +140,10 @@ SAME = [
      py1("    return x * 2\n"),
      "function solve(x) { return x * 2; }\n",
      "python", "javascript", {}),
+    ("indented-paste", 15,
+     py1("    return x * 2\n"),
+     "   def solve(x):\n       return x * 2\n",
+     "python", "python", {}),
 ]
 
 DIFF = [
@@ -227,7 +231,7 @@ for name, seed, ref, att, ref_lang, extra in DIFF:
     passed += 1
     print(f"diff {name}: {body['passed']}/{body['total']}", flush=True)
 
-assert passed == 30, f"matrix incomplete: {passed}/30"
+assert passed == 31, f"matrix incomplete: {passed}/31"
 
 # --- security asserts ---
 # 1. GET /up reports real runtimes, nothing missing.
@@ -304,4 +308,4 @@ assert body["passed"] < body["total"], \
 print("sibling-import: no cross-side visibility", flush=True)
 
 httpd.shutdown()
-print(f"coderunner: {passed}/30 pairs + 7 security asserts OK")
+print(f"coderunner: {passed}/31 pairs + 7 security asserts OK")

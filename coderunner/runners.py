@@ -14,6 +14,7 @@ import re
 import shutil
 import subprocess
 import sys
+import textwrap
 
 LANGUAGES = ("python", "javascript", "ruby")
 STDOUT_CAP = 65536
@@ -108,6 +109,8 @@ EXTS = {"python": "py", "javascript": "js", "ruby": "rb"}
 
 def write_program(tmpdir, stem, language, code):
     """Write user code + driver sentinel to a file; return its path."""
+    if language == "python":
+        code = textwrap.dedent(code)
     path = os.path.join(tmpdir, "%s.%s" % (stem, EXTS[language]))  # noqa: path stem is server-chosen ('ref'/'att'), never user input
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(code)
@@ -129,6 +132,9 @@ def _count_params(raw):
 def get_arity(language, code):
     """Number of solve() params, or None when the entrypoint is unusable."""
     if language == "python":
+        # Pasted code often arrives uniformly indented; dedent is a no-op
+        # for normally formatted programs and rescues indented pastes.
+        code = textwrap.dedent(code)
         try:
             tree = ast.parse(code)
         except SyntaxError:
