@@ -83,7 +83,7 @@ def run_check(ref_code, ref_lang, att_code, att_lang, seed, cases):
         # are dropped (spec section 4); too few valid ones -> needs_review.
         valid = []  # (input_index, reference_output)
         for index, args in enumerate(inputs):
-            status, value = runners.run_one(ref_lang, ref_prog, args, budget(), ref_tmp)
+            status, value, _err = runners.run_one(ref_lang, ref_prog, args, budget(), ref_tmp)
             if status == "ok":
                 valid.append((index, value))
             if exhausted():
@@ -93,8 +93,8 @@ def run_check(ref_code, ref_lang, att_code, att_lang, seed, cases):
                 f"reference answered {len(valid)} of {len(inputs)} inputs (minimum {threshold})"])
         # Pass 2: reference determinism (double run over valid inputs).
         for index, first in valid:
-            status, value = runners.run_one(ref_lang, ref_prog, inputs[index],
-                                            budget(), ref_tmp)
+            status, value, _err = runners.run_one(ref_lang, ref_prog, inputs[index],
+                                                 budget(), ref_tmp)
             if exhausted():
                 return _review(0, len(valid), ["runner time budget exhausted"])
             if status != "ok" or not runners.equal(value, first):
@@ -107,9 +107,10 @@ def run_check(ref_code, ref_lang, att_code, att_lang, seed, cases):
         passed = 0
         differ = timed_out = crashed = capped = no_output = 0
         failed = []
+        first_err = None
         for index, want in valid:
-            status, value = runners.run_one(att_lang, att_prog, inputs[index],
-                                            budget(), att_tmp)
+            status, value, err = runners.run_one(att_lang, att_prog, inputs[index],
+                                                 budget(), att_tmp)
             if exhausted():
                 return _review(passed, len(valid),
                                ["runner time budget exhausted"] +
@@ -127,6 +128,8 @@ def run_check(ref_code, ref_lang, att_code, att_lang, seed, cases):
                 no_output += 1
             else:
                 crashed += 1
+                if first_err is None:
+                    first_err = err
             if len(failed) < FAILED_SAMPLE_MAX:
                 failed.append(inputs[index])
         reasons = _summary(passed, len(valid))
@@ -138,6 +141,8 @@ def run_check(ref_code, ref_lang, att_code, att_lang, seed, cases):
             reasons.append(f"{crashed} crashed")
         if capped:
             reasons.append(f"{capped} exceeded stdout cap")
+        if crashed and first_err:
+            reasons.append(f"first error: {first_err}")
         if no_output:
             reasons.append(f"{no_output} produced no output")
         return {"passed": passed, "total": len(valid),

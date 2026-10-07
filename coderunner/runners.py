@@ -51,6 +51,7 @@ except Exception:
 try:
     __dr_fn = solve
 except NameError:
+    print("ERR:NameError: solve is not defined", file=__dr_sys.stderr)
     __dr_sys.exit(3)
 try:
     __dr_out = __dr_fn(*__dr_args)
@@ -59,7 +60,8 @@ try:
     __dr_sys.stdout.write("OUT:" + __dr_json.dumps(__dr_out, allow_nan=False))
 except SystemExit:
     raise
-except BaseException:
+except BaseException as __dr_e:
+    print("ERR:%s: %s" % (type(__dr_e).__name__, __dr_e), file=__dr_sys.stderr)
     __dr_sys.exit(1)
 """
 
@@ -68,7 +70,7 @@ _JS_DRIVER = """
 const __dr_args = JSON.parse(process.argv[2]);
 let __dr_out;
 try { __dr_out = await solve(...__dr_args); }
-catch (__dr_e) { process.exit(1); }
+catch (__dr_e) { process.stderr.write("ERR:" + ((__dr_e && __dr_e.name) || "Error")); process.exit(1); }
 if (__dr_out === undefined) __dr_out = null;
 process.stdout.write("OUT:" + JSON.stringify(__dr_out));
 })();
@@ -82,7 +84,8 @@ begin
   STDOUT.write("OUT:" + JSON.generate(__dr_out))
 rescue SystemExit
   raise
-rescue Exception
+rescue Exception => __dr_e
+  STDERR.write("ERR:#{__dr_e.class}: #{__dr_e.message}\n")
   exit(1)
 end
 """
@@ -263,39 +266,54 @@ def equal(first, second):
     return canon(first) == canon(second)
 
 
+def _err_line(stderr_bytes, tmpdir):
+    """Last stderr line, sanitized for reasons: no tmp paths, capped length."""
+    try:
+        text = (stderr_bytes or b"").decode("utf-8", errors="replace")
+    except Exception:
+        return None
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return None
+    errs = [line[4:] for line in lines if line.startswith("ERR:")]
+    line = errs[-1] if errs else lines[-1]
+    line = line.replace(tmpdir, "<workdir>")
+    return line[:200] if len(line) > 200 else line
+
+
 def run_one(language, prog, args, timeout, cwd):
-    """Run one case. Returns (status, value); value is set only for "ok".
+    """Run one case. Returns (status, value, err); value is set only for "ok".
 
     Statuses: ok | crash | timeout | truncated | bad_output. Tracebacks and
-    program output never leave this function — the caller only reports counts
-    and failing inputs, so reference text and expected outputs cannot leak
-    into reasons (spec section 4).
+    program output never leave this function except one sanitized stderr line —
+    the caller only reports counts, failing inputs and that line, so reference
+    text and expected outputs cannot leak into reasons (spec section 4).
     """
     cmd = INTERPS[language]
     if cmd is None:  # runtime missing: every case fails, caller reviews
-        return ("crash", None)
+        return ("crash", None, "runtime missing")
     cmd = cmd + [prog, json.dumps(args)]
     try:
         proc = subprocess.run(cmd, stdin=subprocess.DEVNULL,
                               capture_output=True,
                               timeout=timeout, cwd=cwd, env=SPAWN_ENV)
     except subprocess.TimeoutExpired:
-        return ("timeout", None)
+        return ("timeout", None, None)
     except Exception:
-        return ("crash", None)
+        return ("crash", None, None)
     out = proc.stdout or b""
     if len(out) > STDOUT_CAP:
-        return ("truncated", None)
+        return ("truncated", None, None)
     if proc.returncode != 0:
-        return ("crash", None)
+        return ("crash", None, _err_line(proc.stderr, cwd))
     try:
         text = out.decode("utf-8", errors="strict")
     except Exception:
-        return ("bad_output", None)
+        return ("bad_output", None, None)
     for line in text.splitlines():
         if line.startswith("OUT:"):
             try:
-                return ("ok", json.loads(line[4:]))
+                return ("ok", json.loads(line[4:]), None)
             except Exception:
-                return ("bad_output", None)
-    return ("bad_output", None)
+                return ("bad_output", None, None)
+    return ("bad_output", None, None)

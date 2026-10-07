@@ -307,5 +307,16 @@ assert body["passed"] < body["total"], \
     f"sibling import must not pass: {body!r}"
 print("sibling-import: no cross-side visibility", flush=True)
 
+# 8. Crashing attempts report the first error line (sanitized, no paths).
+status, body = run_pair("error-line", 206,
+                        py1("    return x\n"),
+                        "def solve(x):\n    raise ValueError('wrong')\n",
+                        "python", "python", {"cases": 8})
+assert status == 200, body
+assert body["passed"] == 0, body
+assert any("ValueError" in r for r in body["reasons"]), body["reasons"]
+assert not any("tmp" in r and "/" in r for r in body["reasons"]), body["reasons"]
+print("error-line: first stderr line reported, paths scrubbed", flush=True)
+
 httpd.shutdown()
-print(f"coderunner: {passed}/31 pairs + 7 security asserts OK")
+print(f"coderunner: {passed}/31 pairs + 8 security asserts OK")
