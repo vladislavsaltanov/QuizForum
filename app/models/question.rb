@@ -21,7 +21,9 @@ class Question < ApplicationRecord
   validates :reference_answer, presence: true, unless: :choice?
   validates :answer_type, inclusion: { in: ANSWER_TYPES }
   before_validation :compact_options, if: :choice?
-  before_validation :compact_code_languages, if: :code?
+  # Unconditional: the form always submits the hidden blank; "any" is [].
+  # Real strays on non-code types are still rejected by code_languages_valid.
+  before_validation :compact_code_languages
   validate :options_complete, if: :choice?
   validate :code_languages_valid
 

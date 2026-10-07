@@ -338,4 +338,13 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     assert_no_match(/чужой секретный код/, response.body)
     assert_select "dialog[data-controller='checking']", 0
   end
+
+  test "updating text question with blank languages succeeds" do
+    q = questions(:open_text)
+    sign_in_as(@author)
+    patch question_path(q), params: { question: { title: "Новое", code_languages: [ "" ] } }
+
+    assert_redirected_to question_path(q)
+    assert_equal [], q.reload.code_languages
+  end
 end
