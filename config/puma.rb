@@ -37,6 +37,18 @@ plugin :tmp_restart
 # Run the Solid Queue supervisor inside of Puma for single-server deployments.
 plugin :solid_queue if ENV["SOLID_QUEUE_IN_PUMA"]
 
+# Self-heal on every boot: downtime may have skipped generation and the next
+# hourly tick may be far away — enqueue one ensure check right away. Never
+# breaks boot; the job itself is idempotent.
+on_booted do
+  begin
+    AiPackEnsureJob.perform_later
+    Rails.logger.info("[AI] pack ensure enqueued on boot.")
+  rescue StandardError => e
+    Rails.logger.error("[AI] pack ensure on boot failed: #{e.message}")
+  end
+end
+
 # Specify the PID file. Defaults to tmp/pids/server.pid in development.
 # In other environments, only set the PID file if requested.
 pidfile ENV["PIDFILE"] if ENV["PIDFILE"]
