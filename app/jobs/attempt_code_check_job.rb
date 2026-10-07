@@ -56,10 +56,14 @@ class AttemptCodeCheckJob < ApplicationJob
     end
 
     # Decisive runner outcomes map to verdicts; anything under review maps to nothing.
+    # Partial credit needs at least half the cases: coincidental passes
+    # (e.g. 1 of 39) read as incorrect, not "almost right".
     def map_verdict(result, needs_review)
       return if needs_review
-      return "correct" if result.total.to_i > 0 && result.passed == result.total
-      return "incorrect" if result.passed == 0
-      "partial"
+      total = result.total.to_i
+      passed = result.passed.to_i
+      return "correct" if total > 0 && passed == total
+      return "partial" if total > 0 && passed * 2 >= total
+      "incorrect"
     end
 end

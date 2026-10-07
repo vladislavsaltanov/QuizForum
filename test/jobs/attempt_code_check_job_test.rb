@@ -35,13 +35,23 @@ class AttemptCodeCheckJobTest < ActiveSupport::TestCase
     assert_equal 3, @attempt.code_total
   end
 
-  test "middle score writes partial" do
-    with_check(check_result(1, 3, false)) do
+  test "half or more writes partial" do
+    with_check(check_result(2, 3, false)) do
       AttemptCodeCheckJob.perform_now(@attempt.id)
     end
 
     @attempt.reload
     assert_equal "partial", @attempt.verdict
+    assert_equal 2, @attempt.code_passed
+  end
+
+  test "trace pass rate writes incorrect, not partial" do
+    with_check(check_result(1, 39, false)) do
+      AttemptCodeCheckJob.perform_now(@attempt.id)
+    end
+
+    @attempt.reload
+    assert_equal "incorrect", @attempt.verdict
     assert_equal 1, @attempt.code_passed
   end
 
