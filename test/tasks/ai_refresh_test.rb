@@ -44,4 +44,28 @@ class AiRefreshTaskTest < ActiveSupport::TestCase
       remove_method :new
     end
   end
+  test "failed generation wipes nothing" do
+    stale = Question.create!(title: "Старый ИИ", body: "Тело", answer_type: "text",
+      deadline: 7.days.from_now, reference_answer: "Ответ",
+      author: users(:one), ai_generated: true, ai_batch: AiQuestions.today - 5)
+
+    ENV["GEMINI_API_KEY"] = "test-key"
+    GeminiClient.define_singleton_method(:new) do
+      Object.new.tap do |client|
+        def client.generate_pack(**_)
+          nil
+        end
+      end
+    end
+
+    Rake::Task["ai:refresh"].invoke
+
+    assert Question.exists?(stale.id)
+    assert_equal 0, Question.ai.where(ai_batch: AiQuestions.today).count
+  ensure
+    ENV.delete("GEMINI_API_KEY")
+    class << GeminiClient
+      remove_method :new
+    end
+  end
 end
