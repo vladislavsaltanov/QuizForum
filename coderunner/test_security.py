@@ -239,6 +239,13 @@ status, up = get("/up")
 assert status == 200, up
 for rt in ("python", "node", "ruby"):
     assert up["runtimes"].get(rt) not in (None, "", "missing"), up
+assert isinstance(up.get("runners_mtime"), int) and up["runners_mtime"] > 0, up
+
+# 9. Orphan predicate: reparented-to-init exits, init itself and supervised never do.
+assert server.is_orphaned(12345, 1) is True
+assert server.is_orphaned(1, 0) is False
+assert server.is_orphaned(12345, 6789) is False
+print("orphan predicate: stale processes self-terminate", flush=True)
 print(f"runtimes: {up['runtimes']}", flush=True)
 
 # 2. Reasons and failing inputs carry no reference text or expected outputs.

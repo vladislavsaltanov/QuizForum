@@ -20,6 +20,9 @@ LANGUAGES = ("python", "javascript", "ruby")
 STDOUT_CAP = 65536
 SAFE_MAX = 2 ** 53 - 1  # cross-language integer safety bound (spec review focus)
 
+# Mtime of this file, exposed via /up so stale processes are visible.
+SOURCE_MTIME = int(os.path.getmtime(__file__))
+
 
 def _version(cmd):
     try:

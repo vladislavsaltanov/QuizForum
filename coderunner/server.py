@@ -168,7 +168,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/up":
-            return self._json({"runtimes": runners.RUNTIMES})
+            return self._json({"runtimes": runners.RUNTIMES, "runners_mtime": runners.SOURCE_MTIME})
         self.send_error(404)
 
     def do_POST(self):
@@ -215,6 +215,26 @@ def build_server(host, port):
     return ThreadingHTTPServer((host, port), Handler)
 
 
+def is_orphaned(pid, ppid):
+    """True when reparented to init without being init itself (dev only).
+
+    In Docker the server IS pid 1, so this never fires there. Catches the
+    case of outliving its launcher (Ctrl+C killed the parent shell but a
+    manually started runner survived): without a supervisor there is nobody
+    to restart or update it, so a stale process would serve old code forever.
+    """
+    return pid != 1 and ppid == 1
+
+
+def _watch_parent(interval=30.0):
+    import time as _time
+    while True:
+        _time.sleep(interval)
+        if is_orphaned(os.getpid(), os.getppid()):
+            print("coderunner: supervisor gone, exiting", flush=True)
+            os._exit(0)
+
+
 if __name__ == "__main__":
     _host = os.environ.get("CODERUNNER_HOST", "127.0.0.1")
     try:
@@ -224,4 +244,6 @@ if __name__ == "__main__":
     except ValueError as err:
         raise SystemExit(f"bad port: {sys.argv[1]!r}") from err
     print(f"coderunner on {_host}:{_port} (runtimes={runners.RUNTIMES})", flush=True)
+    if not os.environ.get("CODERUNNER_NO_ORPHAN_WATCH"):
+        threading.Thread(target=_watch_parent, daemon=True).start()
     build_server(_host, _port).serve_forever()
