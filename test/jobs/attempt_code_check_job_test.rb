@@ -135,10 +135,13 @@ class AttemptCodeCheckJobTest < ActiveSupport::TestCase
     assert_equal "correct", @attempt.reload.verdict
   end
 
-  test "confident pass on open question broadcasts nothing" do
+  test "confident pass on open question broadcasts own chip only" do
     with_check(check_result(3, 3, false)) do
       assert_no_turbo_stream_broadcasts "leaderboard" do
-        AttemptCodeCheckJob.perform_now(@attempt.id)
+        # One replace for the page chip, one for the checking-modal copy.
+        assert_turbo_stream_broadcasts @question, count: 2 do
+          AttemptCodeCheckJob.perform_now(@attempt.id)
+        end
       end
     end
   end
@@ -146,7 +149,7 @@ class AttemptCodeCheckJobTest < ActiveSupport::TestCase
   test "confident pass on revealed question streams verdict chips and stats" do
     @question.update!(deadline: 1.day.ago)
     with_check(check_result(3, 3, false)) do
-      assert_turbo_stream_broadcasts @question, count: 3 do
+      assert_turbo_stream_broadcasts @question, count: 5 do
         AttemptCodeCheckJob.perform_now(@attempt.id)
       end
     end

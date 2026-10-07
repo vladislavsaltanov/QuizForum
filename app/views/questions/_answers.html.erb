@@ -22,7 +22,7 @@
     <div class="qf-attempt">
       <div class="qf-attempt-head">
         <span>Ваш ответ</span>
-        <span class="qf-chip"><%= verdict_label("pending") %></span>
+        <span class="qf-chip" id="<%= dom_id(@my_attempt, :my_verdict) %>"><%= verdict_label("pending") %></span>
       </div>
       <%= render "attempt_body", attempt: @my_attempt %>
     </div>

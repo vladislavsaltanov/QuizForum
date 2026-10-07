@@ -17,8 +17,11 @@ class AttemptCodeCheckJob < ApplicationJob
   def perform(attempt_id)
     attempt = Attempt.find(attempt_id)
     question = attempt.question
+    # Code is executed, never fed to an LLM: prompt-injection screening is
+    # meaningless for code and false-rejects plain programs, so moderation
+    # presets only (mat/toxicity still screened).
     screen = ModerationClient.check(text: attempt.body.to_s.truncate(MAX_BODY_CHARS),
-      presets: %w[moderation_questions guard_questions])
+      presets: %w[moderation_questions])
     # Injected instructions never reach the runner; the attempt stays pending.
     return if screen.verdict == :reject
     attempt_lang = attempt.language.presence || question.reference_language.presence || "python"
@@ -42,6 +45,8 @@ class AttemptCodeCheckJob < ApplicationJob
     return unless updated == 1
     reloaded = attempt.reload
     Turbo::StreamsChannel.broadcast_refresh_to("leaderboard") if reloaded.revealed_correct?
+    # Own chip always (drives the checking modal); stats + чужие чипы stay closed-only.
+    reloaded.broadcast_own_verdict_change
     reloaded.broadcast_verdict_change if reloaded.question.closed?
   end
 
