@@ -29,6 +29,15 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     assert_no_match(/префикс-функцию/, response.body)
   end
 
+  test "code form hints the solve entrypoint" do
+    sign_in_as(users(:one))
+    get question_path(questions(:open_code))
+
+    assert_response :success
+    assert_match(/Метод должен называться/, response.body)
+    assert_select "textarea[name='attempt[body]']"
+  end
+
   test "text attempt is immutable and pending" do
     q = questions(:open_text)
     post question_attempts_path(q), params: { attempt: { body: "my answer" } }

@@ -43,6 +43,7 @@
         <% allowed_languages = @question.code_languages.presence || Attempt::LANGUAGES %>
         <%= select_tag "attempt[language]", options_for_select(allowed_languages), class: "qf-input", "aria-label": "Язык" %>
         <%= text_area_tag "attempt[body]", nil, rows: 12, placeholder: "Ваш код…", class: "qf-input qf-code qf-answer-area", "aria-label": "Код" %>
+        <p class="qf-hint">Метод должен называться <code>solve</code>, число аргументов — как в примере выше.</p>
       <% when "single_choice" %>
         <% @question.options.each_with_index do |opt, i| %>
           <label class="qf-option">
