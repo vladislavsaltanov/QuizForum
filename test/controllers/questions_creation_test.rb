@@ -166,6 +166,62 @@ class QuestionsCreationTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
+  test "creates code question when dry run passes" do
+    with_dry_run(CodeRunnerClient::Result.new(10, 10, true, false, [ "passed 10 of 10 cases" ], [])) do
+      assert_difference "Question.count", 1 do
+        post questions_path, params: { question: {
+          title: "Код", body: "Напишите solve.", answer_type: "code",
+          deadline: "2030-01-01T12:00", reference_answer: "def solve(a):\n  return a",
+          code_languages: [ "python" ], reference_language: "python"
+        } }
+      end
+    end
+
+    q = Question.find_by!(title: "Код")
+
+    assert_redirected_to question_path(q)
+  end
+
+  test "rejects code question when dry run fails" do
+    with_dry_run(CodeRunnerClient::Result.new(0, 10, true, false, [ "passed 0 of 10 cases" ], [])) do
+      assert_no_difference "Question.count" do
+        post questions_path, params: { question: {
+          title: "Брак", body: "Напишите solve.", answer_type: "code",
+          deadline: "2030-01-01T12:00", reference_answer: "def solve(a):\n  boom",
+          code_languages: [ "python" ], reference_language: "python"
+        } }
+      end
+    end
+
+    assert_response :unprocessable_entity
+  end
+
+  test "creates code question when runner is down" do
+    with_dry_run(nil) do
+      assert_difference "Question.count", 1 do
+        post questions_path, params: { question: {
+          title: "Без раннера", body: "Напишите solve.", answer_type: "code",
+          deadline: "2030-01-01T12:00", reference_answer: "def solve(a):\n  return a",
+          code_languages: [ "python" ], reference_language: "python"
+        } }
+      end
+    end
+
+    assert_redirected_to question_path(Question.find_by!(title: "Без раннера"))
+  end
+
+  private
+    ORIGINAL_DRY_RUN_NEW = CodeRunnerClient.method(:new)
+
+    def with_dry_run(result)
+      fake = Object.new
+      fake.define_singleton_method(:run_check) { |*_, **_| result }
+      CodeRunnerClient.define_singleton_method(:new) { |*_| fake }
+      yield
+    ensure
+      CodeRunnerClient.define_singleton_method(:new, ORIGINAL_DRY_RUN_NEW)
+    end
+
   test "stores explanation" do
     post questions_path, params: { question: {
       title: "С разбором", body: "Условие", answer_type: "text",
