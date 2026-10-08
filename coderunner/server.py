@@ -3,7 +3,7 @@
 
 Contract: POST /v1/run_check {key, language, reference, attempt, seed, cases}
   -> {passed, total, deterministic, needs_review, reasons[], failed_sample[]}
-GET /up -> {runtimes: {python, node, ruby}}.
+GET /up -> {runtimes: {python, node, ruby, go, g++, java, dotnet}}.
 
 `language` is the attempt language; `reference_language` optionally overrides
 it for the reference (cross-language tasks compare normalized outputs).
@@ -77,8 +77,14 @@ def run_check(ref_code, ref_lang, att_code, att_lang, seed, cases):
     # file contents never leave the runner.
     with tempfile.TemporaryDirectory(prefix="runcheck-ref-") as ref_tmp, \
             tempfile.TemporaryDirectory(prefix="runcheck-att-") as att_tmp:
-        ref_prog = runners.write_program(ref_tmp, "ref", ref_lang, ref_code)
-        att_prog = runners.write_program(att_tmp, "att", att_lang, att_code)
+        try:
+            ref_prog = runners.prepare_program(
+                ref_tmp, "ref", ref_lang, ref_code,
+                runners.harness_for(ref_lang, ref_lang, ref_code))
+        except runners.BuildError as exc:
+            if "toolchain missing" in str(exc):
+                raise  # infra failure: 500 so the job retries
+            return _review(0, 0, ["reference unusable: " + str(exc)])
         # Pass 1: reference-first. Inputs the reference crashes/times out on
         # are dropped (spec section 4); too few valid ones -> needs_review.
         valid = []  # (input_index, reference_output)
@@ -104,13 +110,33 @@ def run_check(ref_code, ref_lang, att_code, att_lang, seed, cases):
                                     "repeated run differs"],
                         "failed_sample": [inputs[index]]}
         # Pass 3: attempt on valid inputs only; normalized-output compare.
+        # The attempt compiles after passes 1-2 so its total is known;
+        # an unbuildable attempt fails every valid input instead of 500.
+        try:
+            att_prog = runners.prepare_program(
+                att_tmp, "att", att_lang, att_code,
+                runners.harness_for(att_lang, ref_lang, ref_code))
+            att_error = None
+        except runners.HarnessError as exc:
+            # No harness exists (e.g. cross-language compiled attempt):
+            # the check could not run, so review instead of a verdict.
+            return {"passed": 0, "total": len(valid),
+                    "deterministic": True, "needs_review": True,
+                    "reasons": [str(exc)], "failed_sample": []}
+        except runners.BuildError as exc:
+            if "toolchain missing" in str(exc):
+                raise  # infra failure: 500 so the job retries
+            att_prog, att_error = None, str(exc)
         passed = 0
         differ = timed_out = crashed = capped = no_output = 0
         failed = []
         first_err = None
         for index, want in valid:
-            status, value, err = runners.run_one(att_lang, att_prog, inputs[index],
-                                                 budget(), att_tmp)
+            if att_prog is None:
+                status, value, err = ("crash", None, att_error)
+            else:
+                status, value, err = runners.run_one(att_lang, att_prog, inputs[index],
+                                                     budget(), att_tmp)
             if exhausted():
                 return _review(passed, len(valid),
                                ["runner time budget exhausted"] +

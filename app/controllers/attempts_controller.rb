@@ -52,9 +52,11 @@ class AttemptsController < ApplicationController
       params.expect(attempt: [ :body, :language, { selected: [] } ])
     end
 
-    # Empty allowlist means any language; forgery never reaches the runner.
+    # Only runner-gradeable languages pass; empty allowlist means any of those.
     def language_allowed?
+      lang = attempt_params[:language]
+      return false unless CodeRunnerClient::SUPPORTED_LANGUAGES.include?(lang)
       allowed = Array(@question.code_languages)
-      allowed.empty? || allowed.include?(attempt_params[:language])
+      allowed.empty? || allowed.include?(lang)
     end
 end

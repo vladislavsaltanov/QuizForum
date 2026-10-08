@@ -80,6 +80,50 @@ def pyl(body):
     return "def solve(xs):\n" + LIST + body
 
 
+TS_INT = ("  if (!Number.isInteger(x))"
+          " throw new TypeError('int only');\n")
+
+
+def ts1(body):
+    return "function solve(x: number): number {\n" + TS_INT + body + "}\n"
+
+
+def go1(body):
+    return "func solve(x int) int {\n" + body + "}\n"
+
+
+def gol(body):
+    return "func solve(xs []int) int {\n" + body + "}\n"
+
+
+def cpp1(body):
+    return "int solve(int x) {\n" + body + "}\n"
+
+
+def cppl(body):
+    return "int solve(std::vector<int> xs) {\n" + body + "}\n"
+
+
+def cs1(body):
+    return "class Solution {\npublic static int Solve(int x) {\n" + body + "}\n}\n"
+
+
+def csl(body):
+    return "class Solution {\npublic static int Solve(int[] xs) {\n" + body + "}\n}\n"
+
+
+def java1(body):
+    return "class Solution {\n    public static int solve(int x) {\n" + body + "    }\n}\n"
+
+
+def javal(body):
+    return "class Solution {\n    public static int solve(int[] xs) {\n" + body + "    }\n}\n"
+
+
+def tsl(body):
+    return "const solve = (xs: number[]): number => {\n" + body + "};\n"
+
+
 SAME = [
     ("sum-loop-vs-builtin", 1,
      pyl("    total = 0\n    for v in xs:\n        total += v\n    return total\n"),
@@ -144,6 +188,66 @@ SAME = [
      py1("    return x * 2\n"),
      "   def solve(x):\n       return x * 2\n",
      "python", "python", {}),
+    ("double-ts-annotated", 16,
+     py1("    return x * 2\n"),
+     ts1("    return x * 2;\n"),
+     "python", "typescript", {"cases": 25}),
+    ("sum-ts-array-vs-py", 17,
+     pyl("    return sum(xs)\n"),
+     tsl("    return xs.reduce((a, b) => a + b, 0);\n"),
+     "python", "typescript", {"cases": 25}),
+    ("add-ts-arrow-ret-type", 18,
+     py2("    return a + b\n"),
+     "const solve = (a: number, b: number): number => a + b;\n",
+     "python", "typescript", {"cases": 25}),
+    ("double-go-plus-vs-mul", 19,
+     go1("    return x + x\n"),
+     go1("    return x * 2\n"),
+     "go", "go", {"cases": 25}),
+    ("sum-go-range-vs-index", 20,
+     gol("    total := 0\n    for _, v := range xs {\n        total += v\n    }\n    return total\n"),
+     gol("    total := 0\n    for i := 0; i < len(xs); i++ {\n        total += xs[i]\n    }\n    return total\n"),
+     "go", "go", {"cases": 25}),
+    ("double-java-plus-vs-mul", 22,
+     java1("    return x + x;\n"),
+     java1("    return x * 2;\n"),
+     "java", "java", {"cases": 25}),
+    ("sum-java-foreach-vs-index", 23,
+     javal("    int t = 0;\n    for (int v : xs) t += v;\n    return t;\n"),
+     javal("    int t = 0;\n    for (int i = 0; i < xs.length; i++) t += xs[i];\n    return t;\n"),
+     "java", "java", {"cases": 25}),
+    ("abs-java-packaged-paste", 24,
+     java1("    if (x < 0) {\n        return -x;\n    }\n    return x;\n"),
+     "package foo;\nimport java.util.*;\nclass Solution { public static int solve(int x) { if (x < 0) return -x; return x; } }\n",
+     "java", "java", {"cases": 25}),
+    ("double-cpp-plus-vs-mul", 25,
+     cpp1("    return x + x;\n"),
+     cpp1("    return x * 2;\n"),
+     "c++", "c++", {"cases": 25}),
+    ("sum-cpp-range-vs-index", 26,
+     cppl("    int t = 0;\n    for (int v : xs) t += v;\n    return t;\n"),
+     cppl("    int t = 0;\n    for (size_t i = 0; i < xs.size(); i++) t += xs[i];\n    return t;\n"),
+     "c++", "c++", {"cases": 25}),
+    ("abs-cpp-include-paste", 27,
+     cpp1("    if (x < 0) {\n        return -x;\n    }\n    return x;\n"),
+     "#include <algorithm>\nint solve(int x) { return std::max(x, -x); }\n",
+     "c++", "c++", {"cases": 25}),
+    ("double-cs-plus-vs-mul", 28,
+     cs1("    return x + x;\n"),
+     cs1("    return x * 2;\n"),
+     "c#", "c#", {"cases": 25}),
+    ("sum-cs-foreach-vs-for", 29,
+     csl("    int t = 0;\n    foreach (int v in xs) t += v;\n    return t;\n"),
+     csl("    int t = 0;\n    for (int i = 0; i < xs.Length; i++) t += xs[i];\n    return t;\n"),
+     "c#", "c#", {"cases": 25}),
+    ("abs-cs-using-paste", 30,
+     cs1("    if (x < 0) {\n        return -x;\n    }\n    return x;\n"),
+     "using System;\nclass Solution { public static int Solve(int x) { return x < 0 ? -x : x; } }\n",
+     "c#", "c#", {"cases": 25}),
+    ("abs-go-packaged-paste", 21,
+     go1("    if x < 0 {\n        return -x\n    }\n    return x\n"),
+     "package main\n\nfunc solve(x int) int {\n    if x < 0 {\n        return -x\n    }\n    return x\n}\n",
+     "go", "go", {"cases": 25}),
 ]
 
 DIFF = [
@@ -195,7 +299,27 @@ DIFF = [
     ("sum-vs-wrong-arity", 115,
      pyl("    return sum(xs)\n"), "def solve(a, b):\n    return a\n",
      "python", {"cases": 25}),
-]
+    ("double-ts-vs-triple", 116,
+     py1("    return x * 2\n"),
+     "function solve(x: number): number { return x * 3; }\n",
+     "python", {"cases": 25}, "typescript"),
+    ("double-vs-triple-go", 117,
+     go1("    return x * 2\n"),
+     go1("    return x * 3\n"),
+     "go", {"cases": 25}, "go"),
+    ("double-vs-triple-java", 118,
+     java1("    return x * 2;\n"),
+     java1("    return x * 3;\n"),
+     "java", {"cases": 25}, "java"),
+    ("double-vs-triple-cpp", 119,
+     cpp1("    return x * 2;\n"),
+     cpp1("    return x * 3;\n"),
+     "c++", {"cases": 25}, "c++"),
+    ("double-vs-triple-cs", 121,
+     cs1("    return x * 2;\n"),
+     cs1("    return x * 3;\n"),
+     "c#", {"cases": 25}, "c#"),
+ ]
 
 passed = 0
 
@@ -220,8 +344,10 @@ for name, seed, ref, att, ref_lang, att_lang, extra in SAME:
     passed += 1
     print(f"same {name}: {body['passed']}/{body['total']}", flush=True)
 
-for name, seed, ref, att, ref_lang, extra in DIFF:
-    status, body = run_pair(name, seed, ref, att, ref_lang, "python", extra)
+for row in DIFF:
+    name, seed, ref, att, ref_lang, extra = row[:6]
+    att_lang = row[6] if len(row) > 6 else "python"
+    status, body = run_pair(name, seed, ref, att, ref_lang, att_lang, extra)
     assert status == 200, f"{name}: status {status}: {body!r}"
     assert body["total"] > 0, f"{name}: no valid inputs: {body!r}"
     assert body["passed"] < body["total"], \
@@ -231,13 +357,59 @@ for name, seed, ref, att, ref_lang, extra in DIFF:
     passed += 1
     print(f"diff {name}: {body['passed']}/{body['total']}", flush=True)
 
-assert passed == 31, f"matrix incomplete: {passed}/31"
+assert passed == 51, f"matrix incomplete: {passed}/51"
+
+# TS arity: annotations/generics counted, destructuring/rest unknown.
+for _code, _want in [
+    ("function solve(a: number, b: number): number { return a + b; }", 2),
+    ("const solve = (xs: number[]): number => xs.length;", 1),
+    ("function solve<T>(x: T): T { return x; }", 1),
+    ("function solve({a, b}: Opts) { return a; }", None),
+    ("function solve(...xs: number[]) { return 1; }", None),
+]:
+    assert server.runners.get_arity("typescript", _code) == _want, _code
+print("ts-arity: annotations counted, unknowable -> None", flush=True)
+for _code, _want in [
+    ("func solve(a int, b int) int { return a + b; }", 2),
+    ("func solve(xs []int) int { return 1; }", 1),
+    ("func (s S) solve(x int) int { return x; }", None),
+    ("func solve(xs ...int) int { return 1; }", None),
+]:
+    assert server.runners.get_arity("go", _code) == _want, _code
+print("go-arity: params counted, methods/variadics -> None", flush=True)
+for _code, _want in [
+    ("int solve(int x) { return x; }", 1),
+    ("long solve(const std::vector<int>& xs, int k) { return 0; }", 2),
+    ("int A::solve(int x) { return x; }", None),
+    ("int solve(int x, ...) { return x; }", None),
+    ("template<typename T> T solve(T x) { return x; }", 1),
+]:
+    assert server.runners.get_arity("c++", _code) == _want, _code
+print("cpp-arity: free fn + balanced, qualified/variadic -> None", flush=True)
+for _code, _want in [
+    ("public static int Solve(int x) { return x; }", 1),
+    ("static long Solve(int[] xs, int k) { return 0; }", 2),
+    ("int A.Solve(int x) { return x; }", None),
+    ("public static T Solve<T>(T x) { return x; }", None),
+    ("var y = obj.Solve(1, 2);", None),
+]:
+    assert server.runners.get_arity("c#", _code) == _want, _code
+print("cs-arity: method + balanced, qualified/generic -> None", flush=True)
+for _code, _want in [
+    ("class Solution { public static int solve(int x) { return x; } }", 1),
+    ("class Solution { static long solve(long[] xs, int k) { return 0L; }", 2),
+    ("class Solution { public int solve(int x) { return x; } }", None),
+    ("class Solution { static int solve(int... xs) { return 0; } }", None),
+    ("class Solution { static int solve(Map<String, Integer> m) { return 0; } }", 1),
+]:
+    assert server.runners.get_arity("java", _code) == _want, _code
+print("java-arity: static+balanced, varargs/nonstatic -> None", flush=True)
 
 # --- security asserts ---
 # 1. GET /up reports real runtimes, nothing missing.
 status, up = get("/up")
 assert status == 200, up
-for rt in ("python", "node", "ruby"):
+for rt in ("python", "node", "ruby", "go", "java", "g++", "dotnet"):
     assert up["runtimes"].get(rt) not in (None, "", "missing"), up
 assert isinstance(up.get("runners_mtime"), int) and up["runners_mtime"] > 0, up
 
@@ -265,11 +437,11 @@ print("no-leak: reasons/samples carry no reference text", flush=True)
 # 3. Unknown language is refused pre-execution (fast 400, nothing spawned).
 started = time.monotonic()
 status, body = post("/v1/run_check", {
-    "key": "go-probe", "language": "go", "reference": "x", "attempt": "y",
+    "key": "rust-probe", "language": "rust", "reference": "x", "attempt": "y",
     "seed": 1})
 elapsed = time.monotonic() - started
 assert status == 400, f"unknown language must be 400, got {status}: {body!r}"
-assert "go" in body.get("error", ""), body
+assert "rust" in body.get("error", ""), body
 assert elapsed < 10, f"refusal must be instant (no execution): {elapsed:.1f}s"
 print(f"unknown-language refused in {elapsed:.2f}s", flush=True)
 
@@ -325,5 +497,95 @@ assert any("ValueError" in r for r in body["reasons"]), body["reasons"]
 assert not any("tmp" in r and "/" in r for r in body["reasons"]), body["reasons"]
 print("error-line: first stderr line reported, paths scrubbed", flush=True)
 
+# 10. TS non-erasable syntax (enum) in the reference -> needs_review, never 500.
+status, body = run_pair("ts-enum-ref", 207,
+                        "enum D { A, B }"
+                        "function solve(x: number): number { return x * 2; }",
+                        py1("    return x * 2"),
+                        "typescript", "python", {"cases": 8})
+assert status == 200, body
+assert body["needs_review"] is True, body
+print("ts-enum: non-erasable reference -> needs_review", flush=True)
+
+# 11. Go attempt against a non-Go reference -> needs_review, never a verdict.
+status, body = run_pair("go-cross-review", 208,
+                        py1("    return x * 2"),
+                        go1("    return x * 2"),
+                        "python", "go", {"cases": 8})
+assert status == 200, body
+assert body["needs_review"] is True, body
+assert body["total"] > 0, body
+print("go-cross: compiled attempt without same-language reference -> needs_review", flush=True)
+
+# 12. Uncompilable Go attempt with a usable harness -> incorrect, not review.
+status, body = run_pair("go-bad-attempt", 209,
+                        go1("    return x * 2"),
+                        "func solve(x int) int { return nope; }",
+                        "go", "go", {"cases": 8})
+assert status == 200, body
+assert body["passed"] == 0, body
+assert body["needs_review"] is False, body
+print("go-bad-attempt: broken code -> incorrect", flush=True)
+
+# 15. C++ attempt against a non-C++ reference -> needs_review, never a verdict.
+status, body = run_pair("cpp-cross-review", 212,
+                        py1("    return x * 2"),
+                        cpp1("    return x * 2"),
+                        "python", "c++", {"cases": 8})
+assert status == 200, body
+assert body["needs_review"] is True, body
+assert body["total"] > 0, body
+print("cpp-cross: compiled attempt without same-language reference -> needs_review", flush=True)
+
+# 16. Uncompilable C++ attempt with a usable harness -> incorrect, not review.
+status, body = run_pair("cpp-bad-attempt", 213,
+                        cpp1("    return x * 2;"),
+                        "int solve(int x) { return nope; }",
+                        "c++", "c++", {"cases": 8})
+assert status == 200, body
+assert body["passed"] == 0, body
+assert body["needs_review"] is False, body
+print("cpp-bad-attempt: broken code -> incorrect", flush=True)
+
+# 17. C# attempt against a non-C# reference -> needs_review, never a verdict.
+status, body = run_pair("cs-cross-review", 214,
+                        py1("    return x * 2"),
+                        cs1("    return x * 2;"),
+                        "python", "c#", {"cases": 8})
+assert status == 200, body
+assert body["needs_review"] is True, body
+assert body["total"] > 0, body
+print("cs-cross: compiled attempt without same-language reference -> needs_review", flush=True)
+
+# 18. Uncompilable C# attempt with a usable harness -> incorrect, not review.
+status, body = run_pair("cs-bad-attempt", 215,
+                        cs1("    return x * 2;"),
+                        "class Solution { public static int Solve(int x) { return nope; } }",
+                        "c#", "c#", {"cases": 8})
+assert status == 200, body
+assert body["passed"] == 0, body
+assert body["needs_review"] is False, body
+print("cs-bad-attempt: broken code -> incorrect", flush=True)
+
+# 13. Java attempt against a non-Java reference -> needs_review, never a verdict.
+status, body = run_pair("java-cross-review", 210,
+                        py1("    return x * 2"),
+                        java1("    return x * 2;"),
+                        "python", "java", {"cases": 8})
+assert status == 200, body
+assert body["needs_review"] is True, body
+assert body["total"] > 0, body
+print("java-cross: compiled attempt without same-language reference -> needs_review", flush=True)
+
+# 14. Uncompilable Java attempt with a usable harness -> incorrect, not review.
+status, body = run_pair("java-bad-attempt", 211,
+                        java1("    return x * 2;"),
+                        "class Solution { public static int solve(int x) { return nope; } }",
+                        "java", "java", {"cases": 8})
+assert status == 200, body
+assert body["passed"] == 0, body
+assert body["needs_review"] is False, body
+print("java-bad-attempt: broken code -> incorrect", flush=True)
+
 httpd.shutdown()
-print(f"coderunner: {passed}/31 pairs + 9 security asserts OK")
+print(f"coderunner: {passed}/51 pairs + 18 security asserts OK")

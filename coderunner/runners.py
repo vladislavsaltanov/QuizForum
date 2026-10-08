@@ -12,11 +12,12 @@ import os
 import random
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import textwrap
 
-LANGUAGES = ("python", "javascript", "ruby")
+LANGUAGES = ("python", "javascript", "typescript", "ruby", "go", "java", "c++", "c#")
 STDOUT_CAP = 65536
 SAFE_MAX = 2 ** 53 - 1  # cross-language integer safety bound (spec review focus)
 
@@ -36,6 +37,10 @@ def _version(cmd):
 RUNTIMES = {
     "python": _version([sys.executable, "--version"]),
     "node": _version(["node", "--version"]),
+    "go": _version(["go", "--version"]),
+    "g++": _version(["g++", "--version"]),
+    "java": _version(["java", "--version"]),
+    "dotnet": _version(["dotnet", "--version"]),
     "ruby": _version(["ruby", "--version"]),
 }
 
@@ -93,7 +98,10 @@ rescue Exception => __dr_e
 end
 """
 
-DRIVERS = {"python": _PY_DRIVER, "javascript": _JS_DRIVER, "ruby": _RB_DRIVER}
+DRIVERS = {"python": _PY_DRIVER, "javascript": _JS_DRIVER,
+    # TypeScript runs on the JS runtime via node strip-types; the driver
+    # itself is plain JS, so no type syntax ever reaches the stripper.
+    "typescript": _JS_DRIVER, "ruby": _RB_DRIVER}
 # Resolve interpreters once, with the startup PATH: ad-hoc toolchains
 # (fnm/rbenv shims) live outside /usr/bin. Spawn env carries PATH only —
 # no secrets — so shims keep working and no system-ruby fallback sneaks in.
@@ -109,8 +117,37 @@ def _interp(name, argv0):
 
 INTERPS = {"python": [sys.executable],
            "javascript": _interp("node", None),
-           "ruby": _interp("ruby", None)}
-EXTS = {"python": "py", "javascript": "js", "ruby": "rb"}
+           "typescript": _interp("node", None),
+           "ruby": _interp("ruby", None),
+           "go": _interp("go", None),
+           "java": _interp("java", None),
+           "c++": _interp("g++", None),
+           "c#": _interp("dotnet", None)}
+EXTS = {"python": "py", "javascript": "js", "typescript": "ts", "ruby": "rb"}
+
+# Languages needing ahead-of-time compilation (binary runs directly).
+COMPILED = ("go", "java", "c++", "c#")
+CPP_BUILD_TIMEOUT = 60
+CPP_TYPES = {"int", "long", "double", "string", "bool",
+             "vector<int>", "vector<long>", "vector<double>",
+             "vector<string>", "vector<bool>"}
+GO_BUILD_TIMEOUT = 60
+GO_TYPES = {"int", "int64", "float64", "string", "bool",
+            "[]int", "[]string", "[]float64", "[]bool"}
+JAVA_BUILD_TIMEOUT = 60
+JAVA_TYPES = {"int", "long", "double", "String", "boolean",
+              "int[]", "long[]", "double[]", "String[]", "boolean[]"}
+
+
+class BuildError(RuntimeError):
+    """Source or harness unusable (reference) or uncompilable (attempt)."""
+
+
+class HarnessError(BuildError):
+    """No usable harness at all (e.g. cross-language compiled attempt)."""
+    # Unlike a compile failure (broken code -> incorrect), this means the
+    # check could not run: the caller must report needs_review, not a verdict.
+
 
 
 def write_program(tmpdir, stem, language, code):
@@ -130,6 +167,830 @@ def write_program(tmpdir, stem, language, code):
     return path
 
 
+def _strip_go_package(code):
+    """Drop a leading `package x` line; pasted full programs stay buildable."""
+    out = []
+    for line in code.splitlines(keepends=True):
+        if len(line.split()) == 2 and line.split()[0] == "package":
+            continue
+        out.append(line)
+    return "".join(out)
+
+
+def go_signature(code):
+    """Param types of `func solve`, or None when unusable or unsupported."""
+    match = re.search("func +solve *[(]([^)]*)[)]([^{]*)", code)
+    if not match:
+        return None
+    raw_params = match.group(1)
+    raw_ret = match.group(2).split(chr(10))[0].strip()
+    if "..." in raw_params:
+        return None  # variadic: uncountable, caller reviews
+    types = []
+    for part in _split_top_level(raw_params):
+        part = part.strip()
+        if not part:
+            continue
+        if part.startswith("{") or part.startswith("["):
+            return None
+        tok = part.split()[-1]
+        if tok not in GO_TYPES:
+            return None
+        types.append(tok)
+    if raw_ret.startswith("("):
+        if not raw_ret.endswith(")"):
+            return None
+        inner = raw_ret[1:-1].strip()
+        if "," in inner:
+            return None  # multiple results: unsupported
+        ret = inner.split()[-1] if inner.split() else ""
+    else:
+        ret = raw_ret.split()[-1] if raw_ret.split() else ""
+    if ret not in GO_TYPES:
+        return None
+    return types
+
+
+def _strip_c_comments(code):
+    """Remove // and /* */ comments; string/char literals blanked, not dropped."""
+    token = re.compile(r'"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\\n]|\\.)*\'|/\*.*?\*/|//[^\n]*', re.DOTALL)
+
+    def _drop(match):
+        tok = match.group(0)
+        if tok.startswith("/"):
+            return ""
+        return '""'
+    return token.sub(_drop, code)
+
+
+def _balanced_params(clean, open_index):
+    """(inside, close_index) of the paren group opening at open_index."""
+    depth, i = 0, open_index
+    while i < len(clean):
+        if clean[i] == "(":
+            depth += 1
+        elif clean[i] == ")":
+            depth -= 1
+            if depth == 0:
+                return clean[open_index + 1:i], i
+        i += 1
+    return None, -1
+
+
+def _java_param_type(part):
+    """One `Type name` declaration -> type in JAVA_TYPES, or None."""
+    part = part.strip()
+    match = re.match(r"^(.*?)\s*([A-Za-z_$][\w$]*)$", part)
+    if not match:
+        return None
+    typ = re.sub(r"@\w+(\([^()]*\))?", "", match.group(1))
+    typ = " ".join(tok for tok in typ.split() if tok != "final")
+    typ = typ.replace(" ", "")
+    return typ if typ in JAVA_TYPES else None
+
+
+def java_signature(code):
+    """Param types of `static solve` in class Solution, or None."""
+    clean = _strip_c_comments(code)
+    if not re.search(r"\bclass\s+Solution\b", clean):
+        return None
+    match = re.search(r"\bstatic\b\s+([^{};=]*?)\bsolve\s*\(", clean)
+    if not match:
+        return None
+    ret_part = re.sub(r"@\w+(\([^()]*\))?", "", match.group(1))
+    ret_toks = [tok for tok in ret_part.split() if tok != "final"]
+    if not ret_toks:
+        return None
+    raw_ret = ret_toks[-1]
+    found = _balanced_params(clean, match.end() - 1)
+    raw_params, _close = found
+    if raw_params is None:
+        return None
+    if "..." in raw_params:
+        return None  # varargs: uncountable, caller reviews
+    types = []
+    for part in _split_top_level(raw_params):
+        if not part.strip():
+            continue
+        typ = _java_param_type(part)
+        if typ is None:
+            return None
+        types.append(typ)
+    if raw_ret not in JAVA_TYPES:
+        return None
+    return types
+
+
+def go_harness(param_types):
+    """main() calling solve with JSON-decoded typed args, OUT: line out."""
+    lines = ["package main",
+             'import (__dr_json "encoding/json"; __dr_fmt "fmt"; __dr_os "os")',
+             "func main() {",
+             "var raw []__dr_json.RawMessage",
+             "if err := __dr_json.Unmarshal([]byte(__dr_os.Args[1]), &raw); err != nil { __dr_os.Exit(2) }"]
+    lines.append("if len(raw) != " + str(len(param_types)) + " { __dr_os.Exit(2) }")
+    args = []
+    for i, typ in enumerate(param_types):
+        lines.append("var p" + str(i) + " " + typ)
+        lines.append("if err := __dr_json.Unmarshal(raw[" + str(i) + "], &p" + str(i) + "); err != nil { __dr_os.Exit(1) }")
+        args.append("p" + str(i))
+    lines.append("out := solve(" + ", ".join(args) + ")")
+    lines.append("j, err := __dr_json.Marshal(out)")
+    lines.append("if err != nil { __dr_os.Exit(1) }")
+    lines.append('__dr_fmt.Println("OUT:" + string(j))')
+    lines.append("}")
+    return chr(10).join(lines) + chr(10)
+
+
+_JAVA_COERCE = {"int": "asInt", "long": "asLong", "double": "asDouble",
+                 "String": "asString", "boolean": "asBool", "int[]": "asIntArray",
+                 "long[]": "asLongArray", "double[]": "asDoubleArray",
+                 "String[]": "asStringArray", "boolean[]": "asBoolArray"}
+
+
+def java_harness(param_types):
+    """Main.java calling Solution.solve with JSON-decoded typed args."""
+    decls, args = [], []
+    for i, typ in enumerate(param_types):
+        decls.append("        %s p%d = %s(raw.get(%d));" % (typ, i, _JAVA_COERCE[typ], i))
+        args.append("p" + str(i))
+    return "\n".join([
+        "import java.util.*;",
+        "public class Main {",
+        "    static class BadArg extends Exception {}",
+        "    static String src; static int pos;",
+        "    static void skip() {",
+        "        while (pos < src.length()) {",
+        "            char c = src.charAt(pos);",
+        "            if (c == ' ' || c == '\\n' || c == '\\r' || c == '\\t') pos++;",
+        "            else break;",
+        "        }",
+        "    }",
+        "    static void expect(String lit) throws BadArg {",
+        "        if (!src.startsWith(lit, pos)) throw new BadArg();",
+        "        pos += lit.length();",
+        "    }",
+        "    static Object parse(String s) throws BadArg {",
+        "        src = s; pos = 0;",
+        "        Object v = parseValue();",
+        "        skip();",
+        "        if (pos != src.length()) throw new BadArg();",
+        "        return v;",
+        "    }",
+        "    static Object parseValue() throws BadArg {",
+        "        skip();",
+        "        if (pos >= src.length()) throw new BadArg();",
+        "        char c = src.charAt(pos);",
+        "        if (c == 'n') { expect(\"null\"); return null; }",
+        "        if (c == 't') { expect(\"true\"); return Boolean.TRUE; }",
+        "        if (c == 'f') { expect(\"false\"); return Boolean.FALSE; }",
+        "        if (c == '\"') return parseString();",
+        "        if (c == '[') {",
+        "            pos++;",
+        "            List<Object> out = new ArrayList<>();",
+        "            skip();",
+        "            if (pos < src.length() && src.charAt(pos) == ']') { pos++; return out; }",
+        "            while (true) {",
+        "                out.add(parseValue());",
+        "                skip();",
+        "                if (pos < src.length() && src.charAt(pos) == ']') { pos++; return out; }",
+        "                if (pos >= src.length() || src.charAt(pos) != ',') throw new BadArg();",
+        "                pos++;",
+        "            }",
+        "        }",
+        "        if (c == '-' || (c >= '0' && c <= '9')) return parseNumber();",
+        "        throw new BadArg();",
+        "    }",
+        "    static String parseString() throws BadArg {",
+        "        pos++;",
+        "        StringBuilder sb = new StringBuilder();",
+        "        while (true) {",
+        "            if (pos >= src.length()) throw new BadArg();",
+        "            char c = src.charAt(pos++);",
+        "            if (c == '\"') return sb.toString();",
+        "            if (c == '\\\\') {",
+        "                if (pos >= src.length()) throw new BadArg();",
+        "                char e = src.charAt(pos++);",
+        "                if (e == '\"') sb.append('\"');",
+        "                else if (e == '\\\\') sb.append('\\\\');",
+        "                else if (e == '/') sb.append('/');",
+        "                else if (e == 'b') sb.append('\\b');",
+        "                else if (e == 'f') sb.append('\\f');",
+        "                else if (e == 'n') sb.append('\\n');",
+        "                else if (e == 'r') sb.append('\\r');",
+        "                else if (e == 't') sb.append('\\t');",
+        "                else if (e == 'u') {",
+        "                    if (pos + 4 > src.length()) throw new BadArg();",
+        "                    try { sb.append((char) Integer.parseInt(src.substring(pos, pos + 4), 16)); }",
+        "                    catch (NumberFormatException ex) { throw new BadArg(); }",
+        "                    pos += 4;",
+        "                }",
+        "                else throw new BadArg();",
+        "            } else if (c < 0x20) {",
+        "                throw new BadArg();",
+        "            } else {",
+        "                sb.append(c);",
+        "            }",
+        "        }",
+        "    }",
+        "    static Object parseNumber() throws BadArg {",
+        "        int start = pos;",
+        "        if (pos < src.length() && src.charAt(pos) == '-') pos++;",
+        "        while (pos < src.length() && Character.isDigit(src.charAt(pos))) pos++;",
+        "        boolean frac = false;",
+        "        if (pos < src.length() && src.charAt(pos) == '.') {",
+        "            frac = true; pos++;",
+        "            while (pos < src.length() && Character.isDigit(src.charAt(pos))) pos++;",
+        "        }",
+        "        if (pos < src.length() && (src.charAt(pos) == 'e' || src.charAt(pos) == 'E')) {",
+        "            frac = true; pos++;",
+        "            if (pos < src.length() && (src.charAt(pos) == '+' || src.charAt(pos) == '-')) pos++;",
+        "            while (pos < src.length() && Character.isDigit(src.charAt(pos))) pos++;",
+        "        }",
+        "        String tok = src.substring(start, pos);",
+        "        try {",
+        "            if (!frac) return Long.parseLong(tok);",
+        "            return Double.parseDouble(tok);",
+        "        } catch (NumberFormatException e) { throw new BadArg(); }",
+        "    }",
+        "    static int asInt(Object v) throws BadArg {",
+        "        if (!(v instanceof Long)) throw new BadArg();",
+        "        long l = (Long) v;",
+        "        if (l < Integer.MIN_VALUE || l > Integer.MAX_VALUE) throw new BadArg();",
+        "        return (int) l;",
+        "    }",
+        "    static long asLong(Object v) throws BadArg {",
+        "        if (!(v instanceof Long)) throw new BadArg();",
+        "        return (Long) v;",
+        "    }",
+        "    static double asDouble(Object v) throws BadArg {",
+        "        if (v instanceof Long) return (Long) v;",
+        "        if (v instanceof Double) return (Double) v;",
+        "        throw new BadArg();",
+        "    }",
+        "    static String asString(Object v) throws BadArg {",
+        "        if (!(v instanceof String)) throw new BadArg();",
+        "        return (String) v;",
+        "    }",
+        "    static boolean asBool(Object v) throws BadArg {",
+        "        if (!(v instanceof Boolean)) throw new BadArg();",
+        "        return (Boolean) v;",
+        "    }",
+        "    static int[] asIntArray(Object v) throws BadArg {",
+        "        if (!(v instanceof List)) throw new BadArg();",
+        "        List<Object> l = (List<Object>) v;",
+        "        int[] r = new int[l.size()];",
+        "        for (int i = 0; i < l.size(); i++) r[i] = asInt(l.get(i));",
+        "        return r;",
+        "    }",
+        "    static long[] asLongArray(Object v) throws BadArg {",
+        "        if (!(v instanceof List)) throw new BadArg();",
+        "        List<Object> l = (List<Object>) v;",
+        "        long[] r = new long[l.size()];",
+        "        for (int i = 0; i < l.size(); i++) r[i] = asLong(l.get(i));",
+        "        return r;",
+        "    }",
+        "    static double[] asDoubleArray(Object v) throws BadArg {",
+        "        if (!(v instanceof List)) throw new BadArg();",
+        "        List<Object> l = (List<Object>) v;",
+        "        double[] r = new double[l.size()];",
+        "        for (int i = 0; i < l.size(); i++) r[i] = asDouble(l.get(i));",
+        "        return r;",
+        "    }",
+        "    static String[] asStringArray(Object v) throws BadArg {",
+        "        if (!(v instanceof List)) throw new BadArg();",
+        "        List<Object> l = (List<Object>) v;",
+        "        String[] r = new String[l.size()];",
+        "        for (int i = 0; i < l.size(); i++) r[i] = asString(l.get(i));",
+        "        return r;",
+        "    }",
+        "    static boolean[] asBoolArray(Object v) throws BadArg {",
+        "        if (!(v instanceof List)) throw new BadArg();",
+        "        List<Object> l = (List<Object>) v;",
+        "        boolean[] r = new boolean[l.size()];",
+        "        for (int i = 0; i < l.size(); i++) r[i] = asBool(l.get(i));",
+        "        return r;",
+        "    }",
+        "    static String quote(String s) {",
+        "        StringBuilder sb = new StringBuilder();",
+        "        sb.append('\"');",
+        "        for (int i = 0; i < s.length(); i++) {",
+        "            char c = s.charAt(i);",
+        "            if (c == '\"') { sb.append('\\\\'); sb.append('\"'); }",
+        "            else if (c == '\\\\') { sb.append('\\\\'); sb.append('\\\\'); }",
+        "            else if (c == '\\n') { sb.append('\\\\'); sb.append('n'); }",
+        "            else if (c == '\\r') { sb.append('\\\\'); sb.append('r'); }",
+        "            else if (c == '\\t') { sb.append('\\\\'); sb.append('t'); }",
+        "            else if (c == '\\b') { sb.append('\\\\'); sb.append('b'); }",
+        "            else if (c == '\\f') { sb.append('\\\\'); sb.append('f'); }",
+        "            else if (c < 0x20 || c > 0x7E) sb.append(String.format(\"\\\\u%04x\", (int) c));",
+        "            else sb.append(c);",
+        "        }",
+        "        sb.append('\"');",
+        "        return sb.toString();",
+        "    }",
+        "    static String toJson(Object v) throws BadArg {",
+        "        if (v == null) return \"null\";",
+        "        if (v instanceof String) return quote((String) v);",
+        "        if (v instanceof Long || v instanceof Integer || v instanceof Short || v instanceof Byte) return v.toString();",
+        "        if (v instanceof Double) {",
+        "            double d = (Double) v;",
+        "            if (Double.isNaN(d) || Double.isInfinite(d)) throw new BadArg();",
+        "            return Double.toString(d);",
+        "        }",
+        "        if (v instanceof Boolean) return v.toString();",
+        "        if (v instanceof int[]) {",
+        "            StringBuilder sb = new StringBuilder(\"[\");",
+        "            int[] a = (int[]) v;",
+        "            for (int i = 0; i < a.length; i++) { if (i > 0) sb.append(','); sb.append(a[i]); }",
+        "            return sb.toString() + \"]\";",
+        "        }",
+        "        if (v instanceof long[]) {",
+        "            StringBuilder sb = new StringBuilder(\"[\");",
+        "            long[] a = (long[]) v;",
+        "            for (int i = 0; i < a.length; i++) { if (i > 0) sb.append(','); sb.append(a[i]); }",
+        "            return sb.toString() + \"]\";",
+        "        }",
+        "        if (v instanceof double[]) {",
+        "            StringBuilder sb = new StringBuilder(\"[\");",
+        "            double[] a = (double[]) v;",
+        "            for (int i = 0; i < a.length; i++) { if (i > 0) sb.append(','); sb.append(toJson(a[i])); }",
+        "            return sb.toString() + \"]\";",
+        "        }",
+        "        if (v instanceof boolean[]) {",
+        "            StringBuilder sb = new StringBuilder(\"[\");",
+        "            boolean[] a = (boolean[]) v;",
+        "            for (int i = 0; i < a.length; i++) { if (i > 0) sb.append(','); sb.append(a[i]); }",
+        "            return sb.toString() + \"]\";",
+        "        }",
+        "        if (v instanceof Object[]) {",
+        "            StringBuilder sb = new StringBuilder(\"[\");",
+        "            Object[] a = (Object[]) v;",
+        "            for (int i = 0; i < a.length; i++) { if (i > 0) sb.append(','); sb.append(toJson(a[i])); }",
+        "            return sb.toString() + \"]\";",
+        "        }",
+        "        if (v instanceof List) {",
+        "            StringBuilder sb = new StringBuilder(\"[\");",
+        "            List<Object> a = (List<Object>) v;",
+        "            for (int i = 0; i < a.size(); i++) { if (i > 0) sb.append(','); sb.append(toJson(a.get(i))); }",
+        "            return sb.toString() + \"]\";",
+        "        }",
+        "        if (v instanceof Map) {",
+        "            TreeMap<String, Object> sorted = new TreeMap<>();",
+        "            for (Map.Entry<?, ?> e : ((Map<?, ?>) v).entrySet()) sorted.put(String.valueOf(e.getKey()), e.getValue());",
+        "            StringBuilder sb = new StringBuilder(\"{\");",
+        "            boolean first = true;",
+        "            for (Map.Entry<String, Object> e : sorted.entrySet()) {",
+        "                if (!first) sb.append(',');",
+        "                first = false;",
+        "                sb.append(quote(e.getKey()));",
+        "                sb.append(':');",
+        "                sb.append(toJson(e.getValue()));",
+        "            }",
+        "            return sb.toString() + \"}\";",
+        "        }",
+        "        throw new BadArg();",
+        "    }",
+        "    public static void main(String[] a) {",
+        "        try {",
+        "            Object v = parse(a[0]);",
+        "            if (!(v instanceof List)) System.exit(2);",
+        "            List<Object> raw = (List<Object>) v;",
+        "            if (raw.size() != %d) System.exit(2);" % len(param_types),
+    ] + decls + [
+        "            Object out = Solution.solve(%s);" % ", ".join(args),
+        '            System.out.println("OUT:" + toJson(out));',
+        "        } catch (BadArg e) { System.exit(1); }",
+        "        catch (Throwable t) {",
+        '            String m = String.valueOf(t.getMessage());',
+        "            if (m.length() > 200) m = m.substring(0, 200);",
+        '            System.err.println("ERR:" + t.getClass().getSimpleName() + ": " + m);',
+        "            System.exit(1);",
+        "        }",
+        "    }",
+        "}",
+    ]) + "\n"
+
+
+def _cxx_normalize_type(typ):
+    """One C++ type spelling -> canonical CPP_TYPES member, or None."""
+    typ = re.sub(r"\b(const|volatile|static|inline|constexpr|virtual|friend|extern|mutable)\b", "", typ)
+    typ = typ.replace("std::", "")
+    typ = " ".join(typ.split())
+    typ = typ.replace("long long", "long")
+    typ = re.sub(r"\s*&+\s*$", "", typ).strip()
+    typ = typ.replace(" ", "")
+    return typ if typ in CPP_TYPES else None
+
+
+def _cxx_param_type(part):
+    """One `Type name` (or bare type) declaration -> CPP_TYPES member, or None."""
+    part = part.split("=", 1)[0].strip()  # default value
+    if not part:
+        return None
+    match = re.match(r"^(.*?)\s*([A-Za-z_]\w*)$", part)
+    if not match:
+        return None
+    pre = match.group(1).strip()
+    typ_raw = match.group(2) if not pre else pre
+    return _cxx_normalize_type(typ_raw)
+
+
+def cxx_signature(code):
+    """Param types of free-function `solve`, or None when unusable/unsupported."""
+    clean = _strip_c_comments(code)
+    match = re.search(r"(?<![\w:>.])solve\s*\(", clean)
+    if not match:
+        return None
+    raw_params = _balanced_params(clean, match.end() - 1)[0]
+    if raw_params is None:
+        return None
+    if "..." in raw_params:
+        return None  # variadic: uncountable, caller reviews
+    types = []
+    for part in _split_top_level(raw_params):
+        if not part.strip():
+            continue
+        typ = _cxx_param_type(part)
+        if typ is None:
+            return None
+        types.append(typ)
+    head = re.split(r"[;{}]", clean[:match.start()])[-1]
+    after = clean[match.end() - 1:]
+    _, close = _balanced_params(clean, match.end() - 1)
+    rest = after[close - (match.end() - 1) + 1:]
+    mret = re.match(r"\s*->\s*([^{};,]+)", rest)
+    if mret:
+        ret_raw = mret.group(1)
+    else:
+        toks = head.split()
+        ret_raw = " ".join(toks[-3:])
+    ret = _cxx_normalize_type(ret_raw)
+    if ret is None:
+        return None
+    return types
+
+
+def _cxx_qualify(typ):
+    """Canonical type -> code spelling (re-adds std:: qualification)."""
+    if typ in ("int", "long", "double", "bool"):
+        return typ
+    if typ == "string":
+        return "std::string"
+    match = re.fullmatch(r"vector<(.*)>", typ)
+    if match:
+        return "std::vector<" + _cxx_qualify(match.group(1)) + ">"
+    raise BuildError("cannot spell type " + typ)
+
+
+def cxx_harness(param_types):
+    """Includes + main() calling solve with JSON-decoded typed args."""
+    lines = ["#include <nlohmann/json.hpp>",
+             "#include <iostream>",
+             "#include <string>",
+             "#include <vector>",
+             "#include <climits>",
+             "//__USER_CODE__",
+             "int main(int argc, char** argv) {",
+             "    if (argc < 2) return 2;",
+             "    nlohmann::json args;",
+             "    try { args = nlohmann::json::parse(argv[1]); }",
+             "    catch (...) { return 2; }",
+             "    if (!args.is_array() || args.size() != " + str(len(param_types)) + ") return 2;",
+             "    try {"]
+    args = []
+    for i, typ in enumerate(param_types):
+        ctyp = _cxx_qualify(typ)
+        lines.append("        " + ctyp + " p" + str(i) + " = args.at(" + str(i) + ").get<" + ctyp + ">();")
+        args.append("p" + str(i))
+    lines.append("        auto out = solve(" + ", ".join(args) + ");")
+    lines.append('        std::cout << "OUT:" << nlohmann::json(out).dump() << std::endl;')
+    lines.append("    } catch (...) { return 1; }")
+    lines.append("    return 0;")
+    lines.append("}")
+    return chr(10).join(lines) + chr(10)
+
+
+def _vendor_dir():
+    """Repo-vendored third-party headers (nlohmann/json.hpp)."""
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor")
+
+
+def _prepare_cxx(tmpdir, stem, harness, code):
+    """Write user code + harness main, g++ both; return exe path."""
+    gxx = (INTERPS.get("c++") or [None])[0]
+    if gxx is None:
+        raise BuildError("c++ toolchain missing")
+    src = os.path.join(tmpdir, stem + ".cpp")
+    exe = os.path.join(tmpdir, stem)
+    try:
+        with open(src, "w", encoding="utf-8") as handle:
+            if not code.endswith("\n"):
+                code = code + "\n"
+            handle.write(harness.replace("//__USER_CODE__", code, 1))
+    except OSError as exc:
+        raise BuildError("cannot write program file: " + str(exc)) from exc
+    env = {"PATH": SPAWN_ENV["PATH"], "HOME": os.path.expanduser("~")}
+    try:
+        proc = subprocess.run([gxx, "-O0", "-std=c++17", "-I" + _vendor_dir(), src, "-o", exe],
+                              cwd=tmpdir, env=env, capture_output=True,
+                              timeout=CPP_BUILD_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        raise BuildError("build timed out")
+    except Exception as exc:
+        raise BuildError("build failed: " + str(exc))
+    if proc.returncode != 0:
+        raise BuildError(_err_line(proc.stderr, tmpdir) or "compile failed")
+    return exe
+
+
+CS_BUILD_TIMEOUT = 60
+CS_TYPES = {"int", "long", "double", "string", "bool",
+            "int[]", "long[]", "double[]", "string[]", "bool[]"}
+_CS_MODIFIERS = ("ref", "out", "in", "params", "this")
+
+
+def cs_signature(ref_code):
+    """Canonical param types of `Solve`, or None when unusable."""
+    clean = _strip_c_comments(ref_code)
+    match = re.search(r"(?<![\w:.])Solve\s*\(", clean)
+    if not match:
+        return None
+    raw = _balanced_params(clean, match.end() - 1)[0]
+    if raw is None:
+        return None
+    if not raw.strip():
+        return []
+    types = []
+    for part in _split_top_level(raw):
+        chunks = part.partition("=")[0].strip().split()
+        while chunks and chunks[0] in _CS_MODIFIERS:
+            chunks.pop(0)
+        if len(chunks) < 2:
+            return None
+        typ = "".join(chunks[:-1]).rstrip("?")
+        if typ not in CS_TYPES:
+            return None
+        types.append(typ)
+    return types
+
+
+def _cs_reader(typ, idx):
+    """JsonElement extraction expression for one canonical type."""
+    cell = "root[" + str(idx) + "]"
+    if typ == "int":
+        return cell + ".GetInt32()"
+    if typ == "long":
+        return cell + ".GetInt64()"
+    if typ == "double":
+        return cell + ".GetDouble()"
+    if typ == "string":
+        return cell + ".GetString()"
+    if typ == "bool":
+        return cell + ".GetBoolean()"
+    elem = {"int[]": "GetInt32", "long[]": "GetInt64",
+            "double[]": "GetDouble", "string[]": "GetString",
+            "bool[]": "GetBoolean"}[typ]
+    return cell + ".EnumerateArray().Select(e => e." + elem + "()).ToArray()"
+
+
+def cs_harness(param_types):
+    """Usings + marker + Main calling Solution.Solve with decoded args."""
+    lines = ["using System;",
+             "using System.Linq;",
+             "using System.Text.Json;",
+             "//__USER_CODE__",
+             "public static class Harness {",
+             "    public static int Main(string[] args) {",
+             "        if (args.Length < 1) return 2;",
+             "        try {",
+             "            var root = JsonDocument.Parse(args[0]).RootElement;",
+             "            if (root.ValueKind != JsonValueKind.Array || root.GetArrayLength() != " + str(len(param_types)) + ") return 2;"]
+    args = []
+    for i, typ in enumerate(param_types):
+        lines.append("            " + typ + " p" + str(i) + " = " + _cs_reader(typ, i) + ";")
+        args.append("p" + str(i))
+    lines.append("            var o = Solution.Solve(" + ", ".join(args) + ");")
+    lines.append("            Console.Write(\"OUT:\" + JsonSerializer.Serialize(o));")
+    lines.append("        } catch { return 1; }")
+    lines.append("        return 0;")
+    lines.append("    }")
+    lines.append("}")
+    return chr(10).join(lines) + chr(10)
+
+
+def _cs_ref_dir(root):
+    """(ref dir, fx version, tfm) of the newest ref pack, or None."""
+    try:
+        base = os.path.join(root, "packs", "Microsoft.NETCore.App.Ref")
+        versions = sorted((v for v in os.listdir(base)
+                           if re.fullmatch(r"\d+\.\d+\.\d+", v)),
+                          key=lambda v: tuple(int(p) for p in v.split(".")))
+    except OSError:
+        return None
+    for version in reversed(versions):
+        refbase = os.path.join(base, version, "ref")
+        try:
+            tfms = sorted(d for d in os.listdir(refbase)
+                          if d.startswith("net") and os.path.isdir(os.path.join(refbase, d)))
+        except OSError:
+            continue
+        for tfm in reversed(tfms):
+            refdir = os.path.join(refbase, tfm)
+            if os.path.isfile(os.path.join(refdir, "System.Runtime.dll")):
+                return (refdir, version, tfm)
+    return None
+
+
+def _find_cs_sdk():
+    """(csc.dll, ref dir, fx version, tfm), or None when SDK absent/broken."""
+    dotnetbin = (INTERPS.get("c#") or [None])[0]
+    roots = []
+    env_root = os.environ.get("DOTNET_ROOT")
+    if env_root:
+        roots.append(env_root)
+    if dotnetbin is not None:
+        roots.append(os.path.dirname(os.path.abspath(dotnetbin)))
+    for root in roots:
+        try:
+            sdkbase = os.path.join(root, "sdk")
+            versions = sorted((v for v in os.listdir(sdkbase)
+                               if re.fullmatch(r"\d+\.\d+\.\d+", v)),
+                              key=lambda v: tuple(int(p) for p in v.split(".")))
+        except OSError:
+            continue
+        for version in reversed(versions):
+            csc = os.path.join(sdkbase, version, "Roslyn", "bincore", "csc.dll")
+            if not os.path.isfile(csc):
+                continue
+            ref = _cs_ref_dir(root)
+            if ref is None:
+                continue
+            return (csc,) + ref
+    return None
+
+
+def _prepare_cs(tmpdir, stem, harness, code):
+    """Write Main.cs + runtimeconfig, csc once; return dll path."""
+    sdk = _find_cs_sdk()
+    dotnetbin = (INTERPS.get("c#") or [None])[0]
+    if sdk is None or dotnetbin is None:
+        raise BuildError("c# toolchain missing")
+    csc, refdir, fx, tfm = sdk
+    src = os.path.join(tmpdir, stem + ".cs")
+    dll = os.path.join(tmpdir, stem + ".dll")
+    rsp = os.path.join(tmpdir, "refs.rsp")
+    try:
+        if not code.endswith(chr(10)):
+            code = code + chr(10)
+        with open(src, "w", encoding="utf-8") as handle:
+            handle.write(harness.replace("//__USER_CODE__", code, 1))
+        with open(os.path.join(tmpdir, stem + ".runtimeconfig.json"), "w", encoding="utf-8") as handle:
+            handle.write("{\"runtimeOptions\":{\"tfm\":\"" + tfm + "\",\"framework\":{\"name\":\"Microsoft.NETCore.App\",\"version\":\"" + fx + "\"},\"rollForward\":\"LatestMinor\"}}")
+        with open(rsp, "w", encoding="utf-8") as handle:
+            for name in sorted(os.listdir(refdir)):
+                if name.endswith(".dll"):
+                    handle.write("-r:" + os.path.join(refdir, name) + chr(10))
+    except OSError as exc:
+        raise BuildError("cannot write program file: " + str(exc)) from exc
+    env = {"PATH": SPAWN_ENV["PATH"], "HOME": os.path.expanduser("~")}
+    try:
+        proc = subprocess.run([dotnetbin, csc, "-nologo", "-out:" + dll,
+                               "-target:exe", "@" + rsp, src],
+                              cwd=tmpdir, env=env, capture_output=True,
+                              timeout=CS_BUILD_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        raise BuildError("build timed out")
+    except Exception as exc:
+        raise BuildError("build failed: " + str(exc))
+    if proc.returncode != 0:
+        raise BuildError(_err_line(proc.stderr, tmpdir) or "compile failed")
+    return dll
+
+
+def harness_for(language, ref_lang, ref_code):
+    """Harness source for one side, or '' when the side is interpreted."""
+    if language not in COMPILED:
+        return ""
+    if ref_lang != language:
+        raise HarnessError(language + " attempts need a " + language + " reference")
+    if language == "go":
+        types = go_signature(ref_code)
+        if types is None:
+            raise BuildError("reference solve() has no usable go signature")
+        return go_harness(types)
+    if language == "java":
+        types = java_signature(ref_code)
+        if types is None:
+            raise BuildError("reference solve() has no usable java signature")
+        return java_harness(types)
+    if language == "c++":
+        types = cxx_signature(ref_code)
+        if types is None:
+            raise BuildError("reference solve() has no usable c++ signature")
+        return cxx_harness(types)
+    if language == "c#":
+        types = cs_signature(ref_code)
+        if types is None:
+            raise BuildError("reference Solve() has no usable c# signature")
+        return cs_harness(types)
+    raise BuildError("no harness for " + language)
+
+
+def prepare_program(tmpdir, stem, language, code, harness=""):
+    """Write source (+harness) and compile when needed; return runnable path."""
+    if language not in COMPILED:
+        return write_program(tmpdir, stem, language, code)
+    if language == "java":
+        return _prepare_java(tmpdir, harness, code)
+    if language == "c++":
+        return _prepare_cxx(tmpdir, stem, harness, code)
+    if language == "c#":
+        return _prepare_cs(tmpdir, stem, harness, code)
+    gobin = (INTERPS.get("go") or [None])[0]
+    if gobin is None:
+        raise BuildError("go toolchain missing")
+    src = os.path.join(tmpdir, stem + ".go")
+    exe = os.path.join(tmpdir, stem)
+    try:
+        with open(src, "w", encoding="utf-8") as handle:
+            handle.write(harness)
+            handle.write(chr(10))
+            handle.write(_strip_go_package(code))
+    except OSError as exc:
+        raise BuildError("cannot write program file: " + str(exc)) from exc
+    env = {"PATH": SPAWN_ENV["PATH"], "HOME": os.path.expanduser("~")}
+    try:
+        proc = subprocess.run([gobin, "build", "-o", exe, src],
+                              cwd=tmpdir, env=env, capture_output=True,
+                              timeout=GO_BUILD_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        raise BuildError("build timed out")
+    except Exception as exc:
+        raise BuildError("build failed: " + str(exc))
+    if proc.returncode != 0:
+        raise BuildError(_err_line(proc.stderr, tmpdir) or "compile failed")
+    return exe
+
+
+def _strip_java_package(code):
+    """Drop `package x;` lines; pasted full programs stay compilable."""
+    out = []
+    for line in code.splitlines(keepends=True):
+        if re.match(r"\s*package\s+[\w.]+\s*;\s*$", line):
+            continue
+        out.append(line)
+    return "".join(out)
+
+
+def _javac():
+    """javac binary path, or None when the JDK is absent."""
+    found = shutil.which("javac", path=SPAWN_ENV["PATH"])
+    if found:
+        return found
+    javabin = (INTERPS.get("java") or [None])[0]
+    if javabin is not None:
+        try:
+            cand = os.path.join(os.path.dirname(javabin), "javac")
+            if os.path.isfile(cand) and os.access(cand, os.X_OK):
+                return cand
+        except (OSError, ValueError):
+            pass
+    return None
+
+
+def _prepare_java(tmpdir, harness, code):
+    """Write Solution.java + Main.java, javac both; return classpath dir."""
+    javac = _javac()
+    if javac is None:
+        raise BuildError("java toolchain missing")
+    sol = os.path.join(tmpdir, "Solution.java")
+    main = os.path.join(tmpdir, "Main.java")
+    try:
+        with open(sol, "w", encoding="utf-8") as handle:
+            handle.write(_strip_java_package(code))
+        with open(main, "w", encoding="utf-8") as handle:
+            handle.write(harness)
+    except OSError as exc:
+        raise BuildError("cannot write program file: " + str(exc)) from exc
+    env = {"PATH": SPAWN_ENV["PATH"], "HOME": os.path.expanduser("~")}
+    try:
+        proc = subprocess.run([javac, sol, main],
+                              cwd=tmpdir, env=env, capture_output=True,
+                              timeout=JAVA_BUILD_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        raise BuildError("build timed out")
+    except Exception as exc:
+        raise BuildError("build failed: " + str(exc))
+    if proc.returncode != 0:
+        # javac trails a "N errors" summary as the last line; the first
+        # error line is the informative one (later ones are often cascades).
+        kept = [ln for ln in (proc.stderr or b"").splitlines()
+                if not re.match(rb"^\\d+ errors?\\s*$", ln.strip())]
+        raise BuildError(_err_line(b"\n".join(kept), tmpdir) or "compile failed")
+    return tmpdir
+
+
 def _count_params(raw):
     raw = raw.strip()
     if not raw:
@@ -137,6 +998,57 @@ def _count_params(raw):
     if "{" in raw or "[" in raw or "*" in raw or "&" in raw:
         return None  # destructuring/splat: arity unknowable, caller reviews
     return len([part for part in raw.split(",") if part.strip()])
+
+
+def _split_top_level(raw):
+    '''Split on commas at bracket depth 0, quotes respected.'''
+    parts, depth, cur = [], 0, []
+    openers = {"(": ")", "[": "]", "{": "}", "<": ">"} 
+    closers = set(openers.values())
+    quote = None
+    i = 0
+    while i < len(raw):
+        ch = raw[i]
+        if quote:
+            cur.append(ch)
+            if ch == chr(92) and i + 1 < len(raw):
+                cur.append(raw[i + 1])
+                i += 2
+                continue
+            if ch == quote:
+                quote = None
+        elif ch in ("'", '"', "`"):
+            quote = ch
+            cur.append(ch)
+        elif ch in openers:
+            depth += 1
+            cur.append(ch)
+        elif ch in closers:
+            depth = max(0, depth - 1)
+            cur.append(ch)
+        elif ch == "," and depth == 0:
+            parts.append("".join(cur))
+            cur = []
+        else:
+            cur.append(ch)
+        i += 1
+    parts.append("".join(cur))
+    return parts
+
+
+def _count_ts_params(raw):
+    '''Arity of a TS param list, or None when it cannot be known statically.'''
+    raw = raw.strip()
+    if not raw:
+        return 0
+    if "..." in raw:
+        return None  # rest params: arity unknowable, caller reviews
+    parts = [part for part in _split_top_level(raw) if part.strip()]
+    for part in parts:
+        stripped = part.strip()
+        if stripped.startswith("{") or stripped.startswith("["):
+            return None  # destructuring: arity unknowable, caller reviews
+    return len(parts)
 
 
 def get_arity(language, code):
@@ -168,6 +1080,67 @@ def get_arity(language, code):
             if match:
                 return _count_params(match.group(1))
         return None
+    if language == "typescript":
+        # Same shapes as JS, plus optional generics and type annotations.
+        # Return types sit outside the capture group; in-group annotations
+        # (incl. []/generics/unions) are split depth-aware below.
+        patterns = [
+            "function[ \t]+solve(?:<[^<>]*>)?[ \t]*[(]([^)]*)[)]",
+            "(?:const|let|var)[ \t]+solve[ \t]*(?::[ \t]*[^=;]+?)?=[ \t]*(?:async[ \t]+)?[(]([^)]*)[)](?:[ \t]*:[ 	]*[^=;]+?)?[ \t]*=>",
+            "(?:const|let|var)[ \t]+solve[ \t]*(?::[ \t]*[^=;]+?)?=[ \t]*(?:async[ \t]+)?function(?:<[^<>]*>)?[ \t]*[(]([^)]*)[)]",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, code)
+            if match:
+                return _count_ts_params(match.group(1))
+        return None
+    if language == "go":
+        match = re.search("func +solve *[(]([^)]*)[)]", code)
+        if not match:
+            return None
+        raw = match.group(1)
+        if raw.count("(") != raw.count(")"):
+            return None  # func-typed params: uncountable, caller reviews
+        if "..." in raw:
+            return None  # variadic: uncountable, caller reviews
+        return len([part for part in _split_top_level(raw) if part.strip()])
+    if language == "java":
+        # `static solve` (any modifiers/order); params scanned with balance
+        # so generic and func-typed params don't truncate the list.
+        clean = _strip_c_comments(code)
+        match = re.search(r"\bstatic\b[^{};=]*\bsolve\s*\(", clean)
+        if not match:
+            return None
+        raw = _balanced_params(clean, match.end() - 1)[0]
+        if raw is None:
+            return None
+        if "..." in raw:
+            return None  # varargs: uncountable, caller reviews
+        return len([part for part in _split_top_level(raw) if part.strip()])
+    if language == "c++":
+        # Free function `solve` (member/qualified names excluded); params
+        # scanned with balance so template types don't truncate the list.
+        clean = _strip_c_comments(code)
+        match = re.search(r"(?<![\w:>.])solve\s*\(", clean)
+        if not match:
+            return None
+        raw = _balanced_params(clean, match.end() - 1)[0]
+        if raw is None:
+            return None
+        if "..." in raw:
+            return None  # variadic: uncountable, caller reviews
+        return len([part for part in _split_top_level(raw) if part.strip()])
+    if language == "c#":
+        # `Solve` method (qualified calls excluded); defaults don't change
+        # arity, generic methods have none (angle bracket breaks the match).
+        clean = _strip_c_comments(code)
+        match = re.search(r"(?<![\w:.])Solve\s*\(", clean)
+        if not match:
+            return None
+        raw = _balanced_params(clean, match.end() - 1)[0]
+        if raw is None:
+            return None
+        return len([part for part in _split_top_level(raw) if part.strip()])
     if language == "ruby":
         match = re.search(r"def\s+solve(?:\s*\(([^)]*)\)|\s+([^\n;#:]*))?", code)
         if not match:
@@ -231,7 +1204,13 @@ def gen_inputs(seed, count, arity):
         intpairs = []
         for value in EDGE_INTS[:8]:
             intpairs += [[value, value], [0, value], [value, 0]]
-        mixed2 = [[[1, 2, 3], 2], [[], 0], [[5], -1], [[0], [1]], [["a"], ["b"]]]
+        mixed2 = [[[1, 2, 3], 2], [[], 0], [[5], -1], [[0], [1]], [["a"], ["b"]],
+                  [[0], 0], [[1], 1], [[-1], -1], [[1, 2, 3], 6], [[5, 5], 10],
+                  [[100], -100], [[-5, 0, 5], 0], [[1000], 1000], [[-1000], -1000],
+                  [[2, 2], 4], [[0, 0], 0], [[7], 7], [[1, 2], 3], [[-1, 1], 0],
+                  [[2147483647], 0], [[-2147483648], 0]]
+        # (list, int) shapes must clear the valid-input threshold on their own:
+        # 20 banked + random tail vs threshold 20 at N=100 (mixed-signature tasks).
         for i in range(max(len(intpairs), len(mixed2))):
             for group in (intpairs, mixed2):
                 if i < len(group):
@@ -301,23 +1280,46 @@ def run_one(language, prog, args, timeout, cwd):
     the caller only reports counts, failing inputs and that line, so reference
     text and expected outputs cannot leak into reasons (spec section 4).
     """
-    cmd = INTERPS[language]
-    if cmd is None:  # runtime missing: every case fails, caller reviews
-        return ("crash", None, "runtime missing")
-    cmd = cmd + [prog, json.dumps(args)]
+    if language == "c#":
+        dotnetbin = (INTERPS.get("c#") or [None])[0]
+        if dotnetbin is None:  # runtime missing: every case fails, caller reviews
+            return ("crash", None, "runtime missing")
+        cmd = [dotnetbin, prog]
+    elif language == "java":
+        javabin = (INTERPS.get("java") or [None])[0]
+        if javabin is None:  # runtime missing: every case fails, caller reviews
+            return ("crash", None, "runtime missing")
+        cmd = [javabin, "-cp", prog, "Main"]
+    elif language in COMPILED:
+        cmd = [prog]
+    else:
+        cmd = INTERPS.get(language)
+        if cmd is None:  # runtime missing: every case fails, caller reviews
+            return ("crash", None, "runtime missing")
+        cmd = cmd + [prog]
+    cmd = cmd + [json.dumps(args)]
     try:
-        proc = subprocess.run(cmd, stdin=subprocess.DEVNULL,
-                              capture_output=True,
-                              timeout=timeout, cwd=cwd, env=SPAWN_ENV)
-    except subprocess.TimeoutExpired:
-        return ("timeout", None, None)
+        proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                cwd=cwd, env=SPAWN_ENV, start_new_session=True)
+        try:
+            out, err = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            # Kill the whole process group: attempts may spawn grandchildren
+            # that outlive the direct child and clog the runner slots.
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except OSError:
+                pass
+            proc.wait()
+            return ("timeout", None, None)
     except Exception:
         return ("crash", None, None)
-    out = proc.stdout or b""
+    out = out or b""
     if len(out) > STDOUT_CAP:
         return ("truncated", None, None)
     if proc.returncode != 0:
-        return ("crash", None, _err_line(proc.stderr, cwd))
+        return ("crash", None, _err_line(err, cwd))
     try:
         text = out.decode("utf-8", errors="strict")
     except Exception:

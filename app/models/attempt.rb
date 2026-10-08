@@ -5,14 +5,16 @@ class Attempt < ApplicationRecord
   JURY_LABELS = %w[positive partial false].freeze
   # Verdicts the author may set by hand (pending is transitional, never manual).
   MANUAL_VERDICTS = %w[correct partial incorrect].freeze
-  # Code-answer languages; values double as select labels.
-  LANGUAGES = %w[bash c c# c++ elixir go haskell java javascript kotlin php python ruby rust scala sql swift typescript].freeze
+  # Code-answer languages; values double as select labels. Single-sourced from
+  # the runner so ungradeable languages are rejected here, never stuck pending.
+  LANGUAGES = CodeRunnerClient::SUPPORTED_LANGUAGES
 
   belongs_to :question
   belongs_to :user
 
   validates :user_id, uniqueness: { scope: :question_id }
   validates :verdict, inclusion: { in: VERDICTS }
+  validates :language, inclusion: { in: LANGUAGES }, allow_nil: true
   validates :body, length: { maximum: 8000 }, allow_nil: true
   validate :answer_present
   validate :selected_indices_valid, if: -> { question&.choice? }

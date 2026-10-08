@@ -52,6 +52,31 @@ class CodeRunnerClientTest < ActiveSupport::TestCase
     old.nil? ? ENV.delete("CODERUNNER_URL") : ENV["CODERUNNER_URL"] = old
   end
 
+  test "forwards every supported language in the request body" do
+    CodeRunnerClient::SUPPORTED_LANGUAGES.each do |lang|
+      captured = nil
+      fake = Object.new
+      fake.define_singleton_method(:open_timeout=) { |*| }
+      fake.define_singleton_method(:read_timeout=) { |*| }
+      fake.define_singleton_method(:request) do |req|
+        captured = JSON.parse(req.body)["language"]
+        Net::HTTPOK.new("1.1", 200, "OK").tap do |res|
+          res.instance_variable_set(:@body, run_json(passed: 1, total: 1, needs_review: false))
+          res.instance_variable_set(:@read, true)
+        end
+      end
+      Net::HTTP.define_singleton_method(:new) { |*_| fake }
+      begin
+        CodeRunnerClient.new.run_check(reference: "ref", attempt: "att",
+          language: lang, reference_language: lang, seed: 1)
+      ensure
+        Net::HTTP.singleton_class.remove_method(:new) rescue nil
+      end
+
+      assert_equal lang, captured
+    end
+  end
+
   test "timeout retries once then succeeds" do
     calls = 0
     fake = Object.new
@@ -66,6 +91,7 @@ class CodeRunnerClientTest < ActiveSupport::TestCase
         res.instance_variable_set(:@read, true)
       end
     end
+
     Net::HTTP.define_singleton_method(:new) { |*_| fake }
     result = CodeRunnerClient.new.run_check(reference: "ref", attempt: "att",
       language: "python", reference_language: "python", seed: 1)

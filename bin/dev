@@ -60,7 +60,10 @@ if [ "${CODERUNNER_URL:-}" = "" ]; then
     exit 1
   }
   if curl -sf "$CODERUNNER_URL/up" | grep -q missing; then
-    echo "warning: some coderunner runtimes missing (node/ruby); code checks for those languages stay pending" >&2
+    if command -v python3 >/dev/null 2>&1; then
+      missing_runtimes=$(curl -sf "$CODERUNNER_URL/up" | python3 -c "import json,sys; print(' '.join(sorted(k for k, v in json.load(sys.stdin).get('runtimes', {}).items() if not v or v == 'missing')))" 2>/dev/null)
+    fi
+    echo "warning: coderunner runtimes missing${missing_runtimes:+ ($missing_runtimes)}; code checks for those languages stay pending" >&2
   fi
 fi
 

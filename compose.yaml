@@ -58,6 +58,10 @@ services:
   coderunner:
     build: ./coderunner
     restart: unless-stopped
+    # Untrusted code runs here: no internet, no sibling services. Reachable
+    # only from web over the internal network; loopback healthcheck unaffected.
+    networks: [ coderunner_net ]
+    pids_limit: 64
     environment:
       CODERUNNER_HOST: "0.0.0.0"
     # No weights volume (unlike sidecar): stateless execution, tmpfs only.
@@ -93,12 +97,17 @@ services:
       CODERUNNER_URL: http://coderunner:8001
       SOLID_QUEUE_IN_PUMA: "1"
       FORCE_SSL: ${FORCE_SSL:-false}
+    networks: [ default, coderunner_net ]
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - storage:/rails/storage
     # bin/docker-entrypoint runs db:prepare (creates *_cache/queue/cable DBs).
+
+networks:
+  coderunner_net:
+    internal: true
 
 volumes:
   db_data:

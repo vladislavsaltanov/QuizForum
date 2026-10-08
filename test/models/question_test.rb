@@ -155,6 +155,15 @@ class QuestionTest < ActiveSupport::TestCase
     assert q.errors[:reference_language].any?
   end
 
+  test "rejects code language the runner cannot grade" do
+    q = Question.new(title: "t", body: "b", answer_type: "code",
+      reference_answer: "package main", deadline: 7.days.from_now, author: @author, tags: [],
+      code_languages: [ "rust" ], reference_language: "rust")
+
+    assert_not q.valid?
+    assert q.errors[:code_languages].any?
+  end
+
   test "rejects stray languages on non-code questions" do
     q = Question.new(title: "t", body: "b", answer_type: "text",
       reference_answer: "r", deadline: 7.days.from_now, author: @author, tags: [],
