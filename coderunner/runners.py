@@ -16,7 +16,7 @@ import subprocess
 import sys
 import textwrap
 
-LANGUAGES = ("python", "javascript", "typescript", "ruby", "go", "java", "c++")
+LANGUAGES = ("python", "javascript", "typescript", "ruby", "go", "java", "c++", "c#")
 STDOUT_CAP = 65536
 SAFE_MAX = 2 ** 53 - 1  # cross-language integer safety bound (spec review focus)
 
@@ -39,6 +39,7 @@ RUNTIMES = {
     "go": _version(["go", "--version"]),
     "g++": _version(["g++", "--version"]),
     "java": _version(["java", "--version"]),
+    "dotnet": _version(["dotnet", "--version"]),
     "ruby": _version(["ruby", "--version"]),
 }
 
@@ -119,11 +120,12 @@ INTERPS = {"python": [sys.executable],
            "ruby": _interp("ruby", None),
            "go": _interp("go", None),
            "java": _interp("java", None),
-           "c++": _interp("g++", None)}
+           "c++": _interp("g++", None),
+           "c#": _interp("dotnet", None)}
 EXTS = {"python": "py", "javascript": "js", "typescript": "ts", "ruby": "rb"}
 
 # Languages needing ahead-of-time compilation (binary runs directly).
-COMPILED = ("go", "java", "c++")
+COMPILED = ("go", "java", "c++", "c#")
 CPP_BUILD_TIMEOUT = 60
 CPP_TYPES = {"int", "long", "double", "string", "bool",
              "vector<int>", "vector<long>", "vector<double>",
@@ -629,7 +631,7 @@ def cxx_signature(code):
 
 
 def _cxx_qualify(typ):
-    """Canonical type -> code spelling (std:: Air cover for qualified names)."""
+    """Canonical type -> code spelling (re-adds std:: qualification)."""
     if typ in ("int", "long", "double", "bool"):
         return typ
     if typ == "string":
@@ -701,6 +703,170 @@ def _prepare_cxx(tmpdir, stem, harness, code):
     return exe
 
 
+CS_BUILD_TIMEOUT = 60
+CS_TYPES = {"int", "long", "double", "string", "bool",
+            "int[]", "long[]", "double[]", "string[]", "bool[]"}
+_CS_MODIFIERS = ("ref", "out", "in", "params", "this")
+
+
+def cs_signature(ref_code):
+    """Canonical param types of `Solve`, or None when unusable."""
+    clean = _strip_c_comments(ref_code)
+    match = re.search(r"(?<![\w:.])Solve\s*\(", clean)
+    if not match:
+        return None
+    raw = _balanced_params(clean, match.end() - 1)[0]
+    if raw is None:
+        return None
+    if not raw.strip():
+        return []
+    types = []
+    for part in _split_top_level(raw):
+        chunks = part.partition("=")[0].strip().split()
+        while chunks and chunks[0] in _CS_MODIFIERS:
+            chunks.pop(0)
+        if len(chunks) < 2:
+            return None
+        typ = "".join(chunks[:-1]).rstrip("?")
+        if typ not in CS_TYPES:
+            return None
+        types.append(typ)
+    return types
+
+
+def _cs_reader(typ, idx):
+    """JsonElement extraction expression for one canonical type."""
+    cell = "root[" + str(idx) + "]"
+    if typ == "int":
+        return cell + ".GetInt32()"
+    if typ == "long":
+        return cell + ".GetInt64()"
+    if typ == "double":
+        return cell + ".GetDouble()"
+    if typ == "string":
+        return cell + ".GetString()"
+    if typ == "bool":
+        return cell + ".GetBoolean()"
+    elem = {"int[]": "GetInt32", "long[]": "GetInt64",
+            "double[]": "GetDouble", "string[]": "GetString",
+            "bool[]": "GetBoolean"}[typ]
+    return cell + ".EnumerateArray().Select(e => e." + elem + "()).ToArray()"
+
+
+def cs_harness(param_types):
+    """Usings + marker + Main calling Solution.Solve with decoded args."""
+    lines = ["using System;",
+             "using System.Linq;",
+             "using System.Text.Json;",
+             "//__USER_CODE__",
+             "public static class Harness {",
+             "    public static int Main(string[] args) {",
+             "        if (args.Length < 1) return 2;",
+             "        try {",
+             "            var root = JsonDocument.Parse(args[0]).RootElement;",
+             "            if (root.ValueKind != JsonValueKind.Array || root.GetArrayLength() != " + str(len(param_types)) + ") return 2;"]
+    args = []
+    for i, typ in enumerate(param_types):
+        lines.append("            " + typ + " p" + str(i) + " = " + _cs_reader(typ, i) + ";")
+        args.append("p" + str(i))
+    lines.append("            var o = Solution.Solve(" + ", ".join(args) + ");")
+    lines.append("            Console.Write(\"OUT:\" + JsonSerializer.Serialize(o));")
+    lines.append("        } catch { return 1; }")
+    lines.append("        return 0;")
+    lines.append("    }")
+    lines.append("}")
+    return chr(10).join(lines) + chr(10)
+
+
+def _cs_ref_dir(root):
+    """(ref dir, fx version, tfm) of the newest ref pack, or None."""
+    try:
+        base = os.path.join(root, "packs", "Microsoft.NETCore.App.Ref")
+        versions = sorted((v for v in os.listdir(base)
+                           if re.fullmatch(r"\d+\.\d+\.\d+", v)),
+                          key=lambda v: tuple(int(p) for p in v.split(".")))
+    except OSError:
+        return None
+    for version in reversed(versions):
+        refbase = os.path.join(base, version, "ref")
+        try:
+            tfms = sorted(d for d in os.listdir(refbase)
+                          if d.startswith("net") and os.path.isdir(os.path.join(refbase, d)))
+        except OSError:
+            continue
+        for tfm in reversed(tfms):
+            refdir = os.path.join(refbase, tfm)
+            if os.path.isfile(os.path.join(refdir, "System.Runtime.dll")):
+                return (refdir, version, tfm)
+    return None
+
+
+def _find_cs_sdk():
+    """(csc.dll, ref dir, fx version, tfm), or None when SDK absent/broken."""
+    dotnetbin = (INTERPS.get("c#") or [None])[0]
+    roots = []
+    env_root = os.environ.get("DOTNET_ROOT")
+    if env_root:
+        roots.append(env_root)
+    if dotnetbin is not None:
+        roots.append(os.path.dirname(os.path.abspath(dotnetbin)))
+    for root in roots:
+        try:
+            sdkbase = os.path.join(root, "sdk")
+            versions = sorted((v for v in os.listdir(sdkbase)
+                               if re.fullmatch(r"\d+\.\d+\.\d+", v)),
+                              key=lambda v: tuple(int(p) for p in v.split(".")))
+        except OSError:
+            continue
+        for version in reversed(versions):
+            csc = os.path.join(sdkbase, version, "Roslyn", "bincore", "csc.dll")
+            if not os.path.isfile(csc):
+                continue
+            ref = _cs_ref_dir(root)
+            if ref is None:
+                continue
+            return (csc,) + ref
+    return None
+
+
+def _prepare_cs(tmpdir, stem, harness, code):
+    """Write Main.cs + runtimeconfig, csc once; return dll path."""
+    sdk = _find_cs_sdk()
+    dotnetbin = (INTERPS.get("c#") or [None])[0]
+    if sdk is None or dotnetbin is None:
+        raise BuildError("c# toolchain missing")
+    csc, refdir, fx, tfm = sdk
+    src = os.path.join(tmpdir, stem + ".cs")
+    dll = os.path.join(tmpdir, stem + ".dll")
+    rsp = os.path.join(tmpdir, "refs.rsp")
+    try:
+        if not code.endswith(chr(10)):
+            code = code + chr(10)
+        with open(src, "w", encoding="utf-8") as handle:
+            handle.write(harness.replace("//__USER_CODE__", code, 1))
+        with open(os.path.join(tmpdir, stem + ".runtimeconfig.json"), "w", encoding="utf-8") as handle:
+            handle.write("{\"runtimeOptions\":{\"tfm\":\"" + tfm + "\",\"framework\":{\"name\":\"Microsoft.NETCore.App\",\"version\":\"" + fx + "\"},\"rollForward\":\"LatestMinor\"}}")
+        with open(rsp, "w", encoding="utf-8") as handle:
+            for name in sorted(os.listdir(refdir)):
+                if name.endswith(".dll"):
+                    handle.write("-r:" + os.path.join(refdir, name) + chr(10))
+    except OSError as exc:
+        raise BuildError("cannot write program file: " + str(exc)) from exc
+    env = {"PATH": SPAWN_ENV["PATH"], "HOME": os.path.expanduser("~")}
+    try:
+        proc = subprocess.run([dotnetbin, csc, "-nologo", "-out:" + dll,
+                               "-target:exe", "@" + rsp, src],
+                              cwd=tmpdir, env=env, capture_output=True,
+                              timeout=CS_BUILD_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        raise BuildError("build timed out")
+    except Exception as exc:
+        raise BuildError("build failed: " + str(exc))
+    if proc.returncode != 0:
+        raise BuildError(_err_line(proc.stderr, tmpdir) or "compile failed")
+    return dll
+
+
 def harness_for(language, ref_lang, ref_code):
     """Harness source for one side, or '' when the side is interpreted."""
     if language not in COMPILED:
@@ -722,6 +888,11 @@ def harness_for(language, ref_lang, ref_code):
         if types is None:
             raise BuildError("reference solve() has no usable c++ signature")
         return cxx_harness(types)
+    if language == "c#":
+        types = cs_signature(ref_code)
+        if types is None:
+            raise BuildError("reference Solve() has no usable c# signature")
+        return cs_harness(types)
     raise BuildError("no harness for " + language)
 
 
@@ -733,6 +904,8 @@ def prepare_program(tmpdir, stem, language, code, harness=""):
         return _prepare_java(tmpdir, harness, code)
     if language == "c++":
         return _prepare_cxx(tmpdir, stem, harness, code)
+    if language == "c#":
+        return _prepare_cs(tmpdir, stem, harness, code)
     gobin = (INTERPS.get("go") or [None])[0]
     if gobin is None:
         raise BuildError("go toolchain missing")
@@ -956,6 +1129,17 @@ def get_arity(language, code):
         if "..." in raw:
             return None  # variadic: uncountable, caller reviews
         return len([part for part in _split_top_level(raw) if part.strip()])
+    if language == "c#":
+        # `Solve` method (qualified calls excluded); defaults don't change
+        # arity, generic methods have none (angle bracket breaks the match).
+        clean = _strip_c_comments(code)
+        match = re.search(r"(?<![\w:.])Solve\s*\(", clean)
+        if not match:
+            return None
+        raw = _balanced_params(clean, match.end() - 1)[0]
+        if raw is None:
+            return None
+        return len([part for part in _split_top_level(raw) if part.strip()])
     if language == "ruby":
         match = re.search(r"def\s+solve(?:\s*\(([^)]*)\)|\s+([^\n;#:]*))?", code)
         if not match:
@@ -1095,7 +1279,12 @@ def run_one(language, prog, args, timeout, cwd):
     the caller only reports counts, failing inputs and that line, so reference
     text and expected outputs cannot leak into reasons (spec section 4).
     """
-    if language == "java":
+    if language == "c#":
+        dotnetbin = (INTERPS.get("c#") or [None])[0]
+        if dotnetbin is None:  # runtime missing: every case fails, caller reviews
+            return ("crash", None, "runtime missing")
+        cmd = [dotnetbin, prog]
+    elif language == "java":
         javabin = (INTERPS.get("java") or [None])[0]
         if javabin is None:  # runtime missing: every case fails, caller reviews
             return ("crash", None, "runtime missing")

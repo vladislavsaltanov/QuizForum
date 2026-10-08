@@ -104,6 +104,14 @@ def cppl(body):
     return "int solve(std::vector<int> xs) {\n" + body + "}\n"
 
 
+def cs1(body):
+    return "class Solution {\npublic static int Solve(int x) {\n" + body + "}\n}\n"
+
+
+def csl(body):
+    return "class Solution {\npublic static int Solve(int[] xs) {\n" + body + "}\n}\n"
+
+
 def java1(body):
     return "class Solution {\n    public static int solve(int x) {\n" + body + "    }\n}\n"
 
@@ -224,6 +232,18 @@ SAME = [
      cpp1("    if (x < 0) {\n        return -x;\n    }\n    return x;\n"),
      "#include <algorithm>\nint solve(int x) { return std::max(x, -x); }\n",
      "c++", "c++", {"cases": 25}),
+    ("double-cs-plus-vs-mul", 28,
+     cs1("    return x + x;\n"),
+     cs1("    return x * 2;\n"),
+     "c#", "c#", {"cases": 25}),
+    ("sum-cs-foreach-vs-for", 29,
+     csl("    int t = 0;\n    foreach (int v in xs) t += v;\n    return t;\n"),
+     csl("    int t = 0;\n    for (int i = 0; i < xs.Length; i++) t += xs[i];\n    return t;\n"),
+     "c#", "c#", {"cases": 25}),
+    ("abs-cs-using-paste", 30,
+     cs1("    if (x < 0) {\n        return -x;\n    }\n    return x;\n"),
+     "using System;\nclass Solution { public static int Solve(int x) { return x < 0 ? -x : x; } }\n",
+     "c#", "c#", {"cases": 25}),
     ("abs-go-packaged-paste", 21,
      go1("    if x < 0 {\n        return -x\n    }\n    return x\n"),
      "package main\n\nfunc solve(x int) int {\n    if x < 0 {\n        return -x\n    }\n    return x\n}\n",
@@ -295,6 +315,10 @@ DIFF = [
      cpp1("    return x * 2;\n"),
      cpp1("    return x * 3;\n"),
      "c++", {"cases": 25}, "c++"),
+    ("double-vs-triple-cs", 121,
+     cs1("    return x * 2;\n"),
+     cs1("    return x * 3;\n"),
+     "c#", {"cases": 25}, "c#"),
  ]
 
 passed = 0
@@ -333,7 +357,7 @@ for row in DIFF:
     passed += 1
     print(f"diff {name}: {body['passed']}/{body['total']}", flush=True)
 
-assert passed == 47, f"matrix incomplete: {passed}/47"
+assert passed == 51, f"matrix incomplete: {passed}/51"
 
 # TS arity: annotations/generics counted, destructuring/rest unknown.
 for _code, _want in [
@@ -363,6 +387,15 @@ for _code, _want in [
     assert server.runners.get_arity("c++", _code) == _want, _code
 print("cpp-arity: free fn + balanced, qualified/variadic -> None", flush=True)
 for _code, _want in [
+    ("public static int Solve(int x) { return x; }", 1),
+    ("static long Solve(int[] xs, int k) { return 0; }", 2),
+    ("int A.Solve(int x) { return x; }", None),
+    ("public static T Solve<T>(T x) { return x; }", None),
+    ("var y = obj.Solve(1, 2);", None),
+]:
+    assert server.runners.get_arity("c#", _code) == _want, _code
+print("cs-arity: method + balanced, qualified/generic -> None", flush=True)
+for _code, _want in [
     ("class Solution { public static int solve(int x) { return x; } }", 1),
     ("class Solution { static long solve(long[] xs, int k) { return 0L; }", 2),
     ("class Solution { public int solve(int x) { return x; } }", None),
@@ -376,7 +409,7 @@ print("java-arity: static+balanced, varargs/nonstatic -> None", flush=True)
 # 1. GET /up reports real runtimes, nothing missing.
 status, up = get("/up")
 assert status == 200, up
-for rt in ("python", "node", "ruby", "go", "java", "g++"):
+for rt in ("python", "node", "ruby", "go", "java", "g++", "dotnet"):
     assert up["runtimes"].get(rt) not in (None, "", "missing"), up
 assert isinstance(up.get("runners_mtime"), int) and up["runners_mtime"] > 0, up
 
@@ -514,6 +547,26 @@ assert body["passed"] == 0, body
 assert body["needs_review"] is False, body
 print("cpp-bad-attempt: broken code -> incorrect", flush=True)
 
+# 17. C# attempt against a non-C# reference -> needs_review, never a verdict.
+status, body = run_pair("cs-cross-review", 214,
+                        py1("    return x * 2"),
+                        cs1("    return x * 2;"),
+                        "python", "c#", {"cases": 8})
+assert status == 200, body
+assert body["needs_review"] is True, body
+assert body["total"] > 0, body
+print("cs-cross: compiled attempt without same-language reference -> needs_review", flush=True)
+
+# 18. Uncompilable C# attempt with a usable harness -> incorrect, not review.
+status, body = run_pair("cs-bad-attempt", 215,
+                        cs1("    return x * 2;"),
+                        "class Solution { public static int Solve(int x) { return nope; } }",
+                        "c#", "c#", {"cases": 8})
+assert status == 200, body
+assert body["passed"] == 0, body
+assert body["needs_review"] is False, body
+print("cs-bad-attempt: broken code -> incorrect", flush=True)
+
 # 13. Java attempt against a non-Java reference -> needs_review, never a verdict.
 status, body = run_pair("java-cross-review", 210,
                         py1("    return x * 2"),
@@ -535,4 +588,4 @@ assert body["needs_review"] is False, body
 print("java-bad-attempt: broken code -> incorrect", flush=True)
 
 httpd.shutdown()
-print(f"coderunner: {passed}/47 pairs + 16 security asserts OK")
+print(f"coderunner: {passed}/51 pairs + 18 security asserts OK")

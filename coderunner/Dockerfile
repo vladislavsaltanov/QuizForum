@@ -33,6 +33,13 @@ ARG JDK_TAG=25.0.4.1_1
 RUN apt-get update && apt-get install -y --no-install-recommends curl && arch=$(dpkg --print-architecture) && case "$arch" in amd64) tarch=x64; sha256=dbb698396d478e7fa2b1e50f4103324b2a99b90569ee27c33f2261f9215cf41e;; arm64) tarch=aarch64; sha256=69df11a02cfa3ef7d7ca645e03edce6778ec090e100f6ae2b42097865730ac52;; *) echo "unsupported arch $arch" >&2; exit 1;; esac && curl -fsSL "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4.1%2B1/OpenJDK25U-jdk_${tarch}_linux_hotspot_${JDK_TAG}.tar.gz" -o /tmp/jdk.tgz && echo "${sha256}  /tmp/jdk.tgz" | sha256sum -c - && mkdir -p /usr/local/lib/jvm && tar -xzf /tmp/jdk.tgz -C /usr/local/lib/jvm --strip-components=1 && rm /tmp/jdk.tgz && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* && /usr/local/lib/jvm/bin/java -version
 ENV PATH=/usr/local/lib/jvm/bin:${PATH}
 
+# Phase 2 slice 5: .NET SDK (pinned + checksummed, Microsoft release metadata).
+# libicu stays: the runtime needs it. DOTNET_ROOT guides SDK discovery.
+ARG DOTNET_VERSION=10.0.401
+ENV DOTNET_ROOT=/usr/share/dotnet DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+RUN apt-get update && apt-get install -y --no-install-recommends curl libicu72 && arch=$(dpkg --print-architecture) && case "$arch" in amd64) rid=linux-x64; sha512=51c8b999af9e8dd9998c9edc5944e19a90788862068acd38694e098889054ce8c23d4f0c5cccfa16bf187d044562359e5ee69a9f8ad0bbe913ba90311fbce25b;; arm64) rid=linux-arm64; sha512=58ace73ced6b4360754689a686bdfb8a317f4da6cb8bb416dbc7d0ba9f47e43e3c09f5eb1f1a1cfaacbd10df9558da4882bf2a5e195d6ab56a02c1f9f76102ed;; *) echo "unsupported arch $arch" >&2; exit 1;; esac && curl -fsSL "https://builds.dotnet.microsoft.com/dotnet/Sdk/${DOTNET_VERSION}/dotnet-sdk-${DOTNET_VERSION}-${rid}.tar.gz" -o /tmp/dotnet.tgz && echo "${sha512}  /tmp/dotnet.tgz" | sha512sum -c - && mkdir -p /usr/share/dotnet && tar -xzf /tmp/dotnet.tgz -C /usr/share/dotnet && rm /tmp/dotnet.tgz && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet && dotnet --version && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+ENV PATH=/usr/share/dotnet:${PATH}
+
 RUN useradd -m runner
 WORKDIR /app
 # Vendored third-party headers (nlohmann/json.hpp, MIT) for the C++ harness.
