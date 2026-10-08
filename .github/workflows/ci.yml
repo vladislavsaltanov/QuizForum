@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   scan_ruby:
@@ -18,7 +18,7 @@ jobs:
         with:
           bundler-cache: true
 
-      - name: Scan for common Rails security vulnerabilities using static analysis
+      - name: Scan for common Rails security vulnerabilities using static analysis # yamllint disable-line rule:line-length
         run: bin/brakeman --no-pager
 
       - name: Scan for known security vulnerabilities in gems used
@@ -55,10 +55,10 @@ jobs:
       - name: Prepare RuboCop cache
         uses: actions/cache@v6
         env:
-          DEPENDENCIES_HASH: ${{ hashFiles('.ruby-version', '**/.rubocop.yml', '**/.rubocop_todo.yml', 'Gemfile.lock') }}
+          DEPENDENCIES_HASH: ${{ hashFiles('.ruby-version', '**/.rubocop.yml', '**/.rubocop_todo.yml', 'Gemfile.lock') }} # yamllint disable-line rule:line-length
         with:
           path: ${{ env.RUBOCOP_CACHE_ROOT }}
-          key: rubocop-${{ runner.os }}-${{ env.DEPENDENCIES_HASH }}-${{ github.ref_name == github.event.repository.default_branch && github.run_id || 'default' }}
+          key: rubocop-${{ runner.os }}-${{ env.DEPENDENCIES_HASH }}-${{ github.ref_name == github.event.repository.default_branch && github.run_id || 'default' }} # yamllint disable-line rule:line-length
           restore-keys: |
             rubocop-${{ runner.os }}-${{ env.DEPENDENCIES_HASH }}-
 
@@ -82,7 +82,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
       # Stock ubuntu-latest ships every toolchain the matrix needs
-      # (python/node/ruby/go/java/g++/dotnet): no setup, just run it.
+      # (python/node/ruby/go/java/g++) except .NET: install the same
+      # pinned SDK the coderunner image uses.
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.401
       - name: Run coderunner grading matrix
         run: python3 coderunner/test_security.py
 
@@ -97,11 +102,11 @@ jobs:
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
-        options: --health-cmd="pg_isready" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: --health-cmd="pg_isready" --health-interval=10s --health-timeout=5s --health-retries=3 # yamllint disable-line rule:line-length
 
     steps:
       - name: Install packages
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libpq-dev
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libpq-dev # yamllint disable-line rule:line-length
 
       - name: Checkout code
         uses: actions/checkout@v7
@@ -131,17 +136,17 @@ jobs:
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
-        options: --health-cmd="pg_isready" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: --health-cmd="pg_isready" --health-interval=10s --health-timeout=5s --health-retries=3 # yamllint disable-line rule:line-length
 
       # redis:
       #   image: valkey/valkey:8
       #   ports:
       #     - 6379:6379
-      #   options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+      #   options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5 # yamllint disable-line rule:line-length
 
     steps:
       - name: Install packages
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libpq-dev libvips
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libpq-dev libvips # yamllint disable-line rule:line-length
 
       - name: Checkout code
         uses: actions/checkout@v7
@@ -170,17 +175,17 @@ jobs:
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
-        options: --health-cmd="pg_isready" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: --health-cmd="pg_isready" --health-interval=10s --health-timeout=5s --health-retries=3 # yamllint disable-line rule:line-length
 
       # redis:
       #   image: valkey/valkey:8
       #   ports:
       #     - 6379:6379
-      #   options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+      #   options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5 # yamllint disable-line rule:line-length
 
     steps:
       - name: Install packages
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libpq-dev libvips
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libpq-dev libvips # yamllint disable-line rule:line-length
 
       - name: Install Chrome
         uses: browser-actions/setup-chrome@v1
