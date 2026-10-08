@@ -96,6 +96,14 @@ def gol(body):
     return "func solve(xs []int) int {\n" + body + "}\n"
 
 
+def java1(body):
+    return "class Solution {\n    public static int solve(int x) {\n" + body + "    }\n}\n"
+
+
+def javal(body):
+    return "class Solution {\n    public static int solve(int[] xs) {\n" + body + "    }\n}\n"
+
+
 def tsl(body):
     return "const solve = (xs: number[]): number => {\n" + body + "};\n"
 
@@ -184,6 +192,18 @@ SAME = [
      gol("    total := 0\n    for _, v := range xs {\n        total += v\n    }\n    return total\n"),
      gol("    total := 0\n    for i := 0; i < len(xs); i++ {\n        total += xs[i]\n    }\n    return total\n"),
      "go", "go", {"cases": 25}),
+    ("double-java-plus-vs-mul", 22,
+     java1("    return x + x;\n"),
+     java1("    return x * 2;\n"),
+     "java", "java", {"cases": 25}),
+    ("sum-java-foreach-vs-index", 23,
+     javal("    int t = 0;\n    for (int v : xs) t += v;\n    return t;\n"),
+     javal("    int t = 0;\n    for (int i = 0; i < xs.length; i++) t += xs[i];\n    return t;\n"),
+     "java", "java", {"cases": 25}),
+    ("abs-java-packaged-paste", 24,
+     java1("    if (x < 0) {\n        return -x;\n    }\n    return x;\n"),
+     "package foo;\nimport java.util.*;\nclass Solution { public static int solve(int x) { if (x < 0) return -x; return x; } }\n",
+     "java", "java", {"cases": 25}),
     ("abs-go-packaged-paste", 21,
      go1("    if x < 0 {\n        return -x\n    }\n    return x\n"),
      "package main\n\nfunc solve(x int) int {\n    if x < 0 {\n        return -x\n    }\n    return x\n}\n",
@@ -247,7 +267,11 @@ DIFF = [
      go1("    return x * 2\n"),
      go1("    return x * 3\n"),
      "go", {"cases": 25}, "go"),
-]
+    ("double-vs-triple-java", 118,
+     java1("    return x * 2;\n"),
+     java1("    return x * 3;\n"),
+     "java", {"cases": 25}, "java"),
+ ]
 
 passed = 0
 
@@ -285,7 +309,7 @@ for row in DIFF:
     passed += 1
     print(f"diff {name}: {body['passed']}/{body['total']}", flush=True)
 
-assert passed == 39, f"matrix incomplete: {passed}/39"
+assert passed == 43, f"matrix incomplete: {passed}/43"
 
 # TS arity: annotations/generics counted, destructuring/rest unknown.
 for _code, _want in [
@@ -305,12 +329,21 @@ for _code, _want in [
 ]:
     assert server.runners.get_arity("go", _code) == _want, _code
 print("go-arity: params counted, methods/variadics -> None", flush=True)
+for _code, _want in [
+    ("class Solution { public static int solve(int x) { return x; } }", 1),
+    ("class Solution { static long solve(long[] xs, int k) { return 0L; }", 2),
+    ("class Solution { public int solve(int x) { return x; } }", None),
+    ("class Solution { static int solve(int... xs) { return 0; } }", None),
+    ("class Solution { static int solve(Map<String, Integer> m) { return 0; } }", 1),
+]:
+    assert server.runners.get_arity("java", _code) == _want, _code
+print("java-arity: static+balanced, varargs/nonstatic -> None", flush=True)
 
 # --- security asserts ---
 # 1. GET /up reports real runtimes, nothing missing.
 status, up = get("/up")
 assert status == 200, up
-for rt in ("python", "node", "ruby", "go"):
+for rt in ("python", "node", "ruby", "go", "java"):
     assert up["runtimes"].get(rt) not in (None, "", "missing"), up
 assert isinstance(up.get("runners_mtime"), int) and up["runners_mtime"] > 0, up
 
@@ -428,5 +461,25 @@ assert body["passed"] == 0, body
 assert body["needs_review"] is False, body
 print("go-bad-attempt: broken code -> incorrect", flush=True)
 
+# 13. Java attempt against a non-Java reference -> needs_review, never a verdict.
+status, body = run_pair("java-cross-review", 210,
+                        py1("    return x * 2"),
+                        java1("    return x * 2;"),
+                        "python", "java", {"cases": 8})
+assert status == 200, body
+assert body["needs_review"] is True, body
+assert body["total"] > 0, body
+print("java-cross: compiled attempt without same-language reference -> needs_review", flush=True)
+
+# 14. Uncompilable Java attempt with a usable harness -> incorrect, not review.
+status, body = run_pair("java-bad-attempt", 211,
+                        java1("    return x * 2;"),
+                        "class Solution { public static int solve(int x) { return nope; } }",
+                        "java", "java", {"cases": 8})
+assert status == 200, body
+assert body["passed"] == 0, body
+assert body["needs_review"] is False, body
+print("java-bad-attempt: broken code -> incorrect", flush=True)
+
 httpd.shutdown()
-print(f"coderunner: {passed}/39 pairs + 12 security asserts OK")
+print(f"coderunner: {passed}/43 pairs + 14 security asserts OK")

@@ -27,6 +27,12 @@ ARG GO_VERSION=1.27.2
 RUN apt-get update && apt-get install -y --no-install-recommends curl && arch=$(dpkg --print-architecture) && case "$arch" in amd64) sha256=ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5;; arm64) sha256=94f3e30b8e374bc285e7dadc11e0865726b9bc6e85b841ccceaabc0214c6b7c8;; *) echo "unsupported arch $arch" >&2; exit 1;; esac && curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${arch}.tar.gz" -o /tmp/go.tgz && echo "${sha256}  /tmp/go.tgz" | sha256sum -c - && tar -xzf /tmp/go.tgz -C /usr/local && rm /tmp/go.tgz && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* && /usr/local/go/bin/go version
 ENV PATH=/usr/local/go/bin:${PATH} GOTOOLCHAIN=local
 
+# Phase 2 slice 3: JDK 25 Temurin (pinned + checksummed, hotspot).
+# dpkg arch -> Temurin arch: amd64->x64, arm64->aarch64.
+ARG JDK_TAG=25.0.4.1_1
+RUN apt-get update && apt-get install -y --no-install-recommends curl && arch=$(dpkg --print-architecture) && case "$arch" in amd64) tarch=x64; sha256=dbb698396d478e7fa2b1e50f4103324b2a99b90569ee27c33f2261f9215cf41e;; arm64) tarch=aarch64; sha256=69df11a02cfa3ef7d7ca645e03edce6778ec090e100f6ae2b42097865730ac52;; *) echo "unsupported arch $arch" >&2; exit 1;; esac && curl -fsSL "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4.1%2B1/OpenJDK25U-jdk_${tarch}_linux_hotspot_${JDK_TAG}.tar.gz" -o /tmp/jdk.tgz && echo "${sha256}  /tmp/jdk.tgz" | sha256sum -c - && mkdir -p /usr/local/lib/jvm && tar -xzf /tmp/jdk.tgz -C /usr/local/lib/jvm --strip-components=1 && rm /tmp/jdk.tgz && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* && /usr/local/lib/jvm/bin/java -version
+ENV PATH=/usr/local/lib/jvm/bin:${PATH}
+
 RUN useradd -m runner
 WORKDIR /app
 COPY server.py runners.py ./

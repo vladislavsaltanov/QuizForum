@@ -16,7 +16,7 @@ import subprocess
 import sys
 import textwrap
 
-LANGUAGES = ("python", "javascript", "typescript", "ruby", "go")
+LANGUAGES = ("python", "javascript", "typescript", "ruby", "go", "java")
 STDOUT_CAP = 65536
 SAFE_MAX = 2 ** 53 - 1  # cross-language integer safety bound (spec review focus)
 
@@ -37,6 +37,7 @@ RUNTIMES = {
     "python": _version([sys.executable, "--version"]),
     "node": _version(["node", "--version"]),
     "go": _version(["go", "--version"]),
+    "java": _version(["java", "--version"]),
     "ruby": _version(["ruby", "--version"]),
 }
 
@@ -115,14 +116,18 @@ INTERPS = {"python": [sys.executable],
            "javascript": _interp("node", None),
            "typescript": _interp("node", None),
            "ruby": _interp("ruby", None),
-           "go": _interp("go", None)}
+           "go": _interp("go", None),
+           "java": _interp("java", None)}
 EXTS = {"python": "py", "javascript": "js", "typescript": "ts", "ruby": "rb"}
 
 # Languages needing ahead-of-time compilation (binary runs directly).
-COMPILED = ("go",)
+COMPILED = ("go", "java")
 GO_BUILD_TIMEOUT = 60
 GO_TYPES = {"int", "int64", "float64", "string", "bool",
             "[]int", "[]string", "[]float64", "[]bool"}
+JAVA_BUILD_TIMEOUT = 60
+JAVA_TYPES = {"int", "long", "double", "String", "boolean",
+              "int[]", "long[]", "double[]", "String[]", "boolean[]"}
 
 
 class BuildError(RuntimeError):
@@ -197,6 +202,76 @@ def go_signature(code):
     return types
 
 
+def _strip_java_comments(code):
+    """Remove // and /* */ comments; string/char literals blanked, not dropped."""
+    token = re.compile(r'"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\\n]|\\.)*\'|/\*.*?\*/|//[^\n]*', re.DOTALL)
+
+    def _drop(match):
+        tok = match.group(0)
+        if tok.startswith("/"):
+            return ""
+        return '""'
+    return token.sub(_drop, code)
+
+
+def _balanced_params(clean, open_index):
+    """(inside, close_index) of the paren group opening at open_index."""
+    depth, i = 0, open_index
+    while i < len(clean):
+        if clean[i] == "(":
+            depth += 1
+        elif clean[i] == ")":
+            depth -= 1
+            if depth == 0:
+                return clean[open_index + 1:i], i
+        i += 1
+    return None, -1
+
+
+def _java_param_type(part):
+    """One `Type name` declaration -> type in JAVA_TYPES, or None."""
+    part = part.strip()
+    match = re.match(r"^(.*?)\s*([A-Za-z_$][\w$]*)$", part)
+    if not match:
+        return None
+    typ = re.sub(r"@\w+(\([^()]*\))?", "", match.group(1))
+    typ = " ".join(tok for tok in typ.split() if tok != "final")
+    typ = typ.replace(" ", "")
+    return typ if typ in JAVA_TYPES else None
+
+
+def java_signature(code):
+    """Param types of `static solve` in class Solution, or None."""
+    clean = _strip_java_comments(code)
+    if not re.search(r"\bclass\s+Solution\b", clean):
+        return None
+    match = re.search(r"\bstatic\b\s+([^{};=]*?)\bsolve\s*\(", clean)
+    if not match:
+        return None
+    ret_part = re.sub(r"@\w+(\([^()]*\))?", "", match.group(1))
+    ret_toks = [tok for tok in ret_part.split() if tok != "final"]
+    if not ret_toks:
+        return None
+    raw_ret = ret_toks[-1]
+    found = _balanced_params(clean, match.end() - 1)
+    raw_params, _close = found
+    if raw_params is None:
+        return None
+    if "..." in raw_params:
+        return None  # varargs: uncountable, caller reviews
+    types = []
+    for part in _split_top_level(raw_params):
+        if not part.strip():
+            continue
+        typ = _java_param_type(part)
+        if typ is None:
+            return None
+        types.append(typ)
+    if raw_ret not in JAVA_TYPES:
+        return None
+    return types
+
+
 def go_harness(param_types):
     """main() calling solve with JSON-decoded typed args, OUT: line out."""
     lines = ["package main",
@@ -218,22 +293,301 @@ def go_harness(param_types):
     return chr(10).join(lines) + chr(10)
 
 
+_JAVA_COERCE = {"int": "asInt", "long": "asLong", "double": "asDouble",
+                 "String": "asString", "boolean": "asBool", "int[]": "asIntArray",
+                 "long[]": "asLongArray", "double[]": "asDoubleArray",
+                 "String[]": "asStringArray", "boolean[]": "asBoolArray"}
+
+
+def java_harness(param_types):
+    """Main.java calling Solution.solve with JSON-decoded typed args."""
+    decls, args = [], []
+    for i, typ in enumerate(param_types):
+        decls.append("        %s p%d = %s(raw.get(%d));" % (typ, i, _JAVA_COERCE[typ], i))
+        args.append("p" + str(i))
+    return "\n".join([
+        "import java.util.*;",
+        "public class Main {",
+        "    static class BadArg extends Exception {}",
+        "    static String src; static int pos;",
+        "    static void skip() {",
+        "        while (pos < src.length()) {",
+        "            char c = src.charAt(pos);",
+        "            if (c == ' ' || c == '\\n' || c == '\\r' || c == '\\t') pos++;",
+        "            else break;",
+        "        }",
+        "    }",
+        "    static void expect(String lit) throws BadArg {",
+        "        if (!src.startsWith(lit, pos)) throw new BadArg();",
+        "        pos += lit.length();",
+        "    }",
+        "    static Object parse(String s) throws BadArg {",
+        "        src = s; pos = 0;",
+        "        Object v = parseValue();",
+        "        skip();",
+        "        if (pos != src.length()) throw new BadArg();",
+        "        return v;",
+        "    }",
+        "    static Object parseValue() throws BadArg {",
+        "        skip();",
+        "        if (pos >= src.length()) throw new BadArg();",
+        "        char c = src.charAt(pos);",
+        "        if (c == 'n') { expect(\"null\"); return null; }",
+        "        if (c == 't') { expect(\"true\"); return Boolean.TRUE; }",
+        "        if (c == 'f') { expect(\"false\"); return Boolean.FALSE; }",
+        "        if (c == '\"') return parseString();",
+        "        if (c == '[') {",
+        "            pos++;",
+        "            List<Object> out = new ArrayList<>();",
+        "            skip();",
+        "            if (pos < src.length() && src.charAt(pos) == ']') { pos++; return out; }",
+        "            while (true) {",
+        "                out.add(parseValue());",
+        "                skip();",
+        "                if (pos < src.length() && src.charAt(pos) == ']') { pos++; return out; }",
+        "                if (pos >= src.length() || src.charAt(pos) != ',') throw new BadArg();",
+        "                pos++;",
+        "            }",
+        "        }",
+        "        if (c == '-' || (c >= '0' && c <= '9')) return parseNumber();",
+        "        throw new BadArg();",
+        "    }",
+        "    static String parseString() throws BadArg {",
+        "        pos++;",
+        "        StringBuilder sb = new StringBuilder();",
+        "        while (true) {",
+        "            if (pos >= src.length()) throw new BadArg();",
+        "            char c = src.charAt(pos++);",
+        "            if (c == '\"') return sb.toString();",
+        "            if (c == '\\\\') {",
+        "                if (pos >= src.length()) throw new BadArg();",
+        "                char e = src.charAt(pos++);",
+        "                if (e == '\"') sb.append('\"');",
+        "                else if (e == '\\\\') sb.append('\\\\');",
+        "                else if (e == '/') sb.append('/');",
+        "                else if (e == 'b') sb.append('\\b');",
+        "                else if (e == 'f') sb.append('\\f');",
+        "                else if (e == 'n') sb.append('\\n');",
+        "                else if (e == 'r') sb.append('\\r');",
+        "                else if (e == 't') sb.append('\\t');",
+        "                else if (e == 'u') {",
+        "                    if (pos + 4 > src.length()) throw new BadArg();",
+        "                    try { sb.append((char) Integer.parseInt(src.substring(pos, pos + 4), 16)); }",
+        "                    catch (NumberFormatException ex) { throw new BadArg(); }",
+        "                    pos += 4;",
+        "                }",
+        "                else throw new BadArg();",
+        "            } else if (c < 0x20) {",
+        "                throw new BadArg();",
+        "            } else {",
+        "                sb.append(c);",
+        "            }",
+        "        }",
+        "    }",
+        "    static Object parseNumber() throws BadArg {",
+        "        int start = pos;",
+        "        if (pos < src.length() && src.charAt(pos) == '-') pos++;",
+        "        while (pos < src.length() && Character.isDigit(src.charAt(pos))) pos++;",
+        "        boolean frac = false;",
+        "        if (pos < src.length() && src.charAt(pos) == '.') {",
+        "            frac = true; pos++;",
+        "            while (pos < src.length() && Character.isDigit(src.charAt(pos))) pos++;",
+        "        }",
+        "        if (pos < src.length() && (src.charAt(pos) == 'e' || src.charAt(pos) == 'E')) {",
+        "            frac = true; pos++;",
+        "            if (pos < src.length() && (src.charAt(pos) == '+' || src.charAt(pos) == '-')) pos++;",
+        "            while (pos < src.length() && Character.isDigit(src.charAt(pos))) pos++;",
+        "        }",
+        "        String tok = src.substring(start, pos);",
+        "        try {",
+        "            if (!frac) return Long.parseLong(tok);",
+        "            return Double.parseDouble(tok);",
+        "        } catch (NumberFormatException e) { throw new BadArg(); }",
+        "    }",
+        "    static int asInt(Object v) throws BadArg {",
+        "        if (!(v instanceof Long)) throw new BadArg();",
+        "        long l = (Long) v;",
+        "        if (l < Integer.MIN_VALUE || l > Integer.MAX_VALUE) throw new BadArg();",
+        "        return (int) l;",
+        "    }",
+        "    static long asLong(Object v) throws BadArg {",
+        "        if (!(v instanceof Long)) throw new BadArg();",
+        "        return (Long) v;",
+        "    }",
+        "    static double asDouble(Object v) throws BadArg {",
+        "        if (v instanceof Long) return (Long) v;",
+        "        if (v instanceof Double) return (Double) v;",
+        "        throw new BadArg();",
+        "    }",
+        "    static String asString(Object v) throws BadArg {",
+        "        if (!(v instanceof String)) throw new BadArg();",
+        "        return (String) v;",
+        "    }",
+        "    static boolean asBool(Object v) throws BadArg {",
+        "        if (!(v instanceof Boolean)) throw new BadArg();",
+        "        return (Boolean) v;",
+        "    }",
+        "    static int[] asIntArray(Object v) throws BadArg {",
+        "        if (!(v instanceof List)) throw new BadArg();",
+        "        List<Object> l = (List<Object>) v;",
+        "        int[] r = new int[l.size()];",
+        "        for (int i = 0; i < l.size(); i++) r[i] = asInt(l.get(i));",
+        "        return r;",
+        "    }",
+        "    static long[] asLongArray(Object v) throws BadArg {",
+        "        if (!(v instanceof List)) throw new BadArg();",
+        "        List<Object> l = (List<Object>) v;",
+        "        long[] r = new long[l.size()];",
+        "        for (int i = 0; i < l.size(); i++) r[i] = asLong(l.get(i));",
+        "        return r;",
+        "    }",
+        "    static double[] asDoubleArray(Object v) throws BadArg {",
+        "        if (!(v instanceof List)) throw new BadArg();",
+        "        List<Object> l = (List<Object>) v;",
+        "        double[] r = new double[l.size()];",
+        "        for (int i = 0; i < l.size(); i++) r[i] = asDouble(l.get(i));",
+        "        return r;",
+        "    }",
+        "    static String[] asStringArray(Object v) throws BadArg {",
+        "        if (!(v instanceof List)) throw new BadArg();",
+        "        List<Object> l = (List<Object>) v;",
+        "        String[] r = new String[l.size()];",
+        "        for (int i = 0; i < l.size(); i++) r[i] = asString(l.get(i));",
+        "        return r;",
+        "    }",
+        "    static boolean[] asBoolArray(Object v) throws BadArg {",
+        "        if (!(v instanceof List)) throw new BadArg();",
+        "        List<Object> l = (List<Object>) v;",
+        "        boolean[] r = new boolean[l.size()];",
+        "        for (int i = 0; i < l.size(); i++) r[i] = asBool(l.get(i));",
+        "        return r;",
+        "    }",
+        "    static String quote(String s) {",
+        "        StringBuilder sb = new StringBuilder();",
+        "        sb.append('\"');",
+        "        for (int i = 0; i < s.length(); i++) {",
+        "            char c = s.charAt(i);",
+        "            if (c == '\"') { sb.append('\\\\'); sb.append('\"'); }",
+        "            else if (c == '\\\\') { sb.append('\\\\'); sb.append('\\\\'); }",
+        "            else if (c == '\\n') { sb.append('\\\\'); sb.append('n'); }",
+        "            else if (c == '\\r') { sb.append('\\\\'); sb.append('r'); }",
+        "            else if (c == '\\t') { sb.append('\\\\'); sb.append('t'); }",
+        "            else if (c == '\\b') { sb.append('\\\\'); sb.append('b'); }",
+        "            else if (c == '\\f') { sb.append('\\\\'); sb.append('f'); }",
+        "            else if (c < 0x20 || c > 0x7E) sb.append(String.format(\"\\\\u%04x\", (int) c));",
+        "            else sb.append(c);",
+        "        }",
+        "        sb.append('\"');",
+        "        return sb.toString();",
+        "    }",
+        "    static String toJson(Object v) throws BadArg {",
+        "        if (v == null) return \"null\";",
+        "        if (v instanceof String) return quote((String) v);",
+        "        if (v instanceof Long || v instanceof Integer || v instanceof Short || v instanceof Byte) return v.toString();",
+        "        if (v instanceof Double) {",
+        "            double d = (Double) v;",
+        "            if (Double.isNaN(d) || Double.isInfinite(d)) throw new BadArg();",
+        "            return Double.toString(d);",
+        "        }",
+        "        if (v instanceof Boolean) return v.toString();",
+        "        if (v instanceof int[]) {",
+        "            StringBuilder sb = new StringBuilder(\"[\");",
+        "            int[] a = (int[]) v;",
+        "            for (int i = 0; i < a.length; i++) { if (i > 0) sb.append(','); sb.append(a[i]); }",
+        "            return sb.toString() + \"]\";",
+        "        }",
+        "        if (v instanceof long[]) {",
+        "            StringBuilder sb = new StringBuilder(\"[\");",
+        "            long[] a = (long[]) v;",
+        "            for (int i = 0; i < a.length; i++) { if (i > 0) sb.append(','); sb.append(a[i]); }",
+        "            return sb.toString() + \"]\";",
+        "        }",
+        "        if (v instanceof double[]) {",
+        "            StringBuilder sb = new StringBuilder(\"[\");",
+        "            double[] a = (double[]) v;",
+        "            for (int i = 0; i < a.length; i++) { if (i > 0) sb.append(','); sb.append(toJson(a[i])); }",
+        "            return sb.toString() + \"]\";",
+        "        }",
+        "        if (v instanceof boolean[]) {",
+        "            StringBuilder sb = new StringBuilder(\"[\");",
+        "            boolean[] a = (boolean[]) v;",
+        "            for (int i = 0; i < a.length; i++) { if (i > 0) sb.append(','); sb.append(a[i]); }",
+        "            return sb.toString() + \"]\";",
+        "        }",
+        "        if (v instanceof Object[]) {",
+        "            StringBuilder sb = new StringBuilder(\"[\");",
+        "            Object[] a = (Object[]) v;",
+        "            for (int i = 0; i < a.length; i++) { if (i > 0) sb.append(','); sb.append(toJson(a[i])); }",
+        "            return sb.toString() + \"]\";",
+        "        }",
+        "        if (v instanceof List) {",
+        "            StringBuilder sb = new StringBuilder(\"[\");",
+        "            List<Object> a = (List<Object>) v;",
+        "            for (int i = 0; i < a.size(); i++) { if (i > 0) sb.append(','); sb.append(toJson(a.get(i))); }",
+        "            return sb.toString() + \"]\";",
+        "        }",
+        "        if (v instanceof Map) {",
+        "            TreeMap<String, Object> sorted = new TreeMap<>();",
+        "            for (Map.Entry<?, ?> e : ((Map<?, ?>) v).entrySet()) sorted.put(String.valueOf(e.getKey()), e.getValue());",
+        "            StringBuilder sb = new StringBuilder(\"{\");",
+        "            boolean first = true;",
+        "            for (Map.Entry<String, Object> e : sorted.entrySet()) {",
+        "                if (!first) sb.append(',');",
+        "                first = false;",
+        "                sb.append(quote(e.getKey()));",
+        "                sb.append(':');",
+        "                sb.append(toJson(e.getValue()));",
+        "            }",
+        "            return sb.toString() + \"}\";",
+        "        }",
+        "        throw new BadArg();",
+        "    }",
+        "    public static void main(String[] a) {",
+        "        try {",
+        "            Object v = parse(a[0]);",
+        "            if (!(v instanceof List)) System.exit(2);",
+        "            List<Object> raw = (List<Object>) v;",
+        "            if (raw.size() != %d) System.exit(2);" % len(param_types),
+    ] + decls + [
+        "            Object out = Solution.solve(%s);" % ", ".join(args),
+        '            System.out.println("OUT:" + toJson(out));',
+        "        } catch (BadArg e) { System.exit(1); }",
+        "        catch (Throwable t) {",
+        '            String m = String.valueOf(t.getMessage());',
+        "            if (m.length() > 200) m = m.substring(0, 200);",
+        '            System.err.println("ERR:" + t.getClass().getSimpleName() + ": " + m);',
+        "            System.exit(1);",
+        "        }",
+        "    }",
+        "}",
+    ]) + "\n"
+
+
 def harness_for(language, ref_lang, ref_code):
     """Harness source for one side, or '' when the side is interpreted."""
     if language not in COMPILED:
         return ""
     if ref_lang != language:
         raise HarnessError(language + " attempts need a " + language + " reference")
-    types = go_signature(ref_code)
-    if types is None:
-        raise BuildError("reference solve() has no usable " + language + " signature")
-    return go_harness(types)
+    if language == "go":
+        types = go_signature(ref_code)
+        if types is None:
+            raise BuildError("reference solve() has no usable go signature")
+        return go_harness(types)
+    if language == "java":
+        types = java_signature(ref_code)
+        if types is None:
+            raise BuildError("reference solve() has no usable java signature")
+        return java_harness(types)
+    raise BuildError("no harness for " + language)
 
 
 def prepare_program(tmpdir, stem, language, code, harness=""):
     """Write source (+harness) and compile when needed; return runnable path."""
     if language not in COMPILED:
         return write_program(tmpdir, stem, language, code)
+    if language == "java":
+        return _prepare_java(tmpdir, harness, code)
     gobin = (INTERPS.get("go") or [None])[0]
     if gobin is None:
         raise BuildError("go toolchain missing")
@@ -258,6 +612,64 @@ def prepare_program(tmpdir, stem, language, code, harness=""):
     if proc.returncode != 0:
         raise BuildError(_err_line(proc.stderr, tmpdir) or "compile failed")
     return exe
+
+
+def _strip_java_package(code):
+    """Drop `package x;` lines; pasted full programs stay compilable."""
+    out = []
+    for line in code.splitlines(keepends=True):
+        if re.match(r"\s*package\s+[\w.]+\s*;\s*$", line):
+            continue
+        out.append(line)
+    return "".join(out)
+
+
+def _javac():
+    """javac binary path, or None when the JDK is absent."""
+    found = shutil.which("javac", path=SPAWN_ENV["PATH"])
+    if found:
+        return found
+    javabin = (INTERPS.get("java") or [None])[0]
+    if javabin is not None:
+        try:
+            cand = os.path.join(os.path.dirname(javabin), "javac")
+            if os.path.isfile(cand) and os.access(cand, os.X_OK):
+                return cand
+        except (OSError, ValueError):
+            pass
+    return None
+
+
+def _prepare_java(tmpdir, harness, code):
+    """Write Solution.java + Main.java, javac both; return classpath dir."""
+    javac = _javac()
+    if javac is None:
+        raise BuildError("java toolchain missing")
+    sol = os.path.join(tmpdir, "Solution.java")
+    main = os.path.join(tmpdir, "Main.java")
+    try:
+        with open(sol, "w", encoding="utf-8") as handle:
+            handle.write(_strip_java_package(code))
+        with open(main, "w", encoding="utf-8") as handle:
+            handle.write(harness)
+    except OSError as exc:
+        raise BuildError("cannot write program file: " + str(exc)) from exc
+    env = {"PATH": SPAWN_ENV["PATH"], "HOME": os.path.expanduser("~")}
+    try:
+        proc = subprocess.run([javac, sol, main],
+                              cwd=tmpdir, env=env, capture_output=True,
+                              timeout=JAVA_BUILD_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        raise BuildError("build timed out")
+    except Exception as exc:
+        raise BuildError("build failed: " + str(exc))
+    if proc.returncode != 0:
+        # javac trails a "N errors" summary as the last line; the first
+        # error line is the informative one (later ones are often cascades).
+        kept = [ln for ln in (proc.stderr or b"").splitlines()
+                if not re.match(rb"^\\d+ errors?\\s*$", ln.strip())]
+        raise BuildError(_err_line(b"\n".join(kept), tmpdir) or "compile failed")
+    return tmpdir
 
 
 def _count_params(raw):
@@ -372,6 +784,19 @@ def get_arity(language, code):
             return None  # func-typed params: uncountable, caller reviews
         if "..." in raw:
             return None  # variadic: uncountable, caller reviews
+        return len([part for part in _split_top_level(raw) if part.strip()])
+    if language == "java":
+        # `static solve` (any modifiers/order); params scanned with balance
+        # so generic and func-typed params don't truncate the list.
+        clean = _strip_java_comments(code)
+        match = re.search(r"\bstatic\b[^{};=]*\bsolve\s*\(", clean)
+        if not match:
+            return None
+        raw = _balanced_params(clean, match.end() - 1)[0]
+        if raw is None:
+            return None
+        if "..." in raw:
+            return None  # varargs: uncountable, caller reviews
         return len([part for part in _split_top_level(raw) if part.strip()])
     if language == "ruby":
         match = re.search(r"def\s+solve(?:\s*\(([^)]*)\)|\s+([^\n;#:]*))?", code)
@@ -512,7 +937,12 @@ def run_one(language, prog, args, timeout, cwd):
     the caller only reports counts, failing inputs and that line, so reference
     text and expected outputs cannot leak into reasons (spec section 4).
     """
-    if language in COMPILED:
+    if language == "java":
+        javabin = (INTERPS.get("java") or [None])[0]
+        if javabin is None:  # runtime missing: every case fails, caller reviews
+            return ("crash", None, "runtime missing")
+        cmd = [javabin, "-cp", prog, "Main"]
+    elif language in COMPILED:
         cmd = [prog]
     else:
         cmd = INTERPS.get(language)
