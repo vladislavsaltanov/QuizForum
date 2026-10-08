@@ -54,3 +54,7 @@
 sidecar/.venv/
 weights/
 sidecar/__pycache__/
+
+# Brainstorming specs and agent working docs (local-only).
+/docs/superpowers/
+coderunner/__pycache__/

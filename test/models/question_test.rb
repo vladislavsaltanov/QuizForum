@@ -138,6 +138,31 @@ class QuestionTest < ActiveSupport::TestCase
     assert_not q.valid?
   end
 
+  test "accepts code question with python list and matching reference language" do
+    q = Question.new(title: "t", body: "b", answer_type: "code",
+      reference_answer: "def solve(x): return x", deadline: 7.days.from_now, author: @author, tags: [],
+      code_languages: [ "python" ], reference_language: "python")
+
+    assert q.valid?, q.errors.full_messages.to_sentence
+  end
+
+  test "rejects reference language outside the allowed list" do
+    q = Question.new(title: "t", body: "b", answer_type: "code",
+      reference_answer: "def solve(x): return x", deadline: 7.days.from_now, author: @author, tags: [],
+      code_languages: [ "python" ], reference_language: "go")
+
+    assert_not q.valid?
+    assert q.errors[:reference_language].any?
+  end
+
+  test "rejects stray languages on non-code questions" do
+    q = Question.new(title: "t", body: "b", answer_type: "text",
+      reference_answer: "r", deadline: 7.days.from_now, author: @author, tags: [],
+      code_languages: [ "python" ], reference_language: "python")
+
+    assert_not q.valid?
+  end
+
   test "closing soon means open with less than a day left" do
     assert timed_question("Скоро", 3.hours.from_now).closing_soon?
     assert_not timed_question("Не скоро", 5.days.from_now).closing_soon?

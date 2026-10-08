@@ -17,11 +17,15 @@ class Question < ApplicationRecord
   validates :title, :deadline, presence: true
   validates :body, presence: true
   validates :title, length: { maximum: 200 }
-  validates :body, :reference_answer, :explanation, length: { maximum: 20_000 }, allow_nil: true
+  validates :body, :reference_answer, :explanation, :example_input, :example_output, length: { maximum: 20_000 }, allow_nil: true
   validates :reference_answer, presence: true, unless: :choice?
   validates :answer_type, inclusion: { in: ANSWER_TYPES }
   before_validation :compact_options, if: :choice?
+  # Unconditional: the form always submits the hidden blank; "any" is [].
+  # Real strays on non-code types are still rejected by code_languages_valid.
+  before_validation :compact_code_languages
   validate :options_complete, if: :choice?
+  validate :code_languages_valid
 
   # Deadline still in the future.
   def open?
@@ -113,6 +117,14 @@ class Question < ApplicationRecord
     answer_type == "multiple_choice"
   end
 
+  # Code answer graded by differential fuzzing (see design doc 2026-10-07).
+  def code?
+    answer_type == "code"
+  end
+
+  # Languages the diff-fuzzing checker may grade (spec section 1).
+  CODE_LANGUAGES = %w[python javascript typescript ruby c++ c# java go].freeze
+
   # Points for a correct verdict: 1/2/3 by difficulty, 1 when untagged.
   DIFFICULTY_WEIGHTS = { "легкое" => 1, "среднее" => 2, "сложное" => 3 }.freeze
 
@@ -180,6 +192,30 @@ class Question < ApplicationRecord
         text = o["text"].to_s.strip
         next if text.empty?
         { "text" => text, "correct" => !!o["correct"] }
+      end
+    end
+
+    # The unchecked-everything hidden field arrives as ["" blank]; "any" is [].
+    def compact_code_languages
+      self.code_languages = Array(code_languages).map(&:to_s).map(&:strip).reject(&:empty?)
+    end
+
+    # Language allowlist + reference language apply to code questions only;
+    # stray languages on other types are rejected so they cannot leak into grading.
+    def code_languages_valid
+      if code?
+        Array(code_languages).each do |lang|
+          errors.add(:code_languages, :inclusion) unless CODE_LANGUAGES.include?(lang)
+        end
+        if reference_language.present?
+          errors.add(:reference_language, :inclusion) unless CODE_LANGUAGES.include?(reference_language)
+          if code_languages.present? && !code_languages.include?(reference_language)
+            errors.add(:reference_language, :inclusion)
+          end
+        end
+      else
+        errors.add(:code_languages, :present) if code_languages.present?
+        errors.add(:reference_language, :present) if reference_language.present?
       end
     end
 

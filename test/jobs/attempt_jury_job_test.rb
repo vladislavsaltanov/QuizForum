@@ -124,7 +124,7 @@ class AttemptJuryJobTest < ActiveSupport::TestCase
     revealed = Attempt.create!(question: questions(:closed_text),
       user: users(:two), body: "Сжимающее отображение.")
     with_grade(jury_result("positive", 1.0, false)) do
-      assert_turbo_stream_broadcasts questions(:closed_text), count: 3 do
+      assert_turbo_stream_broadcasts questions(:closed_text), count: 4 do
         AttemptJuryJob.perform_now(revealed.id)
       end
     end

@@ -1,0 +1,17 @@
+<%# Summary of decided attempts, grouped partial → incorrect → correct. %>
+<%# Built from the already-scoped @attempts, so visibility is free; pending skipped. %>
+<% grouped = attempts.group_by(&:verdict) %>
+<% rows = { "partial" => "Частично", "incorrect" => "Неправильно", "correct" => "Правильно" }.filter_map do |verdict, label| %>
+<% names = Array(grouped[verdict]).map { |attempt| "#{attempt.user.name} (#{attempt.user.email})" } %>
+<% [ verdict, label, names ] if names.any? %>
+<% end %>
+<% if rows.any? %>
+  <div class="qf-summary" id="question-summary">
+    <% rows.each do |verdict, label, names| %>
+      <div class="qf-summary-row">
+        <span class="qf-chip <%= verdict_class(verdict) %>"><%= label %> · <%= names.size %></span>
+        <span class="qf-summary-names"><%= names.join(", ") %></span>
+      </div>
+    <% end %>
+  </div>
+<% end %>

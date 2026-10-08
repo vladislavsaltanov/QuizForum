@@ -1,6 +1,8 @@
 # Public question pages with deadline-based visibility of answers and comments.
 class QuestionsController < ApplicationController
   COMMENT_BATCH = 10
+  # Dry-run smoke budget for code questions (spec section 3); full grading uses 120s.
+  CODE_DRY_RUN_TIMEOUT = 10
 
   rate_limit to: 10, within: 3.minutes, only: %i[create update],
              with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
@@ -32,6 +34,7 @@ class QuestionsController < ApplicationController
     @question.tags = parse_tags
     @question.options = parse_options if @question.choice?
     moderation_blocked? if @question.valid?
+    code_dry_run_blocked? if @question.errors.empty?
     saved, @trustee_alert = @question.errors.empty? ? save_with_trustees : [ false, nil ]
     if saved
       redirect_to @question, notice: "Вопрос опубликован.", alert: @trustee_alert
@@ -56,6 +59,7 @@ class QuestionsController < ApplicationController
     @question.tags = parse_tags
     @question.options = parse_options if @question.choice?
     moderation_blocked? if @question.valid?
+    code_dry_run_blocked? if @question.errors.empty?
     saved, @trustee_alert = @question.errors.empty? ? save_with_trustees : [ false, nil ]
     if saved
       redirect_to @question, notice: "Вопрос обновлён.", alert: @trustee_alert
@@ -109,11 +113,28 @@ class QuestionsController < ApplicationController
       moderation_text = AiQuestionIngest.moderation_text(
         title: @question.title, body: @question.body, tags: @question.tags,
         reference_answer: @question.reference_answer, explanation: @question.explanation,
+        example_input: @question.example_input, example_output: @question.example_output,
         options: @question.options)
       verdict = ModerationClient.check(text: moderation_text)
       @question.errors.add(:base, "Отклонено проверкой: #{verdict.category}.") if verdict.verdict == :reject
       @question.errors.add(:base, "Проверка не удалась, попробуйте позже.") if verdict.verdict == :try_later
       verdict.verdict == :reject || verdict.verdict == :try_later
+    end
+
+    # Smoke run of the reference against itself (~10 cases, 10s budget).
+    # A hanging/crashing reference blocks the form; a down runner fails open.
+    def code_dry_run_blocked?
+      return false unless @question.code?
+      lang = @question.reference_language.presence || Array(@question.code_languages).first || "python"
+      code = @question.reference_answer.to_s
+      result = CodeRunnerClient.new.run_check(reference: code, attempt: code,
+        language: lang, reference_language: lang, seed: @question.id || 0,
+        cases: AttemptCodeCheckJob::SMOKE_CASES, read_timeout: CODE_DRY_RUN_TIMEOUT)
+      return false if result.nil?
+      return false if !result.needs_review && result.total.to_i > 0 && result.passed == result.total
+      @question.errors.add(:reference_answer,
+        "не проходит пробный прогон (#{result.reasons.join('; ')}).")
+      true
     end
 
     # Author-or-admin gate for the write actions; trustees stay read-only.
@@ -141,7 +162,8 @@ class QuestionsController < ApplicationController
 
     # Whitelisted question form fields.
     def question_params
-      params.expect(question: [ :title, :body, :answer_type, :deadline, :reference_answer, :explanation ])
+      params.expect(question: [ :title, :body, :answer_type, :deadline, :reference_answer,
+        :explanation, :reference_language, :example_input, :example_output, { code_languages: [] } ])
     end
 
     # Difficulty arrives from its own select; typed difficulty words merge into it.

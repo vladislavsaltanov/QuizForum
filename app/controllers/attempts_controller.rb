@@ -8,10 +8,22 @@ class AttemptsController < ApplicationController
     @question = Question.find(params[:question_id])
     return redirect_to @question, alert: "Дедлайн прошёл." if @question.closed?
     @attempt = @question.attempts.build(attempt_params.merge(user: Current.user))
+    if @question.code? && !language_allowed?
+      @attempt.errors.add(:language, :inclusion)
+      return redirect_to @question, alert: @attempt.errors.full_messages.to_sentence
+    end
     if @attempt.save
-      # Text answers go to the OpenJev jury; choice verdicts are already set.
-      AttemptJuryJob.perform_later(@attempt.id) unless @question.choice?
-      redirect_to @question, notice: "Ответ отправлен на модерацию."
+      if @question.code?
+        AttemptCodeCheckJob.perform_later(@attempt.id)
+        redirect_to @question, notice: "Ответ отправлен на проверку."
+      elsif @question.choice?
+        # Choice verdicts are already set; no job.
+        redirect_to @question, notice: "Ответ отправлен на модерацию."
+      else
+        # Text answers go to the OpenJev jury.
+        AttemptJuryJob.perform_later(@attempt.id)
+        redirect_to @question, notice: "Ответ отправлен на модерацию."
+      end
     else
       redirect_to @question, alert: @attempt.errors.full_messages.to_sentence
     end
@@ -38,5 +50,11 @@ class AttemptsController < ApplicationController
     # Whitelisted attempt form fields.
     def attempt_params
       params.expect(attempt: [ :body, :language, { selected: [] } ])
+    end
+
+    # Empty allowlist means any language; forgery never reaches the runner.
+    def language_allowed?
+      allowed = Array(@question.code_languages)
+      allowed.empty? || allowed.include?(attempt_params[:language])
     end
 end

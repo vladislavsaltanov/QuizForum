@@ -1,5 +1,5 @@
 #!/bin/sh
-# One command: real Laya sidecar (:8000) + Rails. External sidecar wins when set.
+# One command: real Laya sidecar (:8000) + coderunner (:8001) + Rails. External services win when set.
 set -u
 cd "$(dirname "$0")/.."
 
@@ -35,9 +35,38 @@ if [ "${LAYA_SIDECAR_URL:-}" = "" ]; then
   }
 fi
 
-trap 'kill ${SIDECAR_PID:-} 2>/dev/null' EXIT INT TERM
+CODERUNNER_PORT="${CODERUNNER_PORT:-8001}"
+if [ "${CODERUNNER_URL:-}" = "" ] && curl -sf -o /dev/null "http://localhost:${CODERUNNER_PORT}/up" 2>/dev/null; then
+  # A live runner (e.g. from a previous boot) is reused as-is.
+  export CODERUNNER_URL="http://localhost:${CODERUNNER_PORT}"
+  echo "reusing coderunner at $CODERUNNER_URL" >&2
+fi
+if [ "${CODERUNNER_URL:-}" = "" ]; then
+  CODERUNNER_PYBIN="$(command -v python3.12 || command -v python3)"
+  if [ -z "$CODERUNNER_PYBIN" ]; then
+    echo "python3.12 or python3 required for coderunner" >&2
+    exit 1
+  fi
+  "$CODERUNNER_PYBIN" coderunner/server.py "$CODERUNNER_PORT" >log/coderunner.log 2>&1 &
+  CODERUNNER_PID=$!
+  export CODERUNNER_URL="http://localhost:${CODERUNNER_PORT}"
+  # No model weights here: readiness is immediate, still gate it.
+  for _ in $(seq 1 60); do
+    curl -sf -o /dev/null "$CODERUNNER_URL/up" && break
+    sleep 1
+  done
+  curl -sf -o /dev/null "$CODERUNNER_URL/up" || {
+    echo "coderunner not ready, see log/coderunner.log" >&2
+    exit 1
+  }
+  if curl -sf "$CODERUNNER_URL/up" | grep -q missing; then
+    echo "warning: some coderunner runtimes missing (node/ruby); code checks for those languages stay pending" >&2
+  fi
+fi
+
+trap 'kill ${SIDECAR_PID:-} ${CODERUNNER_PID:-} 2>/dev/null' EXIT INT TERM
 rm -f tmp/pids/server.pid
 ./bin/rails server "$@"
 STATUS=$?
-kill ${SIDECAR_PID:-} 2>/dev/null
+kill ${SIDECAR_PID:-} ${CODERUNNER_PID:-} 2>/dev/null
 exit $STATUS

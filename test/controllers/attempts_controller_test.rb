@@ -204,6 +204,35 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
     assert_no_match(/Подсказка/, response.body)
   end
 
+  test "code create enqueues code check job without checking flag" do
+    q = questions(:open_code)
+    sign_in_as(@respondent)
+    assert_enqueued_with(job: AttemptCodeCheckJob) do
+      assert_no_enqueued_jobs only: AttemptJuryJob do
+        post question_attempts_path(q),
+          params: { attempt: { body: "def solve(a, b):\n  return a + b", language: "python" } }
+      end
+    end
+
+    attempt = q.attempts.find_by(user: @respondent)
+    assert_redirected_to question_path(q)
+  end
+
+  test "code create with disallowed language is rejected without job" do
+    q = @author.authored_questions.create!(title: "Код", body: "Тело",
+      answer_type: "code", deadline: 7.days.from_now, reference_answer: "def solve(a):\n  return a",
+      code_languages: [ "python" ], reference_language: "python")
+    sign_in_as(@respondent)
+    assert_no_enqueued_jobs only: AttemptCodeCheckJob do
+      assert_no_difference("Attempt.count") do
+        post question_attempts_path(q),
+          params: { attempt: { body: "def solve(a):\n  return a", language: "ruby" } }
+      end
+    end
+
+    assert_redirected_to question_path(q)
+  end
+
   private
     def attempt_by(user, **jury)
       @question.attempts.create!({ user:, body: "Ответ #{user.name}" }.merge(jury))
