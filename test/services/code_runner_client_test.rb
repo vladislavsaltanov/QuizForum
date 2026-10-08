@@ -133,7 +133,5 @@ class CodeRunnerClientTest < ActiveSupport::TestCase
       captured
     ensure
       Net::HTTP.singleton_class.remove_method(:new)
-
-
     end
 end
