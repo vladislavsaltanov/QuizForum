@@ -3,7 +3,7 @@
 
 Contract: POST /v1/run_check {key, language, reference, attempt, seed, cases}
   -> {passed, total, deterministic, needs_review, reasons[], failed_sample[]}
-GET /up -> {runtimes: {python, node, ruby}}.
+GET /up -> {runtimes: {python, node, ruby, go, g++, java, dotnet}}.
 
 `language` is the attempt language; `reference_language` optionally overrides
 it for the reference (cross-language tasks compare normalized outputs).

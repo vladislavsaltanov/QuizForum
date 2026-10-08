@@ -26,7 +26,7 @@
             <%= button_to "Верно", verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "correct" } }, method: :patch, class: "qf-ghost" %>
             <%= button_to "Частично", verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "partial" } }, method: :patch, class: "qf-ghost" %>
             <%= button_to "Неверно", verdict_question_attempt_path(@question, attempt), params: { attempt: { verdict: "incorrect" } }, method: :patch, class: "qf-ghost" %>
-            <button type="button" class="qf-ghost" onclick="this.closest('details').removeAttribute('open')">Отмена</button>
+            <button type="button" class="qf-ghost" data-controller="modal" data-action="click->modal#close">Отмена</button>
           </div>
         </div>
       </div>

@@ -8,6 +8,21 @@ class AttemptTest < ActiveSupport::TestCase
     assert_includes attempt.errors[:selected], "can't be blank"
   end
 
+  test "rejects code attempt in a language the runner cannot grade" do
+    attempt = Attempt.new(question: questions(:closed_single), user: users(:one),
+                          selected: [ "1" ], language: "rust")
+
+    assert_not attempt.valid?
+    assert attempt.errors[:language].any?
+  end
+
+  test "accepts code attempt in a supported language" do
+    attempt = Attempt.new(question: questions(:closed_single), user: users(:one),
+                          selected: [ "1" ], language: "c#")
+
+    assert attempt.valid?, attempt.errors.full_messages.to_sentence
+  end
+
   test "rejects out-of-range selected index" do
     attempt = Attempt.new(question: questions(:closed_single), user: users(:one), selected: [ "999" ])
 

@@ -222,6 +222,34 @@ class AttemptCodeCheckJobTest < ActiveSupport::TestCase
     assert @attempt.revealed_correct?
   end
 
+  test "dispatches every supported language to the runner" do
+    q = users(:one).authored_questions.create!(title: "Langs",
+      body: "b", answer_type: "code", deadline: 7.days.from_now,
+      reference_answer: "def solve(a):\n  return a",
+      code_languages: CodeRunnerClient::SUPPORTED_LANGUAGES,
+      reference_language: "python")
+    seen = []
+    fake = Object.new
+    fake.define_singleton_method(:run_check) do |**kw|
+      seen << kw[:language]
+      CodeRunnerClient::Result.new(1, 1, true, false, [], [])
+    end
+    CodeRunnerClient.define_singleton_method(:new) { |*_| fake }
+    begin
+      CodeRunnerClient::SUPPORTED_LANGUAGES.each_with_index do |lang, i|
+        user = User.create!(name: "Lang#{i}", email: "lang#{i}@example.com",
+          password: "password12345678", password_confirmation: "password12345678")
+        att = q.attempts.create!(user: user, body: "code", language: lang)
+        AttemptCodeCheckJob.perform_now(att.id)
+        assert_equal "correct", att.reload.verdict
+      end
+    ensure
+      CodeRunnerClient.define_singleton_method(:new, ORIGINAL_CHECK_NEW)
+    end
+
+    assert_equal CodeRunnerClient::SUPPORTED_LANGUAGES.sort, seen.sort
+  end
+
   test "double submit keeps one row" do
     assert_no_difference("Attempt.count") do
       dup = @question.attempts.build(user: users(:two),

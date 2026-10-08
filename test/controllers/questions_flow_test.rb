@@ -82,6 +82,21 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     assert_equal 1, q.reports.where(user: @user).count
   end
 
+  test "summary shows emails to privileged viewers only" do
+    q = questions(:closed_single)
+    Attempt.create!(question: q, user: @author, selected: [ "1" ])
+    get question_path(q)
+
+    assert_response :success
+    assert_select ".qf-summary-names"
+    assert_no_match(/#{Regexp.escape(@author.email)}/, response.body)
+
+    sign_in_as(@author)
+    get question_path(q)
+
+    assert_match(/#{Regexp.escape(@author.email)}/, response.body)
+  end
+
   test "author sees reference and all attempts before deadline" do
     Attempt.create!(question: questions(:open_text), user: @user, body: "visible to author")
     sign_in_as(@author)

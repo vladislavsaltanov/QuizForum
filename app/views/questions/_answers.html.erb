@@ -5,7 +5,7 @@
     <% if @attempts.empty? %>
       <p class="qf-empty">Пока никто не ответил.</p>
     <% end %>
-    <%= render "summary", attempts: @attempts %>
+    <%= render "summary", attempts: @attempts, show_email: @is_author %>
     <details class="qf-answers-details">
       <summary class="qf-section-title">Все ответы · <%= @attempts.size %></summary>
     <div class="qf-chat">
@@ -95,7 +95,7 @@
     <div class="qf-body"><%= simple_format(@question.explanation) %></div>
   <% end %>
 
-  <%= render "summary", attempts: @attempts %>
+  <%= render "summary", attempts: @attempts, show_email: @is_author %>
   <details class="qf-answers-details">
     <summary class="qf-section-title">Все ответы · <%= @attempts.size %></summary>
   <div class="qf-chat">

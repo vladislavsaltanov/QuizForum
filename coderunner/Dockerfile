@@ -1,5 +1,5 @@
-# Coderunner: diff-fuzz execution service (phase 1: python/js/ruby + TS;
-# phase 2 slice 2 adds the Go toolchain below).
+# Coderunner: diff-fuzz execution service (python/js/ts/ruby + phase-2
+# toolchains below: Go, JDK, g++ + nlohmann/json.hpp vendor, .NET SDK).
 # Pinned: python:3.12-slim + nodejs 24.x (nodesource). Ruby comes from
 # Debian (bookworm ships 3.x, not 4.x): phase-1 tasks must stay within
 # safe-range ints / plain JSON values, which behave identically on ruby 3

@@ -12,6 +12,7 @@ import os
 import random
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import textwrap
@@ -1298,18 +1299,27 @@ def run_one(language, prog, args, timeout, cwd):
         cmd = cmd + [prog]
     cmd = cmd + [json.dumps(args)]
     try:
-        proc = subprocess.run(cmd, stdin=subprocess.DEVNULL,
-                              capture_output=True,
-                              timeout=timeout, cwd=cwd, env=SPAWN_ENV)
-    except subprocess.TimeoutExpired:
-        return ("timeout", None, None)
+        proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                cwd=cwd, env=SPAWN_ENV, start_new_session=True)
+        try:
+            out, err = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            # Kill the whole process group: attempts may spawn grandchildren
+            # that outlive the direct child and clog the runner slots.
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except OSError:
+                pass
+            proc.wait()
+            return ("timeout", None, None)
     except Exception:
         return ("crash", None, None)
-    out = proc.stdout or b""
+    out = out or b""
     if len(out) > STDOUT_CAP:
         return ("truncated", None, None)
     if proc.returncode != 0:
-        return ("crash", None, _err_line(proc.stderr, cwd))
+        return ("crash", None, _err_line(err, cwd))
     try:
         text = out.decode("utf-8", errors="strict")
     except Exception:

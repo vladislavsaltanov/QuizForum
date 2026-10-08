@@ -76,6 +76,15 @@ jobs:
       # no venv, no model weights, no torch download.
       - name: Run sidecar security tests
         run: python3 sidecar/test_server_security.py
+  coderunner-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      # Stock ubuntu-latest ships every toolchain the matrix needs
+      # (python/node/ruby/go/java/g++/dotnet): no setup, just run it.
+      - name: Run coderunner grading matrix
+        run: python3 coderunner/test_security.py
 
   model-test:
     runs-on: ubuntu-latest
