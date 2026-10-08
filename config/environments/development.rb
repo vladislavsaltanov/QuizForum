@@ -1,6 +1,9 @@
 require "active_support/core_ext/integer/time"
 
 Rails.application.configure do
+  # Tailscale MagicDNS — Rails blocks unknown Host.
+  config.hosts << /\A[a-z0-9-]+\.ts\.net\z/
+
   # Settings specified here will take precedence over those in config/application.rb.
 
   # Make code changes take effect immediately without server restart.
