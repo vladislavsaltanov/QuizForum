@@ -16,7 +16,7 @@ import subprocess
 import sys
 import textwrap
 
-LANGUAGES = ("python", "javascript", "typescript", "ruby", "go", "java")
+LANGUAGES = ("python", "javascript", "typescript", "ruby", "go", "java", "c++")
 STDOUT_CAP = 65536
 SAFE_MAX = 2 ** 53 - 1  # cross-language integer safety bound (spec review focus)
 
@@ -37,6 +37,7 @@ RUNTIMES = {
     "python": _version([sys.executable, "--version"]),
     "node": _version(["node", "--version"]),
     "go": _version(["go", "--version"]),
+    "g++": _version(["g++", "--version"]),
     "java": _version(["java", "--version"]),
     "ruby": _version(["ruby", "--version"]),
 }
@@ -117,11 +118,16 @@ INTERPS = {"python": [sys.executable],
            "typescript": _interp("node", None),
            "ruby": _interp("ruby", None),
            "go": _interp("go", None),
-           "java": _interp("java", None)}
+           "java": _interp("java", None),
+           "c++": _interp("g++", None)}
 EXTS = {"python": "py", "javascript": "js", "typescript": "ts", "ruby": "rb"}
 
 # Languages needing ahead-of-time compilation (binary runs directly).
-COMPILED = ("go", "java")
+COMPILED = ("go", "java", "c++")
+CPP_BUILD_TIMEOUT = 60
+CPP_TYPES = {"int", "long", "double", "string", "bool",
+             "vector<int>", "vector<long>", "vector<double>",
+             "vector<string>", "vector<bool>"}
 GO_BUILD_TIMEOUT = 60
 GO_TYPES = {"int", "int64", "float64", "string", "bool",
             "[]int", "[]string", "[]float64", "[]bool"}
@@ -202,7 +208,7 @@ def go_signature(code):
     return types
 
 
-def _strip_java_comments(code):
+def _strip_c_comments(code):
     """Remove // and /* */ comments; string/char literals blanked, not dropped."""
     token = re.compile(r'"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\\n]|\\.)*\'|/\*.*?\*/|//[^\n]*', re.DOTALL)
 
@@ -242,7 +248,7 @@ def _java_param_type(part):
 
 def java_signature(code):
     """Param types of `static solve` in class Solution, or None."""
-    clean = _strip_java_comments(code)
+    clean = _strip_c_comments(code)
     if not re.search(r"\bclass\s+Solution\b", clean):
         return None
     match = re.search(r"\bstatic\b\s+([^{};=]*?)\bsolve\s*\(", clean)
@@ -563,6 +569,138 @@ def java_harness(param_types):
     ]) + "\n"
 
 
+def _cxx_normalize_type(typ):
+    """One C++ type spelling -> canonical CPP_TYPES member, or None."""
+    typ = re.sub(r"\b(const|volatile|static|inline|constexpr|virtual|friend|extern|mutable)\b", "", typ)
+    typ = typ.replace("std::", "")
+    typ = " ".join(typ.split())
+    typ = typ.replace("long long", "long")
+    typ = re.sub(r"\s*&+\s*$", "", typ).strip()
+    typ = typ.replace(" ", "")
+    return typ if typ in CPP_TYPES else None
+
+
+def _cxx_param_type(part):
+    """One `Type name` (or bare type) declaration -> CPP_TYPES member, or None."""
+    part = part.split("=", 1)[0].strip()  # default value
+    if not part:
+        return None
+    match = re.match(r"^(.*?)\s*([A-Za-z_]\w*)$", part)
+    if not match:
+        return None
+    pre = match.group(1).strip()
+    typ_raw = match.group(2) if not pre else pre
+    return _cxx_normalize_type(typ_raw)
+
+
+def cxx_signature(code):
+    """Param types of free-function `solve`, or None when unusable/unsupported."""
+    clean = _strip_c_comments(code)
+    match = re.search(r"(?<![\w:>.])solve\s*\(", clean)
+    if not match:
+        return None
+    raw_params = _balanced_params(clean, match.end() - 1)[0]
+    if raw_params is None:
+        return None
+    if "..." in raw_params:
+        return None  # variadic: uncountable, caller reviews
+    types = []
+    for part in _split_top_level(raw_params):
+        if not part.strip():
+            continue
+        typ = _cxx_param_type(part)
+        if typ is None:
+            return None
+        types.append(typ)
+    head = re.split(r"[;{}]", clean[:match.start()])[-1]
+    after = clean[match.end() - 1:]
+    _, close = _balanced_params(clean, match.end() - 1)
+    rest = after[close - (match.end() - 1) + 1:]
+    mret = re.match(r"\s*->\s*([^{};,]+)", rest)
+    if mret:
+        ret_raw = mret.group(1)
+    else:
+        toks = head.split()
+        ret_raw = " ".join(toks[-3:])
+    ret = _cxx_normalize_type(ret_raw)
+    if ret is None:
+        return None
+    return types
+
+
+def _cxx_qualify(typ):
+    """Canonical type -> code spelling (std:: Air cover for qualified names)."""
+    if typ in ("int", "long", "double", "bool"):
+        return typ
+    if typ == "string":
+        return "std::string"
+    match = re.fullmatch(r"vector<(.*)>", typ)
+    if match:
+        return "std::vector<" + _cxx_qualify(match.group(1)) + ">"
+    raise BuildError("cannot spell type " + typ)
+
+
+def cxx_harness(param_types):
+    """Includes + main() calling solve with JSON-decoded typed args."""
+    lines = ["#include <nlohmann/json.hpp>",
+             "#include <iostream>",
+             "#include <string>",
+             "#include <vector>",
+             "#include <climits>",
+             "//__USER_CODE__",
+             "int main(int argc, char** argv) {",
+             "    if (argc < 2) return 2;",
+             "    nlohmann::json args;",
+             "    try { args = nlohmann::json::parse(argv[1]); }",
+             "    catch (...) { return 2; }",
+             "    if (!args.is_array() || args.size() != " + str(len(param_types)) + ") return 2;",
+             "    try {"]
+    args = []
+    for i, typ in enumerate(param_types):
+        ctyp = _cxx_qualify(typ)
+        lines.append("        " + ctyp + " p" + str(i) + " = args.at(" + str(i) + ").get<" + ctyp + ">();")
+        args.append("p" + str(i))
+    lines.append("        auto out = solve(" + ", ".join(args) + ");")
+    lines.append('        std::cout << "OUT:" << nlohmann::json(out).dump() << std::endl;')
+    lines.append("    } catch (...) { return 1; }")
+    lines.append("    return 0;")
+    lines.append("}")
+    return chr(10).join(lines) + chr(10)
+
+
+def _vendor_dir():
+    """Repo-vendored third-party headers (nlohmann/json.hpp)."""
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor")
+
+
+def _prepare_cxx(tmpdir, stem, harness, code):
+    """Write user code + harness main, g++ both; return exe path."""
+    gxx = (INTERPS.get("c++") or [None])[0]
+    if gxx is None:
+        raise BuildError("c++ toolchain missing")
+    src = os.path.join(tmpdir, stem + ".cpp")
+    exe = os.path.join(tmpdir, stem)
+    try:
+        with open(src, "w", encoding="utf-8") as handle:
+            if not code.endswith("\n"):
+                code = code + "\n"
+            handle.write(harness.replace("//__USER_CODE__", code, 1))
+    except OSError as exc:
+        raise BuildError("cannot write program file: " + str(exc)) from exc
+    env = {"PATH": SPAWN_ENV["PATH"], "HOME": os.path.expanduser("~")}
+    try:
+        proc = subprocess.run([gxx, "-O0", "-std=c++17", "-I" + _vendor_dir(), src, "-o", exe],
+                              cwd=tmpdir, env=env, capture_output=True,
+                              timeout=CPP_BUILD_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        raise BuildError("build timed out")
+    except Exception as exc:
+        raise BuildError("build failed: " + str(exc))
+    if proc.returncode != 0:
+        raise BuildError(_err_line(proc.stderr, tmpdir) or "compile failed")
+    return exe
+
+
 def harness_for(language, ref_lang, ref_code):
     """Harness source for one side, or '' when the side is interpreted."""
     if language not in COMPILED:
@@ -579,6 +717,11 @@ def harness_for(language, ref_lang, ref_code):
         if types is None:
             raise BuildError("reference solve() has no usable java signature")
         return java_harness(types)
+    if language == "c++":
+        types = cxx_signature(ref_code)
+        if types is None:
+            raise BuildError("reference solve() has no usable c++ signature")
+        return cxx_harness(types)
     raise BuildError("no harness for " + language)
 
 
@@ -588,6 +731,8 @@ def prepare_program(tmpdir, stem, language, code, harness=""):
         return write_program(tmpdir, stem, language, code)
     if language == "java":
         return _prepare_java(tmpdir, harness, code)
+    if language == "c++":
+        return _prepare_cxx(tmpdir, stem, harness, code)
     gobin = (INTERPS.get("go") or [None])[0]
     if gobin is None:
         raise BuildError("go toolchain missing")
@@ -788,7 +933,7 @@ def get_arity(language, code):
     if language == "java":
         # `static solve` (any modifiers/order); params scanned with balance
         # so generic and func-typed params don't truncate the list.
-        clean = _strip_java_comments(code)
+        clean = _strip_c_comments(code)
         match = re.search(r"\bstatic\b[^{};=]*\bsolve\s*\(", clean)
         if not match:
             return None
@@ -797,6 +942,19 @@ def get_arity(language, code):
             return None
         if "..." in raw:
             return None  # varargs: uncountable, caller reviews
+        return len([part for part in _split_top_level(raw) if part.strip()])
+    if language == "c++":
+        # Free function `solve` (member/qualified names excluded); params
+        # scanned with balance so template types don't truncate the list.
+        clean = _strip_c_comments(code)
+        match = re.search(r"(?<![\w:>.])solve\s*\(", clean)
+        if not match:
+            return None
+        raw = _balanced_params(clean, match.end() - 1)[0]
+        if raw is None:
+            return None
+        if "..." in raw:
+            return None  # variadic: uncountable, caller reviews
         return len([part for part in _split_top_level(raw) if part.strip()])
     if language == "ruby":
         match = re.search(r"def\s+solve(?:\s*\(([^)]*)\)|\s+([^\n;#:]*))?", code)

@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         https://deb.nodesource.com/node_24.x nodistro main" \
         > /etc/apt/sources.list.d/nodesource.list \
     && apt-get update \
-    && apt-get install -y --no-install-recommends nodejs ruby-full \
+    && apt-get install -y --no-install-recommends nodejs ruby-full g++ \
     && node --version && ruby --version \
     && apt-get purge -y curl gnupg && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
@@ -35,7 +35,8 @@ ENV PATH=/usr/local/lib/jvm/bin:${PATH}
 
 RUN useradd -m runner
 WORKDIR /app
-COPY server.py runners.py ./
+# Vendored third-party headers (nlohmann/json.hpp, MIT) for the C++ harness.
+COPY server.py runners.py vendor/ ./
 USER runner
 ENV CODERUNNER_HOST=0.0.0.0 CODERUNNER_PORT=8001
 EXPOSE 8001

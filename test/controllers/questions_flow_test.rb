@@ -194,7 +194,7 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     CodeRunnerClient::SUPPORTED_LANGUAGES.each do |lang|
       assert_select "select[name='attempt[language]'] option", text: lang
     end
-    %w[c++ c# rust sql].each do |lang|
+    %w[c# rust sql].each do |lang|
       assert_select "select[name='attempt[language]'] option", text: lang, count: 0
     end
   end
