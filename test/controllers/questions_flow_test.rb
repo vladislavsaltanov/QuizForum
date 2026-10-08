@@ -186,13 +186,16 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     assert_select "input[type=checkbox][name='attempt[selected][]']"
   end
 
-  test "code form offers bigtech language list" do
+  test "code form offers only runner-gradeable languages" do
     q = Question.create!(title: "t-code", body: "b", answer_type: "code", reference_answer: "r",
       deadline: 7.days.from_now, author: @author, tags: [])
     get question_path(q)
 
-    %w[c++ c# java kotlin swift typescript sql].each do |lang|
+    CodeRunnerClient::SUPPORTED_LANGUAGES.each do |lang|
       assert_select "select[name='attempt[language]'] option", text: lang
+    end
+    %w[c++ c# java go typescript sql].each do |lang|
+      assert_select "select[name='attempt[language]'] option", text: lang, count: 0
     end
   end
 

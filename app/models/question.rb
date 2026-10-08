@@ -122,8 +122,9 @@ class Question < ApplicationRecord
     answer_type == "code"
   end
 
-  # Languages the diff-fuzzing checker may grade (spec section 1).
-  CODE_LANGUAGES = %w[python javascript typescript ruby c++ c# java go].freeze
+  # Gradeable code languages: exactly what the coderunner executes.
+  # Single source is CodeRunnerClient; teach the runner before extending this.
+  CODE_LANGUAGES = CodeRunnerClient::SUPPORTED_LANGUAGES
 
   # Points for a correct verdict: 1/2/3 by difficulty, 1 when untagged.
   DIFFICULTY_WEIGHTS = { "легкое" => 1, "среднее" => 2, "сложное" => 3 }.freeze

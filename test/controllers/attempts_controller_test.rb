@@ -233,6 +233,20 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to question_path(q)
   end
 
+  test "code create with runner-unknown language is rejected even with empty allowlist" do
+    q = questions(:open_code)
+    assert_empty Array(q.code_languages)
+    sign_in_as(@respondent)
+    assert_no_enqueued_jobs only: AttemptCodeCheckJob do
+      assert_no_difference("Attempt.count") do
+        post question_attempts_path(q),
+          params: { attempt: { body: "package main", language: "go" } }
+      end
+    end
+
+    assert_redirected_to question_path(q)
+  end
+
   private
     def attempt_by(user, **jury)
       @question.attempts.create!({ user:, body: "Ответ #{user.name}" }.merge(jury))
