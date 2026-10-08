@@ -16,7 +16,7 @@ import subprocess
 import sys
 import textwrap
 
-LANGUAGES = ("python", "javascript", "ruby")
+LANGUAGES = ("python", "javascript", "typescript", "ruby")
 STDOUT_CAP = 65536
 SAFE_MAX = 2 ** 53 - 1  # cross-language integer safety bound (spec review focus)
 
@@ -93,7 +93,10 @@ rescue Exception => __dr_e
 end
 """
 
-DRIVERS = {"python": _PY_DRIVER, "javascript": _JS_DRIVER, "ruby": _RB_DRIVER}
+DRIVERS = {"python": _PY_DRIVER, "javascript": _JS_DRIVER,
+    # TypeScript runs on the JS runtime via node strip-types; the driver
+    # itself is plain JS, so no type syntax ever reaches the stripper.
+    "typescript": _JS_DRIVER, "ruby": _RB_DRIVER}
 # Resolve interpreters once, with the startup PATH: ad-hoc toolchains
 # (fnm/rbenv shims) live outside /usr/bin. Spawn env carries PATH only —
 # no secrets — so shims keep working and no system-ruby fallback sneaks in.
@@ -109,8 +112,9 @@ def _interp(name, argv0):
 
 INTERPS = {"python": [sys.executable],
            "javascript": _interp("node", None),
+           "typescript": _interp("node", None),
            "ruby": _interp("ruby", None)}
-EXTS = {"python": "py", "javascript": "js", "ruby": "rb"}
+EXTS = {"python": "py", "javascript": "js", "typescript": "ts", "ruby": "rb"}
 
 
 def write_program(tmpdir, stem, language, code):
@@ -137,6 +141,57 @@ def _count_params(raw):
     if "{" in raw or "[" in raw or "*" in raw or "&" in raw:
         return None  # destructuring/splat: arity unknowable, caller reviews
     return len([part for part in raw.split(",") if part.strip()])
+
+
+def _split_top_level(raw):
+    '''Split on commas at bracket depth 0, quotes respected.'''
+    parts, depth, cur = [], 0, []
+    openers = {"(": ")", "[": "]", "{": "}", "<": ">"} 
+    closers = set(openers.values())
+    quote = None
+    i = 0
+    while i < len(raw):
+        ch = raw[i]
+        if quote:
+            cur.append(ch)
+            if ch == chr(92) and i + 1 < len(raw):
+                cur.append(raw[i + 1])
+                i += 2
+                continue
+            if ch == quote:
+                quote = None
+        elif ch in ("'", '"', "`"):
+            quote = ch
+            cur.append(ch)
+        elif ch in openers:
+            depth += 1
+            cur.append(ch)
+        elif ch in closers:
+            depth = max(0, depth - 1)
+            cur.append(ch)
+        elif ch == "," and depth == 0:
+            parts.append("".join(cur))
+            cur = []
+        else:
+            cur.append(ch)
+        i += 1
+    parts.append("".join(cur))
+    return parts
+
+
+def _count_ts_params(raw):
+    '''Arity of a TS param list, or None when it cannot be known statically.'''
+    raw = raw.strip()
+    if not raw:
+        return 0
+    if "..." in raw:
+        return None  # rest params: arity unknowable, caller reviews
+    parts = [part for part in _split_top_level(raw) if part.strip()]
+    for part in parts:
+        stripped = part.strip()
+        if stripped.startswith("{") or stripped.startswith("["):
+            return None  # destructuring: arity unknowable, caller reviews
+    return len(parts)
 
 
 def get_arity(language, code):
@@ -167,6 +222,20 @@ def get_arity(language, code):
             match = re.search(pattern, code)
             if match:
                 return _count_params(match.group(1))
+        return None
+    if language == "typescript":
+        # Same shapes as JS, plus optional generics and type annotations.
+        # Return types sit outside the capture group; in-group annotations
+        # (incl. []/generics/unions) are split depth-aware below.
+        patterns = [
+            "function[ \t]+solve(?:<[^<>]*>)?[ \t]*[(]([^)]*)[)]",
+            "(?:const|let|var)[ \t]+solve[ \t]*(?::[ \t]*[^=;]+?)?=[ \t]*(?:async[ \t]+)?[(]([^)]*)[)](?:[ \t]*:[ 	]*[^=;]+?)?[ \t]*=>",
+            "(?:const|let|var)[ \t]+solve[ \t]*(?::[ \t]*[^=;]+?)?=[ \t]*(?:async[ \t]+)?function(?:<[^<>]*>)?[ \t]*[(]([^)]*)[)]",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, code)
+            if match:
+                return _count_ts_params(match.group(1))
         return None
     if language == "ruby":
         match = re.search(r"def\s+solve(?:\s*\(([^)]*)\)|\s+([^\n;#:]*))?", code)

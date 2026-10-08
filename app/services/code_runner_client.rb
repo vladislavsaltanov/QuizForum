@@ -11,7 +11,7 @@ class CodeRunnerClient
   # Languages the coderunner can actually execute (mirrors runners.py LANGUAGES).
   # Question and attempt validation defer to this list so ungradeable
   # languages are rejected before enqueue, never stuck pending after 400.
-  SUPPORTED_LANGUAGES = %w[python javascript ruby].freeze
+  SUPPORTED_LANGUAGES = %w[python javascript typescript ruby].freeze
   OPEN_TIMEOUT = 2
   # 100 cases at ~2s each worst-case; the job is async, this only guards hangs.
   READ_TIMEOUT = 120

@@ -80,6 +80,18 @@ def pyl(body):
     return "def solve(xs):\n" + LIST + body
 
 
+TS_INT = ("  if (!Number.isInteger(x))"
+          " throw new TypeError('int only');\n")
+
+
+def ts1(body):
+    return "function solve(x: number): number {\n" + TS_INT + body + "}\n"
+
+
+def tsl(body):
+    return "const solve = (xs: number[]): number => {\n" + body + "};\n"
+
+
 SAME = [
     ("sum-loop-vs-builtin", 1,
      pyl("    total = 0\n    for v in xs:\n        total += v\n    return total\n"),
@@ -144,6 +156,18 @@ SAME = [
      py1("    return x * 2\n"),
      "   def solve(x):\n       return x * 2\n",
      "python", "python", {}),
+    ("double-ts-annotated", 16,
+     py1("    return x * 2\n"),
+     ts1("    return x * 2;\n"),
+     "python", "typescript", {"cases": 25}),
+    ("sum-ts-array-vs-py", 17,
+     pyl("    return sum(xs)\n"),
+     tsl("    return xs.reduce((a, b) => a + b, 0);\n"),
+     "python", "typescript", {"cases": 25}),
+    ("add-ts-arrow-ret-type", 18,
+     py2("    return a + b\n"),
+     "const solve = (a: number, b: number): number => a + b;\n",
+     "python", "typescript", {"cases": 25}),
 ]
 
 DIFF = [
@@ -195,6 +219,10 @@ DIFF = [
     ("sum-vs-wrong-arity", 115,
      pyl("    return sum(xs)\n"), "def solve(a, b):\n    return a\n",
      "python", {"cases": 25}),
+    ("double-ts-vs-triple", 116,
+     py1("    return x * 2\n"),
+     "function solve(x: number): number { return x * 3; }\n",
+     "python", {"cases": 25}, "typescript"),
 ]
 
 passed = 0
@@ -220,8 +248,10 @@ for name, seed, ref, att, ref_lang, att_lang, extra in SAME:
     passed += 1
     print(f"same {name}: {body['passed']}/{body['total']}", flush=True)
 
-for name, seed, ref, att, ref_lang, extra in DIFF:
-    status, body = run_pair(name, seed, ref, att, ref_lang, "python", extra)
+for row in DIFF:
+    name, seed, ref, att, ref_lang, extra = row[:6]
+    att_lang = row[6] if len(row) > 6 else "python"
+    status, body = run_pair(name, seed, ref, att, ref_lang, att_lang, extra)
     assert status == 200, f"{name}: status {status}: {body!r}"
     assert body["total"] > 0, f"{name}: no valid inputs: {body!r}"
     assert body["passed"] < body["total"], \
@@ -231,7 +261,18 @@ for name, seed, ref, att, ref_lang, extra in DIFF:
     passed += 1
     print(f"diff {name}: {body['passed']}/{body['total']}", flush=True)
 
-assert passed == 31, f"matrix incomplete: {passed}/31"
+assert passed == 35, f"matrix incomplete: {passed}/35"
+
+# TS arity: annotations/generics counted, destructuring/rest unknown.
+for _code, _want in [
+    ("function solve(a: number, b: number): number { return a + b; }", 2),
+    ("const solve = (xs: number[]): number => xs.length;", 1),
+    ("function solve<T>(x: T): T { return x; }", 1),
+    ("function solve({a, b}: Opts) { return a; }", None),
+    ("function solve(...xs: number[]) { return 1; }", None),
+]:
+    assert server.runners.get_arity("typescript", _code) == _want, _code
+print("ts-arity: annotations counted, unknowable -> None", flush=True)
 
 # --- security asserts ---
 # 1. GET /up reports real runtimes, nothing missing.
@@ -325,5 +366,15 @@ assert any("ValueError" in r for r in body["reasons"]), body["reasons"]
 assert not any("tmp" in r and "/" in r for r in body["reasons"]), body["reasons"]
 print("error-line: first stderr line reported, paths scrubbed", flush=True)
 
+# 10. TS non-erasable syntax (enum) in the reference -> needs_review, never 500.
+status, body = run_pair("ts-enum-ref", 207,
+                        "enum D { A, B }"
+                        "function solve(x: number): number { return x * 2; }",
+                        py1("    return x * 2"),
+                        "typescript", "python", {"cases": 8})
+assert status == 200, body
+assert body["needs_review"] is True, body
+print("ts-enum: non-erasable reference -> needs_review", flush=True)
+
 httpd.shutdown()
-print(f"coderunner: {passed}/31 pairs + 9 security asserts OK")
+print(f"coderunner: {passed}/35 pairs + 10 security asserts OK")
