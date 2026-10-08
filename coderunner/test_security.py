@@ -88,6 +88,14 @@ def ts1(body):
     return "function solve(x: number): number {\n" + TS_INT + body + "}\n"
 
 
+def go1(body):
+    return "func solve(x int) int {\n" + body + "}\n"
+
+
+def gol(body):
+    return "func solve(xs []int) int {\n" + body + "}\n"
+
+
 def tsl(body):
     return "const solve = (xs: number[]): number => {\n" + body + "};\n"
 
@@ -168,6 +176,18 @@ SAME = [
      py2("    return a + b\n"),
      "const solve = (a: number, b: number): number => a + b;\n",
      "python", "typescript", {"cases": 25}),
+    ("double-go-plus-vs-mul", 19,
+     go1("    return x + x\n"),
+     go1("    return x * 2\n"),
+     "go", "go", {"cases": 25}),
+    ("sum-go-range-vs-index", 20,
+     gol("    total := 0\n    for _, v := range xs {\n        total += v\n    }\n    return total\n"),
+     gol("    total := 0\n    for i := 0; i < len(xs); i++ {\n        total += xs[i]\n    }\n    return total\n"),
+     "go", "go", {"cases": 25}),
+    ("abs-go-packaged-paste", 21,
+     go1("    if x < 0 {\n        return -x\n    }\n    return x\n"),
+     "package main\n\nfunc solve(x int) int {\n    if x < 0 {\n        return -x\n    }\n    return x\n}\n",
+     "go", "go", {"cases": 25}),
 ]
 
 DIFF = [
@@ -223,6 +243,10 @@ DIFF = [
      py1("    return x * 2\n"),
      "function solve(x: number): number { return x * 3; }\n",
      "python", {"cases": 25}, "typescript"),
+    ("double-vs-triple-go", 117,
+     go1("    return x * 2\n"),
+     go1("    return x * 3\n"),
+     "go", {"cases": 25}, "go"),
 ]
 
 passed = 0
@@ -261,7 +285,7 @@ for row in DIFF:
     passed += 1
     print(f"diff {name}: {body['passed']}/{body['total']}", flush=True)
 
-assert passed == 35, f"matrix incomplete: {passed}/35"
+assert passed == 39, f"matrix incomplete: {passed}/39"
 
 # TS arity: annotations/generics counted, destructuring/rest unknown.
 for _code, _want in [
@@ -273,12 +297,20 @@ for _code, _want in [
 ]:
     assert server.runners.get_arity("typescript", _code) == _want, _code
 print("ts-arity: annotations counted, unknowable -> None", flush=True)
+for _code, _want in [
+    ("func solve(a int, b int) int { return a + b; }", 2),
+    ("func solve(xs []int) int { return 1; }", 1),
+    ("func (s S) solve(x int) int { return x; }", None),
+    ("func solve(xs ...int) int { return 1; }", None),
+]:
+    assert server.runners.get_arity("go", _code) == _want, _code
+print("go-arity: params counted, methods/variadics -> None", flush=True)
 
 # --- security asserts ---
 # 1. GET /up reports real runtimes, nothing missing.
 status, up = get("/up")
 assert status == 200, up
-for rt in ("python", "node", "ruby"):
+for rt in ("python", "node", "ruby", "go"):
     assert up["runtimes"].get(rt) not in (None, "", "missing"), up
 assert isinstance(up.get("runners_mtime"), int) and up["runners_mtime"] > 0, up
 
@@ -306,11 +338,11 @@ print("no-leak: reasons/samples carry no reference text", flush=True)
 # 3. Unknown language is refused pre-execution (fast 400, nothing spawned).
 started = time.monotonic()
 status, body = post("/v1/run_check", {
-    "key": "go-probe", "language": "go", "reference": "x", "attempt": "y",
+    "key": "rust-probe", "language": "rust", "reference": "x", "attempt": "y",
     "seed": 1})
 elapsed = time.monotonic() - started
 assert status == 400, f"unknown language must be 400, got {status}: {body!r}"
-assert "go" in body.get("error", ""), body
+assert "rust" in body.get("error", ""), body
 assert elapsed < 10, f"refusal must be instant (no execution): {elapsed:.1f}s"
 print(f"unknown-language refused in {elapsed:.2f}s", flush=True)
 
@@ -376,5 +408,25 @@ assert status == 200, body
 assert body["needs_review"] is True, body
 print("ts-enum: non-erasable reference -> needs_review", flush=True)
 
+# 11. Go attempt against a non-Go reference -> needs_review, never a verdict.
+status, body = run_pair("go-cross-review", 208,
+                        py1("    return x * 2"),
+                        go1("    return x * 2"),
+                        "python", "go", {"cases": 8})
+assert status == 200, body
+assert body["needs_review"] is True, body
+assert body["total"] > 0, body
+print("go-cross: compiled attempt without same-language reference -> needs_review", flush=True)
+
+# 12. Uncompilable Go attempt with a usable harness -> incorrect, not review.
+status, body = run_pair("go-bad-attempt", 209,
+                        go1("    return x * 2"),
+                        "func solve(x int) int { return nope; }",
+                        "go", "go", {"cases": 8})
+assert status == 200, body
+assert body["passed"] == 0, body
+assert body["needs_review"] is False, body
+print("go-bad-attempt: broken code -> incorrect", flush=True)
+
 httpd.shutdown()
-print(f"coderunner: {passed}/35 pairs + 10 security asserts OK")
+print(f"coderunner: {passed}/39 pairs + 12 security asserts OK")

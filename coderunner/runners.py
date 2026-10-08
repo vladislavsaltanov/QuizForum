@@ -16,7 +16,7 @@ import subprocess
 import sys
 import textwrap
 
-LANGUAGES = ("python", "javascript", "typescript", "ruby")
+LANGUAGES = ("python", "javascript", "typescript", "ruby", "go")
 STDOUT_CAP = 65536
 SAFE_MAX = 2 ** 53 - 1  # cross-language integer safety bound (spec review focus)
 
@@ -36,6 +36,7 @@ def _version(cmd):
 RUNTIMES = {
     "python": _version([sys.executable, "--version"]),
     "node": _version(["node", "--version"]),
+    "go": _version(["go", "--version"]),
     "ruby": _version(["ruby", "--version"]),
 }
 
@@ -113,8 +114,26 @@ def _interp(name, argv0):
 INTERPS = {"python": [sys.executable],
            "javascript": _interp("node", None),
            "typescript": _interp("node", None),
-           "ruby": _interp("ruby", None)}
+           "ruby": _interp("ruby", None),
+           "go": _interp("go", None)}
 EXTS = {"python": "py", "javascript": "js", "typescript": "ts", "ruby": "rb"}
+
+# Languages needing ahead-of-time compilation (binary runs directly).
+COMPILED = ("go",)
+GO_BUILD_TIMEOUT = 60
+GO_TYPES = {"int", "int64", "float64", "string", "bool",
+            "[]int", "[]string", "[]float64", "[]bool"}
+
+
+class BuildError(RuntimeError):
+    """Source or harness unusable (reference) or uncompilable (attempt)."""
+
+
+class HarnessError(BuildError):
+    """No usable harness at all (e.g. cross-language compiled attempt)."""
+    # Unlike a compile failure (broken code -> incorrect), this means the
+    # check could not run: the caller must report needs_review, not a verdict.
+
 
 
 def write_program(tmpdir, stem, language, code):
@@ -132,6 +151,113 @@ def write_program(tmpdir, stem, language, code):
         # Callers treat this as runner failure: 500, job retries, stays pending.
         raise RuntimeError(f"cannot write program file: {exc}") from exc
     return path
+
+
+def _strip_go_package(code):
+    """Drop a leading `package x` line; pasted full programs stay buildable."""
+    out = []
+    for line in code.splitlines(keepends=True):
+        if len(line.split()) == 2 and line.split()[0] == "package":
+            continue
+        out.append(line)
+    return "".join(out)
+
+
+def go_signature(code):
+    """Param types of `func solve`, or None when unusable or unsupported."""
+    match = re.search("func +solve *[(]([^)]*)[)]([^{]*)", code)
+    if not match:
+        return None
+    raw_params = match.group(1)
+    raw_ret = match.group(2).split(chr(10))[0].strip()
+    if "..." in raw_params:
+        return None  # variadic: uncountable, caller reviews
+    types = []
+    for part in _split_top_level(raw_params):
+        part = part.strip()
+        if not part:
+            continue
+        if part.startswith("{") or part.startswith("["):
+            return None
+        tok = part.split()[-1]
+        if tok not in GO_TYPES:
+            return None
+        types.append(tok)
+    if raw_ret.startswith("("):
+        if not raw_ret.endswith(")"):
+            return None
+        inner = raw_ret[1:-1].strip()
+        if "," in inner:
+            return None  # multiple results: unsupported
+        ret = inner.split()[-1] if inner.split() else ""
+    else:
+        ret = raw_ret.split()[-1] if raw_ret.split() else ""
+    if ret not in GO_TYPES:
+        return None
+    return types
+
+
+def go_harness(param_types):
+    """main() calling solve with JSON-decoded typed args, OUT: line out."""
+    lines = ["package main",
+             'import (__dr_json "encoding/json"; __dr_fmt "fmt"; __dr_os "os")',
+             "func main() {",
+             "var raw []__dr_json.RawMessage",
+             "if err := __dr_json.Unmarshal([]byte(__dr_os.Args[1]), &raw); err != nil { __dr_os.Exit(2) }"]
+    lines.append("if len(raw) != " + str(len(param_types)) + " { __dr_os.Exit(2) }")
+    args = []
+    for i, typ in enumerate(param_types):
+        lines.append("var p" + str(i) + " " + typ)
+        lines.append("if err := __dr_json.Unmarshal(raw[" + str(i) + "], &p" + str(i) + "); err != nil { __dr_os.Exit(1) }")
+        args.append("p" + str(i))
+    lines.append("out := solve(" + ", ".join(args) + ")")
+    lines.append("j, err := __dr_json.Marshal(out)")
+    lines.append("if err != nil { __dr_os.Exit(1) }")
+    lines.append('__dr_fmt.Println("OUT:" + string(j))')
+    lines.append("}")
+    return chr(10).join(lines) + chr(10)
+
+
+def harness_for(language, ref_lang, ref_code):
+    """Harness source for one side, or '' when the side is interpreted."""
+    if language not in COMPILED:
+        return ""
+    if ref_lang != language:
+        raise HarnessError(language + " attempts need a " + language + " reference")
+    types = go_signature(ref_code)
+    if types is None:
+        raise BuildError("reference solve() has no usable " + language + " signature")
+    return go_harness(types)
+
+
+def prepare_program(tmpdir, stem, language, code, harness=""):
+    """Write source (+harness) and compile when needed; return runnable path."""
+    if language not in COMPILED:
+        return write_program(tmpdir, stem, language, code)
+    gobin = (INTERPS.get("go") or [None])[0]
+    if gobin is None:
+        raise BuildError("go toolchain missing")
+    src = os.path.join(tmpdir, stem + ".go")
+    exe = os.path.join(tmpdir, stem)
+    try:
+        with open(src, "w", encoding="utf-8") as handle:
+            handle.write(harness)
+            handle.write(chr(10))
+            handle.write(_strip_go_package(code))
+    except OSError as exc:
+        raise BuildError("cannot write program file: " + str(exc)) from exc
+    env = {"PATH": SPAWN_ENV["PATH"], "HOME": os.path.expanduser("~")}
+    try:
+        proc = subprocess.run([gobin, "build", "-o", exe, src],
+                              cwd=tmpdir, env=env, capture_output=True,
+                              timeout=GO_BUILD_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        raise BuildError("build timed out")
+    except Exception as exc:
+        raise BuildError("build failed: " + str(exc))
+    if proc.returncode != 0:
+        raise BuildError(_err_line(proc.stderr, tmpdir) or "compile failed")
+    return exe
 
 
 def _count_params(raw):
@@ -237,6 +363,16 @@ def get_arity(language, code):
             if match:
                 return _count_ts_params(match.group(1))
         return None
+    if language == "go":
+        match = re.search("func +solve *[(]([^)]*)[)]", code)
+        if not match:
+            return None
+        raw = match.group(1)
+        if raw.count("(") != raw.count(")"):
+            return None  # func-typed params: uncountable, caller reviews
+        if "..." in raw:
+            return None  # variadic: uncountable, caller reviews
+        return len([part for part in _split_top_level(raw) if part.strip()])
     if language == "ruby":
         match = re.search(r"def\s+solve(?:\s*\(([^)]*)\)|\s+([^\n;#:]*))?", code)
         if not match:
@@ -300,7 +436,13 @@ def gen_inputs(seed, count, arity):
         intpairs = []
         for value in EDGE_INTS[:8]:
             intpairs += [[value, value], [0, value], [value, 0]]
-        mixed2 = [[[1, 2, 3], 2], [[], 0], [[5], -1], [[0], [1]], [["a"], ["b"]]]
+        mixed2 = [[[1, 2, 3], 2], [[], 0], [[5], -1], [[0], [1]], [["a"], ["b"]],
+                  [[0], 0], [[1], 1], [[-1], -1], [[1, 2, 3], 6], [[5, 5], 10],
+                  [[100], -100], [[-5, 0, 5], 0], [[1000], 1000], [[-1000], -1000],
+                  [[2, 2], 4], [[0, 0], 0], [[7], 7], [[1, 2], 3], [[-1, 1], 0],
+                  [[2147483647], 0], [[-2147483648], 0]]
+        # (list, int) shapes must clear the valid-input threshold on their own:
+        # 20 banked + random tail vs threshold 20 at N=100 (mixed-signature tasks).
         for i in range(max(len(intpairs), len(mixed2))):
             for group in (intpairs, mixed2):
                 if i < len(group):
@@ -370,10 +512,14 @@ def run_one(language, prog, args, timeout, cwd):
     the caller only reports counts, failing inputs and that line, so reference
     text and expected outputs cannot leak into reasons (spec section 4).
     """
-    cmd = INTERPS[language]
-    if cmd is None:  # runtime missing: every case fails, caller reviews
-        return ("crash", None, "runtime missing")
-    cmd = cmd + [prog, json.dumps(args)]
+    if language in COMPILED:
+        cmd = [prog]
+    else:
+        cmd = INTERPS.get(language)
+        if cmd is None:  # runtime missing: every case fails, caller reviews
+            return ("crash", None, "runtime missing")
+        cmd = cmd + [prog]
+    cmd = cmd + [json.dumps(args)]
     try:
         proc = subprocess.run(cmd, stdin=subprocess.DEVNULL,
                               capture_output=True,

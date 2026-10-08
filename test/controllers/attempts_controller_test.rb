@@ -240,8 +240,22 @@ class AttemptsControllerTest < ActionDispatch::IntegrationTest
     assert_no_enqueued_jobs only: AttemptCodeCheckJob do
       assert_no_difference("Attempt.count") do
         post question_attempts_path(q),
-          params: { attempt: { body: "package main", language: "go" } }
+          params: { attempt: { body: "fn main() {}", language: "rust" } }
       end
+    end
+
+    assert_redirected_to question_path(q)
+  end
+
+  test "code create with go enqueues code check job" do
+    q = @author.authored_questions.create!(title: "Код", body: "Тело",
+      answer_type: "code", deadline: 7.days.from_now,
+      reference_answer: "func solve(x int) int {\n    return x * 2\n}\n",
+      code_languages: [ "go" ], reference_language: "go")
+    sign_in_as(@respondent)
+    assert_enqueued_with(job: AttemptCodeCheckJob) do
+      post question_attempts_path(q),
+        params: { attempt: { body: "func solve(x int) int {\n    return x + x\n}\n", language: "go" } }
     end
 
     assert_redirected_to question_path(q)
