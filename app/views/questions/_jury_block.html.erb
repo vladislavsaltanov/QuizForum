@@ -17,7 +17,7 @@
           <h3 class="qf-section-title">Подтвердите оценку</h3>
           <% unless @question.choice? %>
             <p><b>Правильный ответ:</b></p>
-            <div class="qf-body"><%= simple_format(@question.reference_answer) %></div>
+            <div class="qf-body"><%= literal_or_prose(@question.code?, @question.reference_answer) %></div>
           <% end %>
           <p><b>Ответ <%= attempt.user.name %>:</b></p>
           <%= render "attempt_body", attempt: attempt %>

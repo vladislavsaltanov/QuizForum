@@ -36,13 +36,32 @@ if [ "${LAYA_SIDECAR_URL:-}" = "" ]; then
 fi
 
 CODERUNNER_PORT="${CODERUNNER_PORT:-8001}"
+CODERUNNER_PYBIN="$(command -v python3.12 || command -v python3)"
 if [ "${CODERUNNER_URL:-}" = "" ] && curl -sf -o /dev/null "http://localhost:${CODERUNNER_PORT}/up" 2>/dev/null; then
   # A live runner (e.g. from a previous boot) is reused as-is.
   export CODERUNNER_URL="http://localhost:${CODERUNNER_PORT}"
   echo "reusing coderunner at $CODERUNNER_URL" >&2
 fi
+if [ "${CODERUNNER_URL:-}" != "" ] && [ -n "$CODERUNNER_PYBIN" ]; then
+  # A reused runner may predate current sources (new languages, harness
+  # fixes): restart it when its version stamp disagrees.
+  if ! "$CODERUNNER_PYBIN" - "$CODERUNNER_URL" coderunner/runners.py <<'EOF' 2>/dev/null
+import json, os, sys, urllib.request
+url, src = sys.argv[1], sys.argv[2]
+try:
+    up = json.load(urllib.request.urlopen(url + "/up", timeout=5))
+except Exception:
+    sys.exit(1)
+sys.exit(0 if up.get("runners_mtime") == int(os.path.getmtime(src)) else 1)
+EOF
+  then
+    echo "coderunner stale, restarting..." >&2
+    pkill -f "coderunner/server.py" 2>/dev/null
+    sleep 1
+    unset CODERUNNER_URL
+  fi
+fi
 if [ "${CODERUNNER_URL:-}" = "" ]; then
-  CODERUNNER_PYBIN="$(command -v python3.12 || command -v python3)"
   if [ -z "$CODERUNNER_PYBIN" ]; then
     echo "python3.12 or python3 required for coderunner" >&2
     exit 1

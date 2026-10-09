@@ -54,7 +54,7 @@
       <% if @question.open? && @is_author %>
         <% unless @question.choice? %>
           <h2 class="qf-section-title">Ответ автора</h2>
-          <div class="qf-body qf-reference"><%= simple_format(@question.reference_answer) %></div>
+          <div class="qf-body qf-reference"><%= literal_or_prose(@question.code?, @question.reference_answer) %></div>
         <% end %>
         <% if @question.explanation.present? %>
           <h2 class="qf-section-title">Объяснение</h2>

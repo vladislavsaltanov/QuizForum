@@ -38,6 +38,30 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     assert_select "textarea[name='attempt[body]']"
   end
 
+  test "code generics survive the display round-trip" do
+    sign_in_as(users(:one))
+    q = Question.create!(title: "t-generics", body: "b", answer_type: "code",
+      deadline: 7.days.from_now, author: users(:one), tags: [],
+      reference_answer: "ref List<int> note",
+      code_languages: [ "python" ], reference_language: "python")
+    q.attempts.create!(user: users(:two), body: "x = List<int> foo", language: "python")
+    get question_path(q)
+
+    assert_response :success
+    assert_operator response.body.scan(/List&lt;int&gt;/).size, :>=, 2
+    assert_no_match(/<int>/, response.body)
+  end
+
+  test "c# code form hints the Solve entrypoint" do
+    q = Question.create!(title: "t-cs", body: "b", answer_type: "code",
+      deadline: 7.days.from_now, author: users(:one), tags: [],
+      reference_answer: "r", code_languages: [ "c#" ], reference_language: "c#")
+    get question_path(q)
+
+    assert_response :success
+    assert_match(/<code>Solve<\/code>/, response.body)
+  end
+
   test "text attempt is immutable and pending" do
     q = questions(:open_text)
     post question_attempts_path(q), params: { attempt: { body: "my answer" } }

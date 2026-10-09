@@ -10,5 +10,5 @@
   <% if attempt.language.present? %>
     <p class="qf-lang"><%= attempt.language %></p>
   <% end %>
-  <div class="qf-body<%= ' qf-code' if attempt.language.present? %>"><%= simple_format(attempt.body) %></div>
+  <div class="qf-body<%= ' qf-code' if attempt.language.present? %>"><%= literal_or_prose(attempt.language.present?, attempt.body) %></div>
 <% end %>

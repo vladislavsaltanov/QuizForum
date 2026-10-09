@@ -62,6 +62,12 @@ module ApplicationHelper
     end
   end
 
+  # Code renders literally (simple_format strips generics like List<int>);
+  # prose keeps paragraphs.
+  def literal_or_prose(code, text)
+    code ? h(text) : simple_format(text)
+  end
+
   # Two-letter avatar initials.
   def initials(name)
     name.to_s.split.first(2).map(&:first).join.upcase
