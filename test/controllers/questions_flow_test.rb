@@ -61,6 +61,31 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match(/<code>Solve<\/code>/, response.body)
   end
+  test "code form shows the mini guide with relevant languages only" do
+    q = Question.create!(title: "t-guide", body: "b", answer_type: "code",
+      deadline: 7.days.from_now, author: users(:one), tags: [],
+      reference_answer: "r", code_languages: [ "c#" ], reference_language: "c#")
+    get question_path(q)
+
+    assert_response :success
+    assert_select "details.qf-code-guide"
+    assert_match(/класс.*можно не писать/, response.body)
+    assert_match(/int\[\]/, response.body)
+    assert_no_match(/func solve/, response.body)
+  end
+
+  test "code guide notes dynamic types for python" do
+    q = Question.create!(title: "t-guide-py", body: "b", answer_type: "code",
+      deadline: 7.days.from_now, author: users(:one), tags: [],
+      reference_answer: "def solve(a):\n  return a",
+      code_languages: [ "python" ], reference_language: "python")
+    get question_path(q)
+
+    assert_response :success
+    assert_select "details.qf-code-guide"
+    assert_match(/динамический/, response.body)
+    assert_no_match(/можно не писать/, response.body)
+  end
 
   test "text attempt is immutable and pending" do
     q = questions(:open_text)

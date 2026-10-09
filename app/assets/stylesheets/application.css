@@ -447,6 +447,12 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 
 .qf-reference { border-style: dashed; }
 .qf-code { font-family: var(--qf-mono); font-size: 13px; white-space: pre-wrap; }
+.qf-code-guide { margin: 8px 0 12px; }
+.qf-code-guide > summary { display: inline-block; list-style: none; cursor: pointer; }
+.qf-code-guide > summary::-webkit-details-marker { display: none; }
+.qf-code-guide > summary::marker { content: ""; }
+.qf-code-guide-body { display: grid; gap: 6px; margin-top: 8px; font-size: 14px; }
+.qf-code-guide-body p { margin: 0; }
 
 /* Compact attempt bodies only: question/reference/explanation keep editorial 17px. */
 .qf-attempt .qf-body { font-size: 15px; padding: 12px 14px; line-height: 1.5; }
