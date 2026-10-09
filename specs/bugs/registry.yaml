@@ -1,0 +1,7 @@
+- bug_id: BUG-2026-10-09T1215
+  date: 2026-10-09
+  severity: medium
+  priority: high
+  scope: code-check
+  summary: C# stuck pending, List<int> stripped
+  file: specs/bugs/BUG-2026-10-09-csharp-pending-generics-stripped.md
