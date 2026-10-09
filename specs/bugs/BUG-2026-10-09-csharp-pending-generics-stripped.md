@@ -69,4 +69,12 @@ separate from code, do via console/edit form after deploy.
 
 ## Resolution
 
-<!-- filled in by validate-fix -->
+Fixed in `fix-csharp-pending-generics` (77f5b75), validated live 2026-10-09.
+- `literal_or_prose` helper: code renders escaped-literal, prose keeps
+  `simple_format`. Applied to attempt bodies + reference blocks.
+- `bin/dev` restarts a reused coderunner when `/up.runners_mtime` disagrees
+  with sources (the stale-Oct-8 process was the C# stall).
+- C# form hint shows `Solve` for c#-only questions.
+- Data: q78 reference fixed to `Solution.Solve(int[])`; live E2E graded
+  `correct` 34/34. Attempts 39/40 predate the fix (lowercase `solve`,
+  `List<int>` unsupported) — left pending for hand grading; resubmit works.
