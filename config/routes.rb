@@ -11,6 +11,7 @@ Rails.application.routes.draw do
     get :sent, on: :collection
   end
   resources :questions, only: %i[show new create edit update destroy] do
+    post :recheck, on: :member
     resources :attempts, only: %i[ create ] do
       patch :verdict, on: :member
     end

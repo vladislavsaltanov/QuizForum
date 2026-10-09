@@ -455,4 +455,50 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
     assert_match(/\[1\]/, response.body)
     assert_no_match(/def solve/, response.body)
   end
+  test "stranger and respondent cannot recheck code checks" do
+    q = questions(:open_code)
+    sign_out
+    assert_no_enqueued_jobs only: AttemptCodeCheckJob do
+      post recheck_question_path(q)
+    end
+    assert_redirected_to new_session_path
+
+    sign_in_as(users(:one))
+    assert_no_enqueued_jobs only: AttemptCodeCheckJob do
+      post recheck_question_path(q)
+    end
+    assert_response :forbidden
+  end
+
+  test "author rechecks pending code attempts only" do
+    q = questions(:open_code)
+    sign_in_as(users(:two))
+    q.attempts.create!(user: users(:one), body: "x = 1", language: "python")
+    decided = User.create!(name: "ExDecided", email: "exdecided@example.com", password: "password12345")
+    q.attempts.create!(user: decided, body: "y = 2", language: "python", verdict: "incorrect")
+
+    assert_enqueued_jobs 1, only: AttemptCodeCheckJob do
+      post recheck_question_path(q)
+    end
+    assert_redirected_to question_path(q)
+
+    get question_path(q)
+    assert_match(/Перепроверить код/, response.body)
+  end
+
+  test "recheck on non-code question redirects without jobs" do
+    sign_in_as(users(:one))
+    assert_no_enqueued_jobs only: AttemptCodeCheckJob do
+      post recheck_question_path(questions(:open_text))
+    end
+    assert_redirected_to question_path(questions(:open_text))
+  end
+
+  test "respondent never sees the recheck button" do
+    sign_in_as(users(:one))
+    get question_path(questions(:open_code))
+
+    assert_response :success
+    assert_no_match(/Перепроверить код/, response.body)
+  end
 end

@@ -13,6 +13,9 @@
     <div class="qf-actions">
       <%= link_to "Редактировать", edit_question_path(@question), class: "qf-ghost" %>
       <%= button_to "Удалить", question_path(@question), method: :delete, class: "qf-ghost", form: { data: { turbo_confirm: "Удалить вопрос со всеми ответами?" } } %>
+      <% if @question.code? %>
+        <%= button_to "Перепроверить код", recheck_question_path(@question), method: :post, class: "qf-ghost", form: { data: { turbo_confirm: "Перезапустить проверку ожидающих ответов?" } } %>
+      <% end %>
     </div>
   <% end %>
   <p class="qf-kicker">

@@ -4,7 +4,7 @@ class QuestionsController < ApplicationController
   # Dry-run smoke budget for code questions (spec section 3); full grading uses 120s.
   CODE_DRY_RUN_TIMEOUT = 10
 
-  rate_limit to: 10, within: 3.minutes, only: %i[create update],
+  rate_limit to: 10, within: 3.minutes, only: %i[create update recheck],
              with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
 
   # Assembles one question page; what respondents see depends on the deadline.
@@ -76,6 +76,19 @@ class QuestionsController < ApplicationController
     return head(:forbidden) unless editable?(@question)
     @question.destroy!
     redirect_to root_path, notice: "Вопрос удалён."
+  end
+
+  # Re-enqueues pending code checks; author/admin only, code questions only.
+  def recheck
+    @question = Question.find(params[:id])
+    return head(:forbidden) unless editable?(@question)
+    return redirect_to @question, alert: "Только для вопросов с кодом." unless @question.code?
+    count = 0
+    @question.attempts.where(verdict: "pending").find_each do |attempt|
+      AttemptCodeCheckJob.perform_later(attempt.id)
+      count += 1
+    end
+    redirect_to @question, notice: "Проверки перезапущены: #{count}."
   end
 
   private
