@@ -63,6 +63,7 @@
     <%= f.text_area :example_input, rows: 3, class: "qf-input qf-code", placeholder: "[1, 2, 3]" %>
     <%= f.label :example_output, "Выход", class: "qf-label" %>
     <%= f.text_area :example_output, rows: 3, class: "qf-input qf-code", placeholder: "6" %>
+    <%= render "code_guide", allowed_languages: Question::CODE_LANGUAGES %>
   </fieldset>
 
   <%= f.label :explanation, "Объяснение ответа (необязательно, откроется после дедлайна)", class: "qf-label" %>

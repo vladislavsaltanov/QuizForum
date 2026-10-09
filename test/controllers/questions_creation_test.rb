@@ -280,4 +280,13 @@ class QuestionsCreationTest < ActionDispatch::IntegrationTest
     end
     assert_select "select[name='question[reference_language]']", 1
   end
+  test "new code question form shows the full code guide" do
+    get new_question_path
+
+    assert_response :success
+    assert_select "details.qf-code-guide"
+    assert_match(/класс.*можно не писать/, response.body)
+    assert_match(/func solve/, response.body)
+    assert_match(/динамический/, response.body)
+  end
 end

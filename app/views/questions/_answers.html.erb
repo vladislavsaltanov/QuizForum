@@ -44,27 +44,7 @@
         <%= select_tag "attempt[language]", options_for_select(allowed_languages), class: "qf-input", "aria-label": "Язык" %>
         <%= text_area_tag "attempt[body]", nil, rows: 12, placeholder: "Ваш код…", class: "qf-input qf-code qf-answer-area", "aria-label": "Код" %>
         <p class="qf-hint">Метод должен называться <code><%= allowed_languages == ["c#"] ? "Solve" : "solve" %></code><%= " (class Solution можно не писать)" if allowed_languages == ["c#"] %>, число аргументов — как в примере выше.</p>
-        <details class="qf-code-guide">
-          <summary class="qf-ghost">Как писать код</summary>
-          <div class="qf-code-guide-body">
-            <p>Ввод читать не надо: верните значение из метода, <code>print</code> игнорируется.</p>
-            <% if (allowed_languages & %w[java]).any? %>
-              <p>Java: метод <code>static</code> в <code>class Solution</code>. Типы: <code>int long double String boolean</code> и массивы (<code>int[]</code>).</p>
-            <% end %>
-            <% if (allowed_languages & %w[c#]).any? %>
-              <p>C#: класс <code>Solution</code> можно не писать. Типы: <code>int long double string bool</code> и массивы (<code>int[]</code>), не <code>List&lt;&gt;</code>.</p>
-            <% end %>
-            <% if (allowed_languages & %w[c++]).any? %>
-              <p>C++: свободная функция <code>solve</code>. Типы: <code>int long double string bool</code> и <code>vector&lt;&gt;</code>.</p>
-            <% end %>
-            <% if (allowed_languages & %w[go]).any? %>
-              <p>Go: <code>func solve</code>. Типы: <code>int int64 float64 string bool</code> и срезы (<code>[]int</code>).</p>
-            <% end %>
-            <% if (allowed_languages & %w[python javascript typescript ruby]).any? %>
-              <p>Типы любые — язык динамический.</p>
-            <% end %>
-          </div>
-        </details>
+        <%= render "code_guide", allowed_languages: allowed_languages %>
 
       <% when "single_choice" %>
         <% @question.options.each_with_index do |opt, i| %>

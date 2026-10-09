@@ -1,0 +1,21 @@
+<details class="qf-code-guide">
+  <summary class="qf-ghost">Как писать код</summary>
+  <div class="qf-code-guide-body">
+    <p>Ввод читать не надо: верните значение из метода, <code>print</code> игнорируется.</p>
+    <% if (allowed_languages & %w[java]).any? %>
+      <p>Java: метод <code>static</code> в <code>class Solution</code>. Типы: <code>int long double String boolean</code> и массивы (<code>int[]</code>).</p>
+    <% end %>
+    <% if (allowed_languages & %w[c#]).any? %>
+      <p>C#: класс <code>Solution</code> можно не писать. Типы: <code>int long double string bool</code> и массивы (<code>int[]</code>), не <code>List&lt;&gt;</code>.</p>
+    <% end %>
+    <% if (allowed_languages & %w[c++]).any? %>
+      <p>C++: свободная функция <code>solve</code>. Типы: <code>int long double string bool</code> и <code>vector&lt;&gt;</code>.</p>
+    <% end %>
+    <% if (allowed_languages & %w[go]).any? %>
+      <p>Go: <code>func solve</code>. Типы: <code>int int64 float64 string bool</code> и срезы (<code>[]int</code>).</p>
+    <% end %>
+    <% if (allowed_languages & %w[python javascript typescript ruby]).any? %>
+      <p>Типы любые — язык динамический.</p>
+    <% end %>
+  </div>
+</details>
