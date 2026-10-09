@@ -711,9 +711,9 @@ _CS_MODIFIERS = ("ref", "out", "in", "params", "this")
 
 
 def cs_signature(ref_code):
-    """Canonical param types of `Solve`, or None when unusable."""
+    """Canonical param types of `Solve`/`solve`, or None when unusable."""
     clean = _strip_c_comments(ref_code)
-    match = re.search(r"(?<![\w:.])Solve\s*\(", clean)
+    match = re.search(r"(?<![\w:.])[Ss]olve\s*\(", clean)
     if not match:
         return None
     raw = _balanced_params(clean, match.end() - 1)[0]
@@ -843,8 +843,19 @@ def _prepare_cs(tmpdir, stem, harness, code):
     try:
         if not code.endswith(chr(10)):
             code = code + chr(10)
+        # Bare method style needs no class: wrap it in Solution, defaulting
+        # the method to public so the harness can call it. shortcut: stray
+        # top-level statements still fail compile.
+        code = re.sub(r"(?<![\w:.])solve\s*\(", "Solve(", code)
+        if not re.search(r"\bclass\s+Solution\b", code):
+            code = re.sub(r"(?m)^(?=[ \t]*(?!public\b|private\b|internal\b|protected\b)(?:static\s+)?(?:[\w<>,\.\[\]\?]+\s+)+?Solve\s*\()", "public ", code, count=1)
+            code = "public class Solution {\n" + code + "\n}\n"
+        # Static or instance call to match this side's declaration.
+        call = "Solution.Solve("
+        if not re.search(r"\bstatic\b[^{};=]*\bSolve\s*\(", _strip_c_comments(code)):
+            call = "new Solution().Solve("
         with open(src, "w", encoding="utf-8") as handle:
-            handle.write(harness.replace("//__USER_CODE__", code, 1))
+            handle.write(harness.replace("//__USER_CODE__", code, 1).replace("Solution.Solve(", call, 1))
         with open(os.path.join(tmpdir, stem + ".runtimeconfig.json"), "w", encoding="utf-8") as handle:
             handle.write("{\"runtimeOptions\":{\"tfm\":\"" + tfm + "\",\"framework\":{\"name\":\"Microsoft.NETCore.App\",\"version\":\"" + fx + "\"},\"rollForward\":\"LatestMinor\"}}")
         with open(rsp, "w", encoding="utf-8") as handle:
@@ -1131,10 +1142,10 @@ def get_arity(language, code):
             return None  # variadic: uncountable, caller reviews
         return len([part for part in _split_top_level(raw) if part.strip()])
     if language == "c#":
-        # `Solve` method (qualified calls excluded); defaults don't change
+        # `Solve`/`solve` method (qualified calls excluded); defaults don't change
         # arity, generic methods have none (angle bracket breaks the match).
         clean = _strip_c_comments(code)
-        match = re.search(r"(?<![\w:.])Solve\s*\(", clean)
+        match = re.search(r"(?<![\w:.])[Ss]olve\s*\(", clean)
         if not match:
             return None
         raw = _balanced_params(clean, match.end() - 1)[0]
