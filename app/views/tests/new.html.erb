@@ -26,10 +26,24 @@
     <%= f.label :max_points, "Максимум баллов (пусто = сумма баллов вопросов)", class: "qf-label" %>
     <%= f.number_field :max_points, min: 1, class: "qf-input", placeholder: "например, 10" %>
 
-    <p class="qf-hint">После создания сразу откроется экран нового вопроса для этого теста.</p>
+    <h2 class="qf-section-title">Вопросы теста</h2>
+    <p class="qf-hint">Настройте все вопросы здесь — тест публикуется вместе с ними, одним нажатием. Пустые отбрасываются. Правильный ответ нужен для текста и кода; варианты — по одному на строку, верный пометьте * в начале. После публикации вопросы правятся по одному со страницы управления тестом.</p>
+    <% @question_rows.each_with_index do |row, i| %>
+      <fieldset class="qf-card">
+        <legend class="qf-label">Вопрос <%= i + 1 %></legend>
+        <%= text_field_tag "questions_title[]", row["title"], class: "qf-input", placeholder: "Заголовок вопроса…", "aria-label": "Заголовок вопроса #{i + 1}" %>
+        <%= text_area_tag "questions_body[]", row["body"], rows: 2, class: "qf-input", placeholder: "Текст вопроса…", "aria-label": "Текст вопроса #{i + 1}" %>
+        <div class="qf-opt-row">
+          <%= select_tag "questions_answer_type[]", options_for_select([ [ "Свободный текст", "text" ], [ "Код", "code" ], [ "Один вариант", "single_choice" ], [ "Несколько вариантов", "multiple_choice" ] ], row["answer_type"] || "text"), class: "qf-input", "aria-label": "Тип вопроса #{i + 1}" %>
+          <%= number_field_tag "questions_points[]", row["points"] || 1, min: 0, max: 100, class: "qf-input", "aria-label": "Баллы за вопрос #{i + 1}" %>
+        </div>
+        <%= text_area_tag "questions_reference[]", row["reference"], rows: 2, class: "qf-input", placeholder: "Правильный ответ (текст/код)…", "aria-label": "Правильный ответ #{i + 1}" %>
+        <%= text_area_tag "questions_options[]", row["options"], rows: 3, class: "qf-input", placeholder: "Варианты (только для типов с выбором)…", "aria-label": "Варианты вопроса #{i + 1}" %>
+      </fieldset>
+    <% end %>
 
     <div class="qf-actions">
-      <button type="submit" class="qf-apply" data-turbo-submits-with="Отправка…">Создать тест и добавить вопрос</button>
+      <button type="submit" class="qf-apply" data-turbo-submits-with="Отправка…">Опубликовать тест</button>
     </div>
   <% end %>
 

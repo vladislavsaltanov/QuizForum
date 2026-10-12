@@ -4,6 +4,11 @@
 
 <main class="qf-main qf-main-wide">
   <%= link_to "← Все тесты", tests_path, class: "qf-back" %>
+  <% if @test.editable_by?(Current.user) %>
+    <div class="qf-actions">
+      <%= link_to "Настроить тест", edit_test_path(@test), class: "qf-ghost" %>
+    </div>
+  <% end %>
   <p class="qf-kicker">
     <% if @test.open? %>
       До дедлайна · <%= time_left(@test.deadline) %>
