@@ -419,6 +419,16 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 .qf-back { font-size: 14px; color: var(--qf-mute); }
 .qf-back:hover { color: var(--qf-ink); }
 
+/* Title links in list rows (test manage page, tests index): same voice,
+   row-sized, design-system color instead of browser-default blue. */
+a.qf-qtitle {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.3;
+  color: inherit;
+  text-decoration: none;
+}
+a.qf-qtitle:hover { color: var(--qf-ink); text-decoration: underline; text-underline-offset: 3px; }
 .qf-qtitle {
   margin: 0 0 28px;
   font-family: var(--qf-mono);
