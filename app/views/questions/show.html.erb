@@ -19,7 +19,9 @@
     </div>
   <% end %>
   <p class="qf-kicker">
-    <% if @question.open? %>
+    <% if (badge = solved_badge(@question, @my_attempt&.verdict)) %>
+      <%= badge %>
+    <% elsif @question.open? %>
       До дедлайна · <%= time_left(@question.deadline) %>
     <% else %>
       Завершён <%= local_time_tag(@question.deadline) %>
@@ -39,7 +41,11 @@
           <% end %>
         </span>
         <span class="qf-card-attempts">ответили: <%= @question.attempts.size %></span>
-        <span class="qf-chip">до <%= local_time_tag(@question.deadline) %></span>
+        <% if (badge = solved_badge(@question, @my_attempt&.verdict)) %>
+          <%= badge %>
+        <% else %>
+          <span class="qf-chip">до <%= local_time_tag(@question.deadline) %></span>
+        <% end %>
       </div>
 
       <h2 class="qf-section-title">Описание</h2>

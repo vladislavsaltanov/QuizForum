@@ -369,6 +369,9 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 .qf-verdict-incorrect { --vq: #b3261e; --vq-bg: #f9ddd6; }
 .qf-verdict-pending { --vq: var(--qf-mute); --vq-bg: transparent; }
 .qf-chip[class*="qf-verdict-"] { color: var(--vq); border-color: var(--vq); background: var(--vq-bg); font-weight: 700; }
+/* Respondent mark: green-outline plaque pre-Deadline, verdict-colored dot after. */
+.qf-chip.qf-solved { color: #1e7a3c; border-color: #1e7a3c; background: #e2f2e7; font-weight: 700; }
+.qf-verdict-dot { display: inline-flex; align-items: center; justify-content: center; inline-size: 1.5rem; block-size: 1.5rem; flex-shrink: 0; border: 1.5px solid var(--vq); border-radius: 50%; background: var(--vq-bg); color: var(--vq); font-weight: 700; line-height: 1; }
 .qf-stat b[class*="qf-verdict-"] { color: var(--vq); }
 
 /* Urgency badge on a card: colour lives in vars so every urgent chip matches. */

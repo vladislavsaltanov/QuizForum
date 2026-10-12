@@ -9,6 +9,9 @@ class HomeController < ApplicationController
   def show
     @user = Current.user
     @questions = paginate(filter_questions(Question.feed.human)).includes(:author, :attempts)
+    # One query for the respondent marks: id presence drives the pre-Deadline
+    # plaque, verdict drives the post-Deadline dot. Never loads others' state.
+    @solved = Attempt.where(user: Current.user, question_id: @questions.map(&:id)).pluck(:question_id, :verdict).to_h
     @ai_pack = cookies[:hide_ai_banner] == "1" ? [] : Question.latest_ai_pack
   end
 end
