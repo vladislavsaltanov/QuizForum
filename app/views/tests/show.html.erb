@@ -161,6 +161,7 @@
   <%# the Deadline opens everything. Live stream mirrors the question page. %>
   <% if @test.published? %>
     <%= turbo_stream_from @test %>
+    <hr class="qf-divider">
     <h2 class="qf-section-title">Обсуждение · <%= @comments.size %></h2>
     <section class="qf-test-discuss" aria-label="Обсуждение">
       <div id="comments" class="qf-chat">

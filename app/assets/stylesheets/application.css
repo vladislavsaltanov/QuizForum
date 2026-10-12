@@ -652,6 +652,11 @@ a.qf-ghost { text-decoration: none; display: inline-flex; align-items: center; j
 .qf-points { inline-size: 4.5rem; text-align: center; padding-block: 4px; }
 .qf-row-drop { padding: 4px 14px; font-size: 13px; }
 
+/* Test question list: bare stacked cards need their own rhythm — the
+   question page wraps cards in .qf-cards grids, tests render them bare. */
+.qf-main-wide > section.qf-card { margin-block-end: 12px; }
+.qf-main-wide > section.qf-card .qf-section-title { margin-block: 6px 8px; }
+
 /* Test discussion: same chat bones, no borrowed pane flex — the composer
    stays right under the (bounded) chat instead of a stretched 70vh column. */
 .qf-test-discuss { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
