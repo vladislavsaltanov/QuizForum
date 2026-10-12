@@ -22,7 +22,7 @@
     <% end %>
     <% @questions.each_with_index do |question, i| %>
       <%= link_to question_path(question), class: "qf-card-link" do %>
-        <article class="qf-card">
+        <article class="qf-card<%= " is-closed" if question.closed? %>">
           <div class="qf-card-top">
             <span class="qf-card-num"><%= format("%02d", i + 1) %></span>
             <span class="qf-card-tags"><%= question.tags.map { "##{it}" }.join(" ") %></span>

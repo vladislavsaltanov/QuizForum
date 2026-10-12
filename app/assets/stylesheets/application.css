@@ -280,6 +280,11 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   border-color: var(--qf-ink);
 }
 
+/* Closed on the feed: same shape, slightly grayer outline than the warm open border. */
+.qf-card.is-closed {
+  border-color: color-mix(in srgb, var(--qf-border) 55%, #8a8a8a);
+}
+
 .qf-card-top {
   display: flex;
   align-items: baseline;
