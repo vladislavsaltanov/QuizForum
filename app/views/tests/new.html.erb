@@ -26,10 +26,10 @@
     <%= f.label :max_points, "Максимум баллов (пусто = сумма баллов вопросов)", class: "qf-label" %>
     <%= f.number_field :max_points, min: 1, class: "qf-input", placeholder: "например, 10" %>
 
-    <p class="qf-hint">Вопросы добавите следующим шагом: каждый — через обычный экран создания вопроса.</p>
+    <p class="qf-hint">После создания сразу откроется экран нового вопроса для этого теста.</p>
 
     <div class="qf-actions">
-      <button type="submit" class="qf-apply" data-turbo-submits-with="Отправка…">Создать тест</button>
+      <button type="submit" class="qf-apply" data-turbo-submits-with="Отправка…">Создать тест и добавить вопрос</button>
     </div>
   <% end %>
 

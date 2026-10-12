@@ -14,7 +14,7 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
       test: { title: "Мидтерм", body: "проверка", deadline: 1.day.from_now, max_points: "" }
     }
     test = Test.order(:created_at).last
-    assert_redirected_to edit_test_path(test)
+    assert_redirected_to new_question_path(test_id: test.id)
 
     # Manage page: empty list plus the new-question button.
     get edit_test_path(test)

@@ -16,11 +16,11 @@ class TestsController < ApplicationController
     @test = Test.new(deadline: 7.days.from_now.change(sec: 0))
   end
 
-  # Publishes the shell and hands over to question management.
+  # Publishes the shell and hands straight to the first question form.
   def create
     @test = Current.user.authored_tests.build(test_params)
     if @test.save
-      redirect_to edit_test_path(@test), notice: "Тест создан. Добавьте вопросы."
+      redirect_to new_question_path(test_id: @test.id), notice: "Тест создан. Добавьте первый вопрос."
     else
       flash.now[:alert] = @test.errors.full_messages.to_sentence.presence || "Не удалось сохранить. Повторите."
       render :new, status: :unprocessable_entity
