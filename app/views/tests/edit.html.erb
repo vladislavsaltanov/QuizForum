@@ -63,6 +63,13 @@
     <% end %>
   <% end %>
 
+  <% if @test.draft? %>
+    <div class="qf-actions">
+      <%= button_to "Удалить черновик", test_path(@test), method: :delete, class: "qf-ghost",
+            form: { data: { turbo_confirm: "Удалить черновик и все его вопросы?" } } %>
+    </div>
+  <% end %>
+
   <footer class="qf-footer">
     <span>QuizForum</span>
     <span><%= @test.draft? ? "Новый тест" : "Управление тестом" %></span>

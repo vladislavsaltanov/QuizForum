@@ -20,7 +20,7 @@ Rails.application.routes.draw do
     end
     resources :reports, only: %i[ create ]
   end
-  resources :tests, only: %i[index show new create edit update] do
+  resources :tests, only: %i[index show new edit update destroy] do
     post :authenticate, on: :member
     post :attempt, on: :member
   end

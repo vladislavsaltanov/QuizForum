@@ -1,10 +1,10 @@
 # Moodle-style tests: a combination of Questions that live only inside the test,
 # answered all at once with one submit. Open or password-protected.
-# Lifecycle: the creation screen saves a draft; questions are added one by one
-# through the regular question form bound to the test (bare title list, no
-# inline forms); "Опубликовать" at the end makes it visible to everyone.
+# Lifecycle: "Новый тест" opens a draft at once — settings, bare question
+# title list and the add button share one creation screen; "Опубликовать"
+# at the end makes it visible to everyone. Drafts die safely (no attempts).
 class TestsController < ApplicationController
-  rate_limit to: 10, within: 3.minutes, only: %i[create update authenticate attempt],
+  rate_limit to: 10, within: 3.minutes, only: %i[update authenticate attempt],
              with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
 
   # Feed of published tests plus the author's own drafts, newest first.
@@ -13,20 +13,12 @@ class TestsController < ApplicationController
       .includes(:author, :questions)
   end
 
-  # Blank settings shell; questions come next, on the creation screen.
+  # One creation screen: the draft opens immediately, so the question list
+  # and the add button live on the same page as the settings.
   def new
-    @test = Test.new(deadline: 7.days.from_now.change(sec: 0))
-  end
-
-  # Saves a draft and hands over to the creation screen (title list + add button).
-  def create
-    @test = Current.user.authored_tests.build(test_params)
-    if @test.save
-      redirect_to edit_test_path(@test), notice: "Черновик создан. Добавьте вопросы."
-    else
-      flash.now[:alert] = @test.errors.full_messages.to_sentence.presence || "Не удалось сохранить. Повторите."
-      render :new, status: :unprocessable_entity
-    end
+    @test = Current.user.authored_tests.create!(title: "Новый тест", deadline: 7.days.from_now.change(sec: 0))
+    @questions = []
+    render :edit
   end
 
   # Creation screen for drafts, manage page for published: test settings,
@@ -67,6 +59,16 @@ class TestsController < ApplicationController
       flash.now[:alert] = @test.errors.full_messages.to_sentence.presence || "Не удалось сохранить. Повторите."
       render :edit, status: :unprocessable_entity
     end
+  end
+
+  # Drafts carry no attempts (answering needs publish), so dropping one is safe.
+  # Published tests are never deleted here: attempts would go with them.
+  def destroy
+    @test = Test.find(params[:id])
+    return head(:forbidden) unless @test.editable_by?(Current.user)
+    return redirect_to tests_path, alert: "Опубликованный тест удалить нельзя." unless @test.draft?
+    @test.destroy!
+    redirect_to tests_path, notice: "Черновик удалён."
   end
 
   # All questions on one page, one submit for the whole test; scoreboard after deadline.

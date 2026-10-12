@@ -10,19 +10,22 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
 
   test "draft flow: settings, question list, publish at the end" do
     sign_in_as(@author)
-    post tests_path, params: {
-      test: { title: "Мидтерм", body: "проверка", deadline: 1.day.from_now, max_points: "" }
-    }
-    test = Test.order(:created_at).last
-    assert_redirected_to edit_test_path(test)
-    assert_predicate test.reload, :draft?
-
-    # Creation screen: bare title list (empty), add button, no inline forms.
-    get edit_test_path(test)
+    # "Новый тест" opens the creation screen at once: settings, empty
+    # title list, add button — no separate settings step.
+    get new_test_path
     assert_response :success
+    test = Test.order(:created_at).last
+    assert_predicate test, :draft?
     assert_match(/Вопросов пока нет/, response.body)
     assert_match(/Новый вопрос/, response.body)
     assert_no_match(/questions_title/, response.body)
+
+    # Title and settings are edited on the same screen.
+    patch test_path(test), params: {
+      test: { title: "Мидтерм", body: "проверка", deadline: 1.day.from_now }
+    }
+    assert_redirected_to edit_test_path(test)
+    assert_equal "Мидтерм", test.reload.title
 
     # Draft is invisible to strangers.
     sign_in_as(@user)
@@ -208,5 +211,19 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
       options: [ { "text" => "да", "correct" => true }, { "text" => "нет", "correct" => false } ])
     question.attempts.create!(user: @user, selected: [ "0" ]) # correct, revealed
     assert_empty Attempt.revealed_points.select { |u, _| u == @user }
+  end
+
+  test "draft can be dropped, published test cannot" do
+    sign_in_as(@author)
+    get new_test_path
+    draft = Test.order(:created_at).last
+    delete test_path(draft)
+    assert_redirected_to tests_path
+    assert_nil Test.find_by(id: draft.id)
+
+    published = @author.authored_tests.create!(title: "Живой", deadline: 1.day.from_now, published: true)
+    delete test_path(published)
+    assert_redirected_to tests_path
+    assert_predicate published.reload, :published?
   end
 end
