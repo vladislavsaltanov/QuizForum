@@ -1,0 +1,37 @@
+<% content_for :title, "Тесты" %>
+
+<%= render "shared/header", active: nil %>
+
+<main class="qf-main">
+  <p class="qf-kicker">Тесты</p>
+  <h1 class="qf-hero">Тесты</h1>
+
+  <div class="qf-actions">
+    <%= link_to "Новый тест", new_test_path, class: "qf-apply" %>
+  </div>
+
+  <% if @tests.empty? %>
+    <p class="qf-empty">Пока нет тестов — опубликуйте первый.</p>
+  <% end %>
+
+  <% @tests.each do |test| %>
+    <div class="qf-card">
+      <div class="qf-attempt-head">
+        <%= link_to test.title, test_path(test), class: "qf-qtitle" %>
+        <% if test.protected? %>
+          <span class="qf-chip">по паролю</span>
+        <% end %>
+        <span class="qf-chip"><%= test.open? ? "открыт" : "завершён" %></span>
+      </div>
+      <p class="qf-hint">
+        заданий: <%= test.test_tasks.size %> · максимум: <%= test.max_score %> ·
+        <%= test.author.name %> · до <%= local_time_tag(test.deadline) %>
+      </p>
+    </div>
+  <% end %>
+
+  <footer class="qf-footer">
+    <span>QuizForum</span>
+    <span>Тесты</span>
+  </footer>
+</main>

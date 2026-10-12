@@ -20,6 +20,10 @@ Rails.application.routes.draw do
     end
     resources :reports, only: %i[ create ]
   end
+  resources :tests, only: %i[index show new create] do
+    post :authenticate, on: :member
+    post :attempt, on: :member
+  end
   namespace :api do
     resources :ai_questions, only: %i[ create ]
   end

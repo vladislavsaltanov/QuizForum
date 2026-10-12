@@ -1,0 +1,102 @@
+<% content_for :title, @test.title %>
+
+<%= render "shared/header", active: nil %>
+
+<main class="qf-main qf-main-wide">
+  <%= link_to "← Все тесты", tests_path, class: "qf-back" %>
+  <p class="qf-kicker">
+    <% if @test.open? %>
+      До дедлайна · <%= time_left(@test.deadline) %>
+    <% else %>
+      Завершён <%= local_time_tag(@test.deadline) %>
+    <% end %>
+  </p>
+  <h1 class="qf-qtitle"><%= @test.title %></h1>
+  <% if @test.body.present? %>
+    <div class="qf-body"><%= simple_format(@test.body) %></div>
+  <% end %>
+
+  <div class="qf-tabs" role="tablist">
+    <% @tasks.each_with_index do |task, i| %>
+      <%= link_to "Задание #{i + 1}", test_path(@test, task: i),
+            class: "qf-tab#{' is-active' if i == @index}",
+            role: "tab", data: { turbo_frame: "test-task" } %>
+    <% end %>
+  </div>
+
+  <%= turbo_frame_tag "test-task" do %>
+    <% if @task %>
+      <section class="qf-card" aria-label="Задание <%= @index + 1 %>">
+        <div class="qf-attempt-head">
+          <b>Задание <%= @index + 1 %> из <%= @tasks.size %></b>
+          <span class="qf-chip">баллов: <%= @task.points %></span>
+        </div>
+        <div class="qf-body"><%= simple_format(@task.body) %></div>
+
+        <% if @my_attempt %>
+          <p class="qf-hint">Ответ записан, изменить его нельзя.</p>
+          <% if @test.closed? %>
+            <span class="qf-chip <%= verdict_class(@my_attempt.verdict) %>"><%= verdict_label(@my_attempt.verdict) %></span>
+            <% if @task.choice? %>
+              <div class="qf-body"><%= Array(@my_attempt.selected).map { |s| @task.options[s.to_i]&.dig("text") }.compact.join("; ") %></div>
+            <% else %>
+              <div class="qf-body"><%= simple_format(@my_attempt.body) %></div>
+            <% end %>
+          <% else %>
+            <span class="qf-chip"><%= verdict_label("pending") %></span>
+          <% end %>
+        <% elsif @test.open? %>
+          <%= form_with url: attempt_test_path(@test, task: @index), class: "qf-form", data: { turbo_frame: "_top" } do |f| %>
+            <% case @task.answer_type %>
+            <% when "text" %>
+              <%= text_area_tag "test_attempt[body]", nil, rows: 6, placeholder: "Ваш ответ…", class: "qf-input qf-answer-area", "aria-label": "Ответ" %>
+            <% when "single_choice" %>
+              <% @task.options.each_with_index do |opt, i| %>
+                <label class="qf-option">
+                  <%= radio_button_tag "test_attempt[selected][]", i, false, required: true %>
+                  <span><%= opt["text"] %></span>
+                </label>
+              <% end %>
+            <% when "multiple_choice" %>
+              <% @task.options.each_with_index do |opt, i| %>
+                <label class="qf-option">
+                  <%= check_box_tag "test_attempt[selected][]", i %>
+                  <span><%= opt["text"] %></span>
+                </label>
+              <% end %>
+            <% end %>
+            <div class="qf-actions">
+              <button type="submit" class="qf-apply">Отправить</button>
+            </div>
+          <% end %>
+        <% end %>
+
+        <% if @test.closed? %>
+          <h2 class="qf-section-title">Ваш результат</h2>
+          <p class="qf-count"><%= @test.total_score(Current.user) %> из <%= @test.max_score %></p>
+        <% end %>
+      </section>
+    <% end %>
+  <% end %>
+
+  <% if @test.closed? %>
+    <h2 class="qf-section-title">Результаты</h2>
+    <% if @scoreboard.empty? %>
+      <p class="qf-empty">Пока никто не отвечал.</p>
+    <% else %>
+      <% @scoreboard.each do |user, total| %>
+        <div class="qf-card">
+          <div class="qf-attempt-head">
+            <span><%= avatar_tag(user.name, size: :sm) %><%= user.name %></span>
+            <span class="qf-chip"><%= total %> из <%= @test.max_score %></span>
+          </div>
+        </div>
+      <% end %>
+    <% end %>
+  <% end %>
+
+  <footer class="qf-footer">
+    <span>QuizForum</span>
+    <span><%= @test.open? ? "Открыт" : "Завершён" %></span>
+  </footer>
+</main>
