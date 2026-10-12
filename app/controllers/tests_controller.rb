@@ -1,42 +1,36 @@
 # Moodle-style tests: a combination of Questions that live only inside the test,
 # answered all at once with one submit. Open or password-protected.
-# Creation configures all questions inline and publishes everything at once;
-# afterwards questions are managed one by one from the test edit page through
-# the regular question form bound to the test.
+# Lifecycle: the creation screen saves a draft; questions are added one by one
+# through the regular question form bound to the test (bare title list, no
+# inline forms); "Опубликовать" at the end makes it visible to everyone.
 class TestsController < ApplicationController
   rate_limit to: 10, within: 3.minutes, only: %i[create update authenticate attempt],
              with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
 
-  # Feed of tests, newest first.
+  # Feed of published tests plus the author's own drafts, newest first.
   def index
-    @tests = Test.order(created_at: :desc).includes(:author, :questions)
+    @tests = Test.published.or(Test.where(author: Current.user)).order(created_at: :desc)
+      .includes(:author, :questions)
   end
 
-  # Blank form with one empty question block; the author appends more with the button.
+  # Blank settings shell; questions come next, on the creation screen.
   def new
     @test = Test.new(deadline: 7.days.from_now.change(sec: 0))
-    @question_rows = [ {} ]
   end
 
-  # Publishes the test with all its questions at once; blank password stays
-  # NULL (open test). Questions are scoped to the test (deadline = test
-  # deadline, no tags) and never appear on the feed.
+  # Saves a draft and hands over to the creation screen (title list + add button).
   def create
     @test = Current.user.authored_tests.build(test_params)
-    @test.questions = parse_questions(deadline: @test.deadline, author: Current.user)
-    @test.questions.each { moderation_blocked?(_1) }
-    @test.errors.add(:base, "Добавьте хотя бы один вопрос.") if @test.questions.empty?
-    if @test.errors.empty? && @test.valid? && @test.questions.all?(&:valid?) && @test.save
-      redirect_to @test, notice: "Тест опубликован."
+    if @test.save
+      redirect_to edit_test_path(@test), notice: "Черновик создан. Добавьте вопросы."
     else
-      @test.questions.each { |q| q.errors.each { |e| @test.errors.add(:base, "#{q.title.presence || 'Вопрос'}: #{e.full_message}") } }
-      @question_rows = question_rows_from_params.presence || [ {} ]
       flash.now[:alert] = @test.errors.full_messages.to_sentence.presence || "Не удалось сохранить. Повторите."
       render :new, status: :unprocessable_entity
     end
   end
 
-  # Manage page: test settings, question title list, per-question points.
+  # Creation screen for drafts, manage page for published: test settings,
+  # bare question title list, per-question points.
   def edit
     @test = Test.includes(:questions).find(params[:id])
     return head(:forbidden) unless @test.editable_by?(Current.user)
@@ -44,6 +38,7 @@ class TestsController < ApplicationController
   end
 
   # Saves settings, per-question points, and re-syncs question deadlines.
+  # With publish=1 a draft with at least one question goes public.
   def update
     @test = Test.includes(:questions).find(params[:id])
     return head(:forbidden) unless @test.editable_by?(Current.user)
@@ -52,13 +47,21 @@ class TestsController < ApplicationController
     @test.questions.each do |q|
       q.points = points[q.id.to_s].to_i.clamp(0, 100) if points.key?(q.id.to_s)
     end
-    if @test.valid? && @test.questions.all?(&:valid?)
+    if params[:publish].present?
+      @test.errors.add(:base, "Добавьте хотя бы один вопрос.") if @test.questions.empty?
+      @test.published = true if @test.errors.empty?
+    end
+    if @test.errors.empty? && @test.valid? && @test.questions.all?(&:valid?)
       Test.transaction do
         @test.save!
         @test.questions.each(&:save!)
         @test.questions.update_all(deadline: @test.deadline)
       end
-      redirect_to edit_test_path(@test), notice: "Тест обновлён."
+      if params[:publish].present?
+        redirect_to @test, notice: "Тест опубликован."
+      else
+        redirect_to edit_test_path(@test), notice: "Тест обновлён."
+      end
     else
       @questions = @test.questions.to_a
       flash.now[:alert] = @test.errors.full_messages.to_sentence.presence || "Не удалось сохранить. Повторите."
@@ -67,13 +70,17 @@ class TestsController < ApplicationController
   end
 
   # All questions on one page, one submit for the whole test; scoreboard after deadline.
+  # Drafts open only to the author.
   def show
     @test = Test.includes(:author, questions: :attempts).find(params[:id])
+    if @test.draft? && !@test.editable_by?(Current.user)
+      return redirect_to tests_path, alert: "Тест ещё не опубликован."
+    end
     @questions = @test.questions.to_a
     return render_gate unless @test.unlocked?(Current.user, session)
     @my_attempts = Attempt.where(question: @questions, user: Current.user).index_by(&:question_id)
     @answered = @my_attempts.any?
-    @scoreboard = build_scoreboard if @test.closed?
+    @scoreboard = build_scoreboard if @test.closed? && @test.published?
   end
 
   # Checks the test password and remembers it in the session.
@@ -92,6 +99,7 @@ class TestsController < ApplicationController
   def attempt
     @test = Test.includes(:questions).find(params[:id])
     return render_gate(status: :forbidden) unless @test.unlocked?(Current.user, session)
+    return redirect_to @test, alert: "Тест ещё не опубликован." unless @test.published?
     return redirect_to @test, alert: "Дедлайн прошёл." if @test.closed?
     return redirect_to @test, alert: "Вы уже ответили на этот тест." if @test.answered_by?(Current.user)
     records = @test.questions.map { |q| q.attempts.build(answer_params(q.id).merge(user: Current.user)) }
@@ -134,65 +142,9 @@ class TestsController < ApplicationController
       end.sort_by { |u, total| [ -total, u.name ] }
     end
 
-    # Whitelisted test form fields.
+    # Whitelisted test form fields; published flips only through update.
     def test_params
       params.expect(test: [ :title, :body, :deadline, :password, :max_points ])
-    end
-
-    # Zips parallel question form arrays into Question rows, skipping blank titles.
-    # Options come one per line; a leading "*" marks the correct ones.
-    def parse_questions(deadline:, author:)
-      titles = Array(params[:questions_title])
-      types = Array(params[:questions_answer_type])
-      bodies = Array(params[:questions_body])
-      references = Array(params[:questions_reference])
-      opts = Array(params[:questions_options])
-      points = Array(params[:questions_points])
-      titles.each_with_index.filter_map do |title, i|
-        title = title.to_s.strip
-        next if title.empty?
-        type = Question::ANSWER_TYPES.include?(types[i]) ? types[i] : "text"
-        Question.new(title:, body: bodies[i].to_s.strip, answer_type: type,
-          reference_answer: references[i].to_s.strip,
-          options: parse_question_options(opts[i], type),
-          points: points[i].to_i.clamp(0, 100), position: i,
-          deadline:, author:, test: @test, tags: [])
-      end
-    end
-
-    # One option per line; "*" prefix means correct. Only choice types keep options.
-    def parse_question_options(raw, type)
-      return [] unless type == "single_choice" || type == "multiple_choice"
-      raw.to_s.lines.filter_map do |line|
-        line = line.strip
-        next if line.empty?
-        correct = line.start_with?("*")
-        { "text" => (correct ? line[1..].strip : line), "correct" => correct }
-      end
-    end
-
-    # Same Laya bar as standalone questions; errors land on the question, not the test.
-    def moderation_blocked?(question)
-      moderation_text = AiQuestionIngest.moderation_text(
-        title: question.title, body: question.body, tags: [],
-        reference_answer: question.reference_answer, explanation: nil,
-        example_input: nil, example_output: nil, options: question.options)
-      verdict = ModerationClient.check(text: moderation_text)
-      question.errors.add(:base, "Отклонено проверкой: #{verdict.category}.") if verdict.verdict == :reject
-      question.errors.add(:base, "Проверка не удалась, попробуйте позже.") if verdict.verdict == :try_later
-    end
-
-    # Echo the submitted rows back into the form after a failed save.
-    def question_rows_from_params
-      titles = Array(params[:questions_title])
-      return [] if titles.all?(&:blank?)
-      titles.each_with_index.map do |title, i|
-        { "title" => title, "answer_type" => Array(params[:questions_answer_type])[i],
-          "body" => Array(params[:questions_body])[i],
-          "reference" => Array(params[:questions_reference])[i],
-          "points" => Array(params[:questions_points])[i],
-          "options" => Array(params[:questions_options])[i] }
-      end
     end
 
     # One question's answers from the combined form, keyed by question id.

@@ -2,7 +2,7 @@
 
 <%= render "shared/header", active: "tests" %>
 
-<main class="qf-main" data-controller="test-form">
+<main class="qf-main">
   <p class="qf-kicker">Публикация</p>
   <h1 class="qf-hero">Новый тест</h1>
 
@@ -26,25 +26,8 @@
     <%= f.label :max_points, "Максимум баллов (пусто = сумма баллов вопросов)", class: "qf-label" %>
     <%= f.number_field :max_points, min: 1, class: "qf-input", placeholder: "например, 10" %>
 
-    <h2 class="qf-section-title">Вопросы теста</h2>
-    <p class="qf-hint">Добавляйте вопросы кнопкой ниже — каждый со своими баллами. Пустые отбрасываются. Правильный ответ нужен для текста и кода; варианты — по одному на строку, верный пометьте * в начале. Тест публикуется вместе со всеми вопросами, одним нажатием.</p>
-
-    <div data-test-form-target="list">
-      <% @question_rows.each do |row| %>
-        <%= render "question_block", row: row %>
-      <% end %>
-    </div>
-
-    <template data-test-form-target="template">
-      <%= render "question_block", row: {} %>
-    </template>
-
     <div class="qf-actions">
-      <button type="button" class="qf-ghost" data-test-form-target="add" data-action="click->test-form#add">Добавить вопрос</button>
-    </div>
-
-    <div class="qf-actions">
-      <button type="submit" class="qf-apply" data-turbo-submits-with="Отправка…">Опубликовать тест</button>
+      <button type="submit" class="qf-apply" data-turbo-submits-with="Отправка…">Продолжить</button>
     </div>
   <% end %>
 

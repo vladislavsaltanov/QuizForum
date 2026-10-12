@@ -1,11 +1,17 @@
-<% content_for :title, "Настроить тест" %>
+<% content_for :title, @test.draft? ? "Новый тест" : "Настроить тест" %>
 
 <%= render "shared/header", active: "tests" %>
 
 <main class="qf-main">
-  <%= link_to "← К тесту", test_path(@test), class: "qf-back" %>
-  <p class="qf-kicker">Управление тестом</p>
-  <h1 class="qf-hero"><%= @test.title %></h1>
+  <% if @test.draft? %>
+    <%= link_to "← Все тесты", tests_path, class: "qf-back" %>
+    <p class="qf-kicker">Создание теста · черновик</p>
+    <h1 class="qf-hero">Новый тест</h1>
+  <% else %>
+    <%= link_to "← К тесту", test_path(@test), class: "qf-back" %>
+    <p class="qf-kicker">Управление тестом</p>
+    <h1 class="qf-hero"><%= @test.title %></h1>
+  <% end %>
 
   <%= form_with model: @test, url: test_path(@test), method: :patch, class: "qf-form" do |f| %>
     <% if @test.errors.any? %>
@@ -49,10 +55,16 @@
       <button type="submit" class="qf-apply">Сохранить</button>
       <%= link_to "Новый вопрос", new_question_path(test_id: @test.id), class: "qf-ghost" %>
     </div>
+
+    <% if @test.draft? %>
+      <div class="qf-actions">
+        <button type="submit" name="publish" value="1" class="qf-apply">Опубликовать тест</button>
+      </div>
+    <% end %>
   <% end %>
 
   <footer class="qf-footer">
     <span>QuizForum</span>
-    <span>Управление тестом</span>
+    <span><%= @test.draft? ? "Новый тест" : "Управление тестом" %></span>
   </footer>
 </main>

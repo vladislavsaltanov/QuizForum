@@ -1,7 +1,8 @@
 # Moodle-style test: a combination of Questions that live only inside it,
 # answered all at once with one submit. Open or password-protected.
-# Questions are managed from the test edit page, one by one, through the
-# regular question form bound to the test — never inline, never existing ones.
+# Lifecycle: draft (invisible to strangers) -> published. Questions are added
+# one by one from the creation screen through the regular question form bound
+# to the test; the list shows bare titles, no inline forms.
 class Test < ApplicationRecord
   # NULL digest = open test; has_secure_password would require a password on
   # create, so validations stay off and blank simply means no gate.
@@ -14,6 +15,13 @@ class Test < ApplicationRecord
   validates :title, length: { maximum: 200 }
   validates :body, length: { maximum: 20_000 }, allow_nil: true
   validates :max_points, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
+
+  scope :published, -> { where(published: true) }
+
+  # Still being assembled: invisible to everyone but the author.
+  def draft?
+    !published?
+  end
 
   # Deadline still in the future.
   def open?

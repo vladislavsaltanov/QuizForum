@@ -6,11 +6,13 @@
   <%= link_to "← Все тесты", tests_path, class: "qf-back" %>
   <% if @test.editable_by?(Current.user) %>
     <div class="qf-actions">
-      <%= link_to "Настроить тест", edit_test_path(@test), class: "qf-ghost" %>
+      <%= link_to @test.draft? ? "Продолжить создание" : "Настроить тест", edit_test_path(@test), class: "qf-ghost" %>
     </div>
   <% end %>
   <p class="qf-kicker">
-    <% if @test.open? %>
+    <% if @test.draft? %>
+      Черновик · не опубликован
+    <% elsif @test.open? %>
       До дедлайна · <%= time_left(@test.deadline) %>
     <% else %>
       Завершён <%= local_time_tag(@test.deadline) %>
@@ -21,79 +23,92 @@
     <div class="qf-body"><%= simple_format(@test.body) %></div>
   <% end %>
 
-  <% if @answered %>
-    <p class="qf-hint">Попытка записана, изменить её нельзя.</p>
-  <% end %>
-
-  <% if @answered || !@test.open? %>
-    <%# Read-only: own answers, verdicts only after the deadline. %>
+  <% if @test.draft? %>
+    <%# Draft: question titles only, no answering yet. %>
     <% @questions.each_with_index do |question, i| %>
-      <% attempt = @my_attempts[question.id] %>
       <section class="qf-card" aria-label="Вопрос <%= i + 1 %>">
         <div class="qf-attempt-head">
           <b>Вопрос <%= i + 1 %> из <%= @questions.size %></b>
           <span class="qf-chip">баллов: <%= question.points %></span>
-          <% if @test.closed? && attempt %>
-            <span class="qf-chip <%= verdict_class(attempt.verdict) %>"><%= verdict_label(attempt.verdict) %></span>
-          <% end %>
         </div>
         <h2 class="qf-section-title"><%= question.title %></h2>
-        <div class="qf-body"><%= simple_format(question.body) %></div>
-        <% if attempt %>
-          <% if @test.closed? %>
-            <% if question.choice? %>
-              <div class="qf-body"><%= Array(attempt.selected).map { |s| question.options[s.to_i]&.dig("text") }.compact.join("; ") %></div>
-            <% else %>
-              <div class="qf-body"><%= simple_format(attempt.body) %></div>
-            <% end %>
-          <% else %>
-            <span class="qf-chip"><%= verdict_label("pending") %></span>
-          <% end %>
-        <% end %>
       </section>
     <% end %>
-  <% elsif @test.open? %>
-    <%# One form, one submit: the whole test is a single indivisible attempt. %>
-    <%= form_with url: attempt_test_path(@test), class: "qf-form", data: { turbo_frame: "_top" } do %>
+  <% else %>
+    <% if @answered %>
+      <p class="qf-hint">Попытка записана, изменить её нельзя.</p>
+    <% end %>
+
+    <% if @answered || !@test.open? %>
+      <%# Read-only: own answers, verdicts only after the deadline. %>
       <% @questions.each_with_index do |question, i| %>
+        <% attempt = @my_attempts[question.id] %>
         <section class="qf-card" aria-label="Вопрос <%= i + 1 %>">
           <div class="qf-attempt-head">
             <b>Вопрос <%= i + 1 %> из <%= @questions.size %></b>
             <span class="qf-chip">баллов: <%= question.points %></span>
+            <% if @test.closed? && attempt %>
+              <span class="qf-chip <%= verdict_class(attempt.verdict) %>"><%= verdict_label(attempt.verdict) %></span>
+            <% end %>
           </div>
           <h2 class="qf-section-title"><%= question.title %></h2>
           <div class="qf-body"><%= simple_format(question.body) %></div>
-          <% case question.answer_type %>
-          <% when "text" %>
-            <%= text_area_tag "answers[#{question.id}][body]", nil, rows: 6, placeholder: "Ваш ответ…", class: "qf-input qf-answer-area", "aria-label": "Ответ на вопрос #{i + 1}" %>
-          <% when "code" %>
-            <% allowed = question.code_languages.presence || CodeRunnerClient::SUPPORTED_LANGUAGES %>
-            <%= select_tag "answers[#{question.id}][language]", options_for_select(allowed), class: "qf-input", "aria-label": "Язык вопроса #{i + 1}" %>
-            <%= text_area_tag "answers[#{question.id}][body]", nil, rows: 8, placeholder: "Ваш код…", class: "qf-input qf-code qf-answer-area", "aria-label": "Код на вопрос #{i + 1}" %>
-          <% when "single_choice" %>
-            <% question.options.each_with_index do |opt, oi| %>
-              <label class="qf-option">
-                <%= radio_button_tag "answers[#{question.id}][selected][]", oi, false, required: true %>
-                <span><%= opt["text"] %></span>
-              </label>
-            <% end %>
-          <% when "multiple_choice" %>
-            <% question.options.each_with_index do |opt, oi| %>
-              <label class="qf-option">
-                <%= check_box_tag "answers[#{question.id}][selected][]", oi %>
-                <span><%= opt["text"] %></span>
-              </label>
+          <% if attempt %>
+            <% if @test.closed? %>
+              <% if question.choice? %>
+                <div class="qf-body"><%= Array(attempt.selected).map { |s| question.options[s.to_i]&.dig("text") }.compact.join("; ") %></div>
+              <% else %>
+                <div class="qf-body"><%= simple_format(attempt.body) %></div>
+              <% end %>
+            <% else %>
+              <span class="qf-chip"><%= verdict_label("pending") %></span>
             <% end %>
           <% end %>
         </section>
       <% end %>
-      <div class="qf-actions">
-        <button type="submit" class="qf-apply">Отправить все ответы</button>
-      </div>
+    <% elsif @test.open? %>
+      <%# One form, one submit: the whole test is a single indivisible attempt. %>
+      <%= form_with url: attempt_test_path(@test), class: "qf-form", data: { turbo_frame: "_top" } do %>
+        <% @questions.each_with_index do |question, i| %>
+          <section class="qf-card" aria-label="Вопрос <%= i + 1 %>">
+            <div class="qf-attempt-head">
+              <b>Вопрос <%= i + 1 %> из <%= @questions.size %></b>
+              <span class="qf-chip">баллов: <%= question.points %></span>
+            </div>
+            <h2 class="qf-section-title"><%= question.title %></h2>
+            <div class="qf-body"><%= simple_format(question.body) %></div>
+            <% case question.answer_type %>
+            <% when "text" %>
+              <%= text_area_tag "answers[#{question.id}][body]", nil, rows: 6, placeholder: "Ваш ответ…", class: "qf-input qf-answer-area", "aria-label": "Ответ на вопрос #{i + 1}" %>
+            <% when "code" %>
+              <% allowed = question.code_languages.presence || CodeRunnerClient::SUPPORTED_LANGUAGES %>
+              <%= select_tag "answers[#{question.id}][language]", options_for_select(allowed), class: "qf-input", "aria-label": "Язык вопроса #{i + 1}" %>
+              <%= text_area_tag "answers[#{question.id}][body]", nil, rows: 8, placeholder: "Ваш код…", class: "qf-input qf-code qf-answer-area", "aria-label": "Код на вопрос #{i + 1}" %>
+            <% when "single_choice" %>
+              <% question.options.each_with_index do |opt, oi| %>
+                <label class="qf-option">
+                  <%= radio_button_tag "answers[#{question.id}][selected][]", oi, false, required: true %>
+                  <span><%= opt["text"] %></span>
+                </label>
+              <% end %>
+            <% when "multiple_choice" %>
+              <% question.options.each_with_index do |opt, oi| %>
+                <label class="qf-option">
+                  <%= check_box_tag "answers[#{question.id}][selected][]", oi %>
+                  <span><%= opt["text"] %></span>
+                </label>
+              <% end %>
+            <% end %>
+          </section>
+        <% end %>
+        <div class="qf-actions">
+          <button type="submit" class="qf-apply">Отправить все ответы</button>
+        </div>
+      <% end %>
     <% end %>
   <% end %>
 
-  <% if @test.closed? %>
+  <% if @test.closed? && @test.published? %>
     <% if @my_attempts.any? %>
       <h2 class="qf-section-title">Ваш результат</h2>
       <p class="qf-count"><%= @test.total_score(Current.user) %> из <%= @test.max_score %></p>
@@ -115,6 +130,6 @@
 
   <footer class="qf-footer">
     <span>QuizForum</span>
-    <span><%= @test.open? ? "Открыт" : "Завершён" %></span>
+    <span><%= @test.draft? ? "Черновик" : (@test.open? ? "Открыт" : "Завершён") %></span>
   </footer>
 </main>

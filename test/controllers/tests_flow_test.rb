@@ -8,83 +8,82 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     sign_in_as(@user)
   end
 
-  test "creation configures all questions inline and publishes at once" do
+  test "draft flow: settings, question list, publish at the end" do
     sign_in_as(@author)
-    # Builder page: question list with per-question points plus the add button.
-    get new_test_path
-    assert_response :success
-    assert_match(/Добавить вопрос/, response.body)
-    assert_match(/questions_points/, response.body)
-
     post tests_path, params: {
-      test: { title: "Мидтерм", body: "проверка", deadline: 1.day.from_now, max_points: "" },
-      questions_title: [ "Сколько будет 2+2?", "Столица Франции?" ],
-      questions_answer_type: %w[single_choice text],
-      questions_body: [ "посчитайте", "назовите" ],
-      questions_reference: [ "", "Париж" ],
-      questions_points: %w[2 5],
-      questions_options: [ "*4\n3\n5", "" ]
+      test: { title: "Мидтерм", body: "проверка", deadline: 1.day.from_now, max_points: "" }
     }
     test = Test.order(:created_at).last
-    assert_redirected_to test_path(test)
-    assert_equal 2, test.questions.count
-    assert_equal 7, test.max_score
-    # Question deadlines follow the test.
-    assert_equal [ test.deadline ], test.questions.map(&:deadline).uniq
+    assert_redirected_to edit_test_path(test)
+    assert_predicate test.reload, :draft?
 
-    # Manage page lists titles linking to each question's edit screen.
+    # Creation screen: bare title list (empty), add button, no inline forms.
+    get edit_test_path(test)
+    assert_response :success
+    assert_match(/Вопросов пока нет/, response.body)
+    assert_match(/Новый вопрос/, response.body)
+    assert_no_match(/questions_title/, response.body)
+
+    # Draft is invisible to strangers.
+    sign_in_as(@user)
+    get tests_path
+    assert_no_match(/Мидтерм/, response.body)
+    get test_path(test)
+    assert_redirected_to tests_path
+
+    # Questions go through the bound question screen, one by one.
+    sign_in_as(@author)
+    post questions_path, params: {
+      question: { test_id: test.id, title: "Сколько будет 2+2?", body: "посчитайте",
+        answer_type: "single_choice", reference_answer: "",
+        options_text: [ "4", "3", "5" ], options_correct: [ "0" ] }
+    }
+    assert_redirected_to edit_test_path(test)
+    post questions_path, params: {
+      question: { test_id: test.id, title: "Столица Франции?", body: "назовите",
+        answer_type: "text", reference_answer: "Париж" }
+    }
+    assert_redirected_to edit_test_path(test)
+    assert_equal 2, test.questions.count
+
+    # Title list links to each question's edit screen.
     get edit_test_path(test)
     assert_response :success
     assert_match(/Сколько будет 2\+2\?/, response.body)
-    assert_match(/Столица Франции\?/, response.body)
     q0 = test.questions.order(:position).first
     assert_match(/\/questions\/#{q0.id}\/edit/, response.body)
-    assert_match(/Новый вопрос/, response.body)
 
-    # Points are set on the manage page.
+    # Empty draft refuses to publish.
+    empty = @author.authored_tests.create!(title: "Пустой", deadline: 1.day.from_now)
+    patch test_path(empty), params: { test: { title: "Пустой", deadline: 1.day.from_now }, publish: "1" }
+    assert_response :unprocessable_entity
+    assert_predicate empty.reload, :draft?
+
+    # Publish with points set on the manage page.
     q1 = test.questions.order(:position).last
     patch test_path(test), params: {
       test: { title: "Мидтерм", deadline: 1.day.from_now },
-      questions_points: { q0.id.to_s => "3", q1.id.to_s => "5" }
+      questions_points: { q0.id.to_s => "2", q1.id.to_s => "5" },
+      publish: "1"
     }
-    assert_redirected_to edit_test_path(test)
-    assert_equal 3, q0.reload.points
-    assert_equal 8, test.reload.max_score
-  end
+    assert_redirected_to test_path(test)
+    assert_predicate test.reload, :published?
+    assert_equal 7, test.max_score
 
-  test "post-publish questions are added through the bound question screen" do
-    sign_in_as(@author)
-    post tests_path, params: {
-      test: { title: "Дополняемый", deadline: 1.day.from_now },
-      questions_title: [ "Первый?" ],
-      questions_answer_type: [ "text" ],
-      questions_body: [ "b" ],
-      questions_reference: [ "да" ],
-      questions_points: [ "1" ],
-      questions_options: [ "" ]
-    }
-    test = Test.order(:created_at).last
-    post questions_path, params: {
-      question: { test_id: test.id, title: "Второй?", body: "b",
-        answer_type: "text", reference_answer: "нет" }
-    }
-    assert_redirected_to edit_test_path(test)
-    assert_equal 2, test.questions.count
+    # Published test is visible to strangers.
+    sign_in_as(@user)
+    get tests_path
+    assert_match(/Мидтерм/, response.body)
   end
 
   test "open test flow: answer all at once, post-deadline score" do
     sign_in_as(@author)
-    post tests_path, params: {
-      test: { title: "Мидтерм", deadline: 1.day.from_now },
-      questions_title: [ "Сколько будет 2+2?", "Столица?" ],
-      questions_answer_type: %w[single_choice text],
-      questions_body: [ "b", "b" ],
-      questions_reference: [ "", "Париж" ],
-      questions_points: %w[2 5],
-      questions_options: [ "*4\n3", "" ]
-    }
-    test = Test.order(:created_at).last
-    q0, q1 = test.questions.order(:position).to_a
+    test = @author.authored_tests.create!(title: "Мидтерм", deadline: 1.day.from_now, published: true)
+    q0 = test.questions.create!(title: "Сколько будет 2+2?", body: "b", answer_type: "single_choice",
+      reference_answer: "", deadline: test.deadline, author: @author, points: 2, position: 0,
+      options: [ { "text" => "4", "correct" => true }, { "text" => "3", "correct" => false } ])
+    q1 = test.questions.create!(title: "Столица?", body: "b", answer_type: "text",
+      reference_answer: "Париж", deadline: test.deadline, author: @author, points: 5, position: 1)
     sign_in_as(@user)
 
     # Both questions render on one page behind a single submit.
@@ -123,17 +122,9 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
 
   test "test questions live only inside the test" do
     sign_in_as(@author)
-    post tests_path, params: {
-      test: { title: "Вложенный", deadline: 1.day.from_now },
-      questions_title: [ "Сколько?" ],
-      questions_answer_type: [ "text" ],
-      questions_body: [ "b" ],
-      questions_reference: [ "много" ],
-      questions_points: [ "1" ],
-      questions_options: [ "" ]
-    }
-    test = Test.order(:created_at).last
-    question = test.questions.first
+    test = @author.authored_tests.create!(title: "Вложенный", deadline: 1.day.from_now, published: true)
+    question = test.questions.create!(title: "Сколько?", body: "b", answer_type: "text",
+      reference_answer: "много", deadline: test.deadline, author: @author, points: 1, position: 0)
 
     # Never on the feed or archive.
     get root_path
@@ -153,7 +144,7 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
   end
 
   test "password gate denies without password, allows with it" do
-    test = @author.authored_tests.create!(title: "Закрытый", deadline: 1.day.from_now, password: "s3cret")
+    test = @author.authored_tests.create!(title: "Закрытый", deadline: 1.day.from_now, password: "s3cret", published: true)
     test.questions.create!(title: "Вопрос", body: "b", answer_type: "text",
       reference_answer: "да", deadline: test.deadline, author: @author, points: 1, position: 0)
 
@@ -173,7 +164,7 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
   end
 
   test "others' totals hidden before deadline, visible after" do
-    test = @author.authored_tests.create!(title: "Приват", deadline: 1.day.from_now)
+    test = @author.authored_tests.create!(title: "Приват", deadline: 1.day.from_now, published: true)
     question = test.questions.create!(title: "2+2?", body: "b", answer_type: "single_choice",
       deadline: test.deadline, author: @author, points: 4, position: 0,
       options: [ { "text" => "4", "correct" => true }, { "text" => "5", "correct" => false } ])
@@ -193,7 +184,7 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
   end
 
   test "partial on odd points rounds half down" do
-    test = @author.authored_tests.create!(title: "Округление", deadline: 1.hour.ago)
+    test = @author.authored_tests.create!(title: "Округление", deadline: 1.hour.ago, published: true)
     question = test.questions.create!(title: "t", body: "b", answer_type: "text",
       reference_answer: "r", deadline: test.deadline, author: @author, points: 5, position: 0)
     question.attempts.create!(user: @user, body: "x", verdict: "partial")
@@ -202,7 +193,7 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
   end
 
   test "explicit max_points overrides question sum" do
-    test = @author.authored_tests.create!(title: "Овер", deadline: 1.day.from_now, max_points: 10)
+    test = @author.authored_tests.create!(title: "Овер", deadline: 1.day.from_now, max_points: 10, published: true)
     test.questions.create!(title: "a", body: "b", answer_type: "text",
       reference_answer: "r", deadline: test.deadline, author: @author, points: 1, position: 0)
     test.questions.create!(title: "b", body: "b", answer_type: "text",
@@ -211,7 +202,7 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
   end
 
   test "test questions do not leak into the leaderboard" do
-    test = @author.authored_tests.create!(title: "Без рейтинга", deadline: 1.hour.ago)
+    test = @author.authored_tests.create!(title: "Без рейтинга", deadline: 1.hour.ago, published: true)
     question = test.questions.create!(title: "q", body: "b", answer_type: "single_choice",
       deadline: test.deadline, author: @author, points: 3, position: 0,
       options: [ { "text" => "да", "correct" => true }, { "text" => "нет", "correct" => false } ])

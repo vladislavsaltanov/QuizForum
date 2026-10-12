@@ -17,11 +17,15 @@
   <% @tests.each do |test| %>
     <div class="qf-card">
       <div class="qf-attempt-head">
-        <%= link_to test.title, test_path(test), class: "qf-qtitle" %>
-        <% if test.protected? %>
-          <span class="qf-chip">по паролю</span>
+        <%= link_to test.title, test.draft? ? edit_test_path(test) : test_path(test), class: "qf-qtitle" %>
+        <% if test.draft? %>
+          <span class="qf-chip">черновик</span>
+        <% else %>
+          <% if test.protected? %>
+            <span class="qf-chip">по паролю</span>
+          <% end %>
+          <span class="qf-chip"><%= test.open? ? "открыт" : "завершён" %></span>
         <% end %>
-        <span class="qf-chip"><%= test.open? ? "открыт" : "завершён" %></span>
       </div>
       <p class="qf-hint">
         вопросов: <%= test.questions.size %> · максимум: <%= test.max_score %> ·
