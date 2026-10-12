@@ -10,6 +10,7 @@ class Test < ApplicationRecord
 
   belongs_to :author, class_name: "User"
   has_many :questions, -> { order(:position, :id) }, dependent: :destroy, inverse_of: :test
+  has_many :comments, dependent: :destroy, validate: false
 
   validates :title, :deadline, presence: true
   validates :title, length: { maximum: 200 }
@@ -36,6 +37,11 @@ class Test < ApplicationRecord
   # Author or admin only; same bar as questions.
   def editable_by?(user)
     author == user || user&.admin?
+  end
+
+  # Full read access; comment premoderation uses it too.
+  def privileged?(user)
+    editable_by?(user)
   end
 
   # True when the author set a password.

@@ -238,4 +238,53 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     assert_redirected_to tests_path
     assert_predicate published.reload, :published?
   end
+
+  test "author cannot answer their own test, sees author plate and no form" do
+    sign_in_as(@author)
+    test = @author.authored_tests.create!(title: "Свой", deadline: 1.day.from_now, published: true)
+    question = test.questions.create!(title: "q", body: "b", answer_type: "text",
+      reference_answer: "r", deadline: test.deadline, author: @author, points: 2, position: 0)
+
+    get test_path(test)
+    assert_response :success
+    assert_match(/Это ваш тест/, response.body)
+    assert_select "form[action='#{attempt_test_path(test)}']", count: 0
+    assert_select ".qf-author-card", text: /#{@author.name}/
+
+    post attempt_test_path(test), params: { answers: { question.id.to_s => { body: "списал" } } }
+    assert_redirected_to test_path(test)
+    assert_match(/Автор не отвечает/, flash[:alert].to_s)
+    assert_equal 0, Attempt.where(question: question).count
+  end
+
+  test "test comments: live pass, Laya pending until author approves" do
+    test = @author.authored_tests.create!(title: "Чат", deadline: 1.day.from_now, published: true)
+    sign_in_as(@user)
+
+    # Laya pass publishes right away.
+    post test_comments_path(test), params: { comment: { body: "Норм тест" } }
+    assert_redirected_to test_path(test)
+    comment = test.comments.first
+    assert_predicate comment, :approved?
+
+    # Flagged comment waits pending; strangers see only their own.
+    with_verdict(:flag, "ABUSE") do
+      post test_comments_path(test), params: { comment: { body: "Замеченное" } }
+    end
+    pending = test.comments.find_by(status: "pending")
+    assert_equal "pending", pending.status
+
+    sign_in_as(@other)
+    get test_path(test)
+    assert_match(/Норм тест/, response.body)
+    assert_no_match(/Замеченное/, response.body)
+
+    # Only the author publishes it; then it is visible to everyone.
+    patch approve_test_comment_path(test, pending)
+    assert_response :forbidden
+    sign_in_as(@author)
+    patch approve_test_comment_path(test, pending)
+    assert_redirected_to test_path(test)
+    assert_equal "approved", pending.reload.status
+  end
 end

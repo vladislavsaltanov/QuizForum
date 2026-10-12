@@ -23,6 +23,9 @@ Rails.application.routes.draw do
   resources :tests, only: %i[index show new edit update destroy] do
     post :authenticate, on: :member
     post :attempt, on: :member
+    resources :comments, only: %i[create destroy], controller: "comments" do
+      patch :approve, on: :member
+    end
   end
   namespace :api do
     resources :ai_questions, only: %i[ create ]

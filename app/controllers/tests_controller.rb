@@ -80,8 +80,11 @@ class TestsController < ApplicationController
     end
     @questions = @test.questions.to_a
     return render_gate unless @test.unlocked?(Current.user, session)
+    @is_author = @test.editable_by?(Current.user)
     @my_attempts = Attempt.where(question: @questions, user: Current.user).index_by(&:question_id)
     @answered = @my_attempts.any?
+    @respondents = Attempt.where(question: @questions).distinct.count(:user_id) if @test.published?
+    @comments = Comment.visible_for_test(@test, Current.user).order(:id).includes(:user, :question) if @test.published?
     @scoreboard = build_scoreboard if @test.closed? && @test.published?
   end
 
@@ -97,11 +100,13 @@ class TestsController < ApplicationController
   end
 
   # Saves one attempt per question in a single transaction: answering the test
-  # is a single indivisible attempt, never one question at a time.
+  # is a single indivisible attempt, never one question at a time. The author
+  # knows the reference answers, so they never take their own test.
   def attempt
     @test = Test.includes(:questions).find(params[:id])
     return render_gate(status: :forbidden) unless @test.unlocked?(Current.user, session)
     return redirect_to @test, alert: "Тест ещё не опубликован." unless @test.published?
+    return redirect_to @test, alert: "Автор не отвечает на свой тест." if @test.author == Current.user
     return redirect_to @test, alert: "Дедлайн прошёл." if @test.closed?
     return redirect_to @test, alert: "Вы уже ответили на этот тест." if @test.answered_by?(Current.user)
     records = @test.questions.map { |q| q.attempts.build(answer_params(q.id).merge(user: Current.user)) }

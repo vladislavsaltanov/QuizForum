@@ -19,6 +19,19 @@
     <% end %>
   </p>
   <h1 class="qf-qtitle"><%= @test.title %></h1>
+  <% if @test.published? %>
+    <%# Author plate, same voice and pieces as the question page. %>
+    <div class="qf-card qf-author-card">
+      <%= avatar_tag(@test.author.name) %>
+      <span class="qf-author-meta">
+        <b><%= @test.author.name %></b>
+        <% if @test.author.display_role.present? %>
+          <i><%= @test.author.display_role %></i>
+        <% end %>
+      </span>
+      <span class="qf-card-attempts">ответили: <%= @respondents %></span>
+    </div>
+  <% end %>
   <% if @test.body.present? %>
     <div class="qf-body"><%= simple_format(@test.body) %></div>
   <% end %>
@@ -32,6 +45,18 @@
           <span class="qf-chip">баллов: <%= question.points %></span>
         </div>
         <h2 class="qf-section-title"><%= question.title %></h2>
+      </section>
+    <% end %>
+  <% elsif @is_author %>
+    <p class="qf-hint">Это ваш тест — знать ответы заранее и отвечать нельзя. Ждите результаты после дедлайна.</p>
+    <% @questions.each_with_index do |question, i| %>
+      <section class="qf-card" aria-label="Вопрос <%= i + 1 %>">
+        <div class="qf-attempt-head">
+          <b>Вопрос <%= i + 1 %> из <%= @questions.size %></b>
+          <span class="qf-chip">баллов: <%= question.points %></span>
+        </div>
+        <h2 class="qf-section-title"><%= question.title %></h2>
+        <div class="qf-body"><%= simple_format(question.body) %></div>
       </section>
     <% end %>
   <% else %>
@@ -126,6 +151,26 @@
         </div>
       <% end %>
     <% end %>
+  <% end %>
+
+  <%# Comment chat: same premoderation as questions; the test author approves, %>
+  <%# the Deadline opens everything. Live stream mirrors the question page. %>
+  <% if @test.published? %>
+    <%= turbo_stream_from @test %>
+    <h2 class="qf-section-title">Обсуждение · <%= @comments.size %></h2>
+    <section class="qf-pane is-comments" aria-label="Обсуждение">
+      <div id="comments" class="qf-chat">
+        <% if @comments.empty? %>
+          <p class="qf-empty">Пока тихо — начните обсуждение первым.</p>
+        <% end %>
+        <%= render @comments %>
+      </div>
+      <%= form_with url: test_comments_path(@test), class: "qf-chatbar" do |f| %>
+        <%= text_area_tag "comment[body]", nil, rows: 1, placeholder: "Написать сообщение…", class: "qf-chat-input", "aria-label": "Новый комментарий", data: { controller: "composer", action: "keydown->composer#send" } %>
+        <button type="submit" class="qf-send" aria-label="Отправить" data-turbo-submits-with="…">↑</button>
+      <% end %>
+      <p class="qf-hint">Сообщения проходят модерацию и открываются всем после дедлайна.</p>
+    </section>
   <% end %>
 
   <footer class="qf-footer">
