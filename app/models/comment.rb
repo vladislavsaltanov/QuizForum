@@ -12,9 +12,6 @@ class Comment < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
   validate :exactly_one_owner
 
-  broadcasts_to ->(comment) { comment.question || comment.test },
-    inserts_by: :append, target: "comments", if: :visible_live?
-
   # Approved comments are visible to everyone.
   def approved?
     status == "approved"
@@ -39,15 +36,15 @@ class Comment < ApplicationRecord
     scope.where(status: "approved").or(scope.where(user: user))
   end
 
+  # Broadcast bubbles only when everyone may already see them (question branch).
+  def visible_live?
+    approved? || question&.closed?
+  end
+
   private
     # A comment belongs to a Question or to a Test, never both, never neither.
     def exactly_one_owner
       return if question_id.present? ^ test_id.present?
       errors.add(:base, "must belong to a question or a test")
-    end
-
-    # Broadcast only comments everyone may already see.
-    def visible_live?
-      approved? || owner&.closed?
     end
 end

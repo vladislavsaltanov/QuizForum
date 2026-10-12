@@ -35,15 +35,30 @@ class CommentsController < ApplicationController
     @comment = Comment.find(params[:id])
     return head(:forbidden) unless @comment.owner.privileged?(Current.user)
     @comment.update!(status: "approved")
+    broadcast_question_bubbles(@comment) if @comment.question
     redirect_to owner_path(@comment), notice: "Комментарий опубликован."
   end
 
   # Deletes a comment; author, trustee, or admin only.
+  # The visible node goes off the live pages too: question bubbles always sat
+  # in the global stream, test bubbles carry the manage copy on their stream.
   def destroy
     @comment = Comment.find(params[:id])
     return head(:forbidden) unless @comment.owner.privileged?(Current.user)
-    broadcast_test_comment_count(@comment.test) if @comment.test
+    if @comment.test
+      broadcast_test_comment_count(@comment.test)
+    end
+    was_live = @comment.visible_live?
     @comment.destroy!
+    if @comment.test
+      if @comment.approved? || @comment.test.closed?
+        Turbo::StreamsChannel.broadcast_remove_to(
+          @comment.test, target: ActionView::RecordIdentifier.dom_id(@comment))
+      end
+    elsif @comment.question && was_live
+      Turbo::StreamsChannel.broadcast_remove_to(
+        @comment.question, target: ActionView::RecordIdentifier.dom_id(@comment))
+    end
     redirect_to owner_path(@comment), notice: "Комментарий удалён."
   end
 
@@ -67,6 +82,7 @@ class CommentsController < ApplicationController
       else
         @comment.status = "approved" if verdict.verdict == :pass
         if @comment.save
+          broadcast_question_bubbles(@comment) if @comment.visible_live?
           redirect_to question_path(@question, tab: "comments")
         else
           redirect_to question_path(@question, tab: "comments"), alert: @comment.errors.full_messages.to_sentence
@@ -96,17 +112,42 @@ class CommentsController < ApplicationController
         @comment.status = "approved" if verdict.verdict == :pass
         if @comment.save
           broadcast_test_comment_count(@test)
-          # Stream response keeps the page put: the new bubble arrives via the
-          # broadcasting channel, only the composer itself is re-rendered.
+          broadcast_test_comment_bubble(@comment)
+          # Stream response keeps the page put: global bubbles arrive via the
+          # channels; pending (not-yet-approved) ones the poster sees directly.
           respond_to do |format|
             format.html { redirect_to path }
-            format.turbo_stream { render turbo_stream: turbo_stream.replace("test-chatbar",
-            partial: "comments/composer", locals: { post_path: test_comments_path(@test), form_id: "test-chatbar" }) }
+            format.turbo_stream do
+              render turbo_stream: [
+                *(@comment.approved? ? [] : [ turbo_stream.append("comments",
+                  partial: "comments/comment", locals: { comment: @comment, manage: true }) ]),
+                turbo_stream.replace("test-chatbar",
+                  partial: "comments/composer",
+                  locals: { post_path: test_comments_path(@test), form_id: "test-chatbar" })
+              ]
+            end
           end
         else
           redirect_to path, alert: @comment.errors.full_messages.to_sentence
         end
       end
+    end
+
+    # Question bubbles ride the plain stream, buttonless copy for everyone.
+    def broadcast_question_bubbles(comment)
+      Turbo::StreamsChannel.broadcast_append_to(comment.question, target: "comments",
+        partial: "comments/comment", locals: { comment:, manage: false })
+    end
+
+    # Bubbles: everyone gets the plain bubble, the privileged manage stream
+    # swaps in the button-rendered copy on the same DOM id when visible.
+    def broadcast_test_comment_bubble(comment)
+      return unless comment.approved? || comment.test.closed?
+      Turbo::StreamsChannel.broadcast_append_to(comment.test, target: "comments",
+        partial: "comments/comment", locals: { comment:, manage: false })
+      Turbo::StreamsChannel.broadcast_replace_to(comment.test, "manage",
+        target: "comment-manage-#{comment.id}",
+        partial: "comments/manage_buttons", locals: { comment: })
     end
 
     # The discussion heading shows a live count; only test comments own the chip.

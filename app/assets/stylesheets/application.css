@@ -659,8 +659,14 @@ a.qf-ghost { text-decoration: none; display: inline-flex; align-items: center; j
 
 /* Test discussion: same chat bones, no borrowed pane flex — the composer
    stays right under the (bounded) chat instead of a stretched 70vh column. */
-.qf-test-discuss { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; max-inline-size: 48rem; margin-inline: auto; inline-size: 100%; }
-.qf-test-discuss .qf-chat { flex: 0 0 auto; block-size: 16rem; padding-block-start: 10px; }
+/* Test discussion: the question comment pane, at its own width. */
+.qf-test-discuss {
+  display: flex; flex-direction: column; gap: 12px;
+  max-inline-size: 48rem; inline-size: 100%; margin-inline: auto;
+  margin-top: 6px;
+}
+.qf-test-discuss.is-comments { max-block-size: 70vh; }
+.qf-test-discuss .qf-list-head { margin-inline: -24px; padding-inline: 24px; }
 .qf-test-discuss .qf-chatbar { margin-top: 0; }
 .qf-test-discuss .qf-hint { margin: 0; }
 
