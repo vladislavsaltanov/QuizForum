@@ -645,6 +645,14 @@ a.qf-qtitle:hover { color: var(--qf-ink); text-decoration: underline; text-under
    so its border and text sit off against the sibling <button>. */
 a.qf-ghost { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
 
+/* Title links in list rows share the row's compact voice. */
+.qf-row > a { text-decoration: none; font-family: var(--qf-mono); font-weight: 600; color: var(--qf-ink); min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qf-row > a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.qf-row-points { display: flex; gap: 6px; align-items: center; font-family: var(--qf-mono); font-size: 13px; color: var(--qf-mute); white-space: nowrap; }
+.qf-points { inline-size: 4.5rem; text-align: center; padding-block: 4px; }
+.qf-row-drop { padding: 4px 14px; font-size: 13px; }
+.qf-row-drop form { display: inline-flex; }
+
 .qf-comments { display: grid; gap: 12px; margin-bottom: 14px; }
 
 .qf-comment {

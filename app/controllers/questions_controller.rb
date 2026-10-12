@@ -111,12 +111,19 @@ class QuestionsController < ApplicationController
     end
   end
 
-  # Deletes the question with its attempts and comments.
+  # Deletes the question with its attempts and comments; test-scoped
+  # questions return to the test manage page.
   def destroy
     @question = Question.find(params[:id])
     return head(:forbidden) unless editable?(@question)
+    in_test = @question.in_test?
+    test = @question.test
     @question.destroy!
-    redirect_to root_path, notice: "Вопрос удалён."
+    if in_test
+      redirect_to edit_test_path(test), notice: "Вопрос удалён из теста."
+    else
+      redirect_to root_path, notice: "Вопрос удалён."
+    end
   end
 
   # Re-enqueues pending code checks; author/admin only, code questions only.

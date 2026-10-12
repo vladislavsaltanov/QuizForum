@@ -49,12 +49,23 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     assert_redirected_to edit_test_path(test)
     assert_equal 2, test.questions.count
 
-    # Title list links to each question's edit screen.
+    # Title list links to each question's edit screen; rows are compact
+    # (qf-row, not card) with a points field and a delete button.
     get edit_test_path(test)
     assert_response :success
     assert_match(/Сколько будет 2\+2\?/, response.body)
     q0 = test.questions.order(:position).first
     assert_match(/\/questions\/#{q0.id}\/edit/, response.body)
+    assert_select ".qf-row", count: 2
+    assert_select "[aria-label='Баллы за вопрос 1']"
+
+    # A question drops out of the list and bounces back to the manage page.
+    # q0 (2+2, 1 point) goes: q1 below carries the 5 points.
+    delete question_path(q0)
+    assert_redirected_to edit_test_path(test)
+    assert_equal 1, test.questions.count
+    get edit_test_path(test)
+    assert_no_match(/Сколько будет 2\+2\?/, response.body)
 
     # Empty draft refuses to publish.
     empty = @author.authored_tests.create!(title: "Пустой", deadline: 1.day.from_now)
@@ -62,16 +73,16 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     assert_predicate empty.reload, :draft?
 
-    # Publish with points set on the manage page.
+    # Publish with points set on the manage page; only q1 (5 points) remains.
     q1 = test.questions.order(:position).last
     patch test_path(test), params: {
       test: { title: "Мидтерм", deadline: 1.day.from_now },
-      questions_points: { q0.id.to_s => "2", q1.id.to_s => "5" },
+      questions_points: { q1.id.to_s => "5" },
       publish: "1"
     }
     assert_redirected_to test_path(test)
     assert_predicate test.reload, :published?
-    assert_equal 7, test.max_score
+    assert_equal 5, test.max_score
 
     # Published test is visible to strangers.
     sign_in_as(@user)

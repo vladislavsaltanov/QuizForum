@@ -38,15 +38,16 @@
       <p class="qf-empty">Вопросов пока нет — добавьте первый кнопкой ниже.</p>
     <% else %>
       <% @questions.each_with_index do |question, i| %>
-        <div class="qf-card">
-          <div class="qf-attempt-head">
-            <%= link_to question.title, edit_question_path(question), class: "qf-qtitle" %>
-            <span class="qf-chip"><%= question.answer_type %></span>
-          </div>
-          <p class="qf-hint">
-            Вопрос <%= i + 1 %> ·
-            баллов: <%= number_field_tag "questions_points[#{question.id}]", question.points, min: 0, max: 100, class: "qf-input", "aria-label": "Баллы за вопрос #{i + 1}" %>
-          </p>
+        <div class="qf-row">
+          <span class="qf-card-num"><%= i + 1 %></span>
+          <%= link_to question.title, edit_question_path(question) %>
+          <span class="qf-chip"><%= question.answer_type %></span>
+          <label class="qf-row-points">
+            баллов
+            <%= number_field_tag "questions_points[#{question.id}]", question.points, min: 0, max: 100, class: "qf-input qf-points", "aria-label": "Баллы за вопрос #{i + 1}" %>
+          </label>
+          <%= button_to "Удалить", question_path(question), method: :delete, class: "qf-ghost qf-row-drop",
+                form: { data: { turbo_confirm: "Удалить вопрос из теста?" } } %>
         </div>
       <% end %>
     <% end %>
