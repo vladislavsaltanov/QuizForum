@@ -1,0 +1,58 @@
+<% content_for :title, "Настроить тест" %>
+
+<%= render "shared/header", active: "tests" %>
+
+<main class="qf-main">
+  <%= link_to "← К тесту", test_path(@test), class: "qf-back" %>
+  <p class="qf-kicker">Управление тестом</p>
+  <h1 class="qf-hero"><%= @test.title %></h1>
+
+  <%= form_with model: @test, url: test_path(@test), method: :patch, class: "qf-form" do |f| %>
+    <% if @test.errors.any? %>
+      <div class="qf-alert" role="alert"><%= @test.errors.full_messages.to_sentence %></div>
+    <% end %>
+
+    <%= f.label :title, "Название", class: "qf-label" %>
+    <%= f.text_field :title, required: true, class: "qf-input" %>
+
+    <%= f.label :body, "Описание", class: "qf-label" %>
+    <%= f.text_area :body, rows: 3, class: "qf-input" %>
+
+    <%= f.label :deadline, "Дедлайн (подтянет и вопросы)", class: "qf-label" %>
+    <%= f.datetime_field :deadline, required: true, class: "qf-input" %>
+
+    <%= f.label :password, "Пароль (пусто = открытый тест)", class: "qf-label" %>
+    <%= f.password_field :password, class: "qf-input", autocomplete: "off", placeholder: @test.protected? ? "•••••• (задан)" : "" %>
+
+    <%= f.label :max_points, "Максимум баллов (пусто = сумма баллов вопросов)", class: "qf-label" %>
+    <%= f.number_field :max_points, min: 1, class: "qf-input" %>
+
+    <h2 class="qf-section-title">Вопросы · <%= @questions.size %></h2>
+    <% if @questions.empty? %>
+      <p class="qf-empty">Вопросов пока нет — добавьте первый кнопкой ниже.</p>
+    <% else %>
+      <% @questions.each_with_index do |question, i| %>
+        <div class="qf-card">
+          <div class="qf-attempt-head">
+            <%= link_to question.title, edit_question_path(question), class: "qf-qtitle" %>
+            <span class="qf-chip"><%= question.answer_type %></span>
+          </div>
+          <p class="qf-hint">
+            Вопрос <%= i + 1 %> ·
+            баллов: <%= number_field_tag "questions_points[#{question.id}]", question.points, min: 0, max: 100, class: "qf-input", "aria-label": "Баллы за вопрос #{i + 1}" %>
+          </p>
+        </div>
+      <% end %>
+    <% end %>
+
+    <div class="qf-actions">
+      <button type="submit" class="qf-apply">Сохранить</button>
+      <%= link_to "Новый вопрос", new_question_path(test_id: @test.id), class: "qf-ghost" %>
+    </div>
+  <% end %>
+
+  <footer class="qf-footer">
+    <span>QuizForum</span>
+    <span>Управление тестом</span>
+  </footer>
+</main>

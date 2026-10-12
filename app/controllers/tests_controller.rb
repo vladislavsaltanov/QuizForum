@@ -1,7 +1,9 @@
 # Moodle-style tests: a combination of Questions that live only inside the test,
 # answered all at once with one submit. Open or password-protected.
+# Questions are managed one by one from the test edit page through the regular
+# question form bound to the test — existing questions can never be added.
 class TestsController < ApplicationController
-  rate_limit to: 10, within: 3.minutes, only: %i[create authenticate attempt],
+  rate_limit to: 10, within: 3.minutes, only: %i[create update authenticate attempt],
              with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
 
   # Feed of tests, newest first.
@@ -9,27 +11,49 @@ class TestsController < ApplicationController
     @tests = Test.order(created_at: :desc).includes(:author, :questions)
   end
 
-  # Blank form with three empty question rows; blank rows are dropped on save.
+  # Blank test shell; questions get added afterwards from the edit page.
   def new
     @test = Test.new(deadline: 7.days.from_now.change(sec: 0))
-    @question_rows = 3.times.map { {} }
   end
 
-  # Publishes a test with its questions; blank password stays NULL (open test).
-  # Questions are scoped to the test (deadline = test deadline, no tags) and
-  # never appear on the feed; existing questions can never be added.
+  # Publishes the shell and hands over to question management.
   def create
     @test = Current.user.authored_tests.build(test_params)
-    @test.questions = parse_questions(deadline: @test.deadline, author: Current.user)
-    @test.questions.each { moderation_blocked?(_1) }
-    @test.errors.add(:base, "Добавьте хотя бы один вопрос.") if @test.questions.empty?
-    if @test.errors.empty? && @test.valid? && @test.questions.all?(&:valid?) && @test.save
-      redirect_to @test, notice: "Тест опубликован."
+    if @test.save
+      redirect_to edit_test_path(@test), notice: "Тест создан. Добавьте вопросы."
     else
-      @test.questions.each { |q| q.errors.each { |e| @test.errors.add(:base, "#{q.title.presence || 'Вопрос'}: #{e.full_message}") } }
-      @question_rows = question_rows_from_params.presence || 3.times.map { {} }
       flash.now[:alert] = @test.errors.full_messages.to_sentence.presence || "Не удалось сохранить. Повторите."
       render :new, status: :unprocessable_entity
+    end
+  end
+
+  # Manage page: test settings, question title list, per-question points.
+  def edit
+    @test = Test.includes(:questions).find(params[:id])
+    return head(:forbidden) unless @test.editable_by?(Current.user)
+    @questions = @test.questions.to_a
+  end
+
+  # Saves settings, per-question points, and re-syncs question deadlines.
+  def update
+    @test = Test.includes(:questions).find(params[:id])
+    return head(:forbidden) unless @test.editable_by?(Current.user)
+    @test.assign_attributes(test_params)
+    points = params.fetch(:questions_points, {}).to_unsafe_h
+    @test.questions.each do |q|
+      q.points = points[q.id.to_s].to_i.clamp(0, 100) if points.key?(q.id.to_s)
+    end
+    if @test.valid? && @test.questions.all?(&:valid?)
+      Test.transaction do
+        @test.save!
+        @test.questions.each(&:save!)
+        @test.questions.update_all(deadline: @test.deadline)
+      end
+      redirect_to edit_test_path(@test), notice: "Тест обновлён."
+    else
+      @questions = @test.questions.to_a
+      flash.now[:alert] = @test.errors.full_messages.to_sentence.presence || "Не удалось сохранить. Повторите."
+      render :edit, status: :unprocessable_entity
     end
   end
 
@@ -101,65 +125,9 @@ class TestsController < ApplicationController
       end.sort_by { |u, total| [ -total, u.name ] }
     end
 
-    # Whitelisted test form fields; questions arrive as parallel arrays (see parse_questions).
+    # Whitelisted test form fields.
     def test_params
       params.expect(test: [ :title, :body, :deadline, :password, :max_points ])
-    end
-
-    # Zips parallel question form arrays into Question rows, skipping blank titles.
-    # Options come one per line; a leading "*" marks the correct ones.
-    def parse_questions(deadline:, author:)
-      titles = Array(params[:questions_title])
-      types = Array(params[:questions_answer_type])
-      bodies = Array(params[:questions_body])
-      references = Array(params[:questions_reference])
-      opts = Array(params[:questions_options])
-      points = Array(params[:questions_points])
-      titles.each_with_index.filter_map do |title, i|
-        title = title.to_s.strip
-        next if title.empty?
-        type = Question::ANSWER_TYPES.include?(types[i]) ? types[i] : "text"
-        Question.new(title:, body: bodies[i].to_s.strip, answer_type: type,
-          reference_answer: references[i].to_s.strip,
-          options: parse_question_options(opts[i], type),
-          points: points[i].to_i.clamp(0, 100), position: i,
-          deadline:, author:, test: @test, tags: [])
-      end
-    end
-
-    # One option per line; "*" prefix means correct. Only choice types keep options.
-    def parse_question_options(raw, type)
-      return [] unless type == "single_choice" || type == "multiple_choice"
-      raw.to_s.lines.filter_map do |line|
-        line = line.strip
-        next if line.empty?
-        correct = line.start_with?("*")
-        { "text" => (correct ? line[1..].strip : line), "correct" => correct }
-      end
-    end
-
-    # Same Laya bar as standalone questions; errors land on the question, not the test.
-    def moderation_blocked?(question)
-      moderation_text = AiQuestionIngest.moderation_text(
-        title: question.title, body: question.body, tags: [],
-        reference_answer: question.reference_answer, explanation: nil,
-        example_input: nil, example_output: nil, options: question.options)
-      verdict = ModerationClient.check(text: moderation_text)
-      question.errors.add(:base, "Отклонено проверкой: #{verdict.category}.") if verdict.verdict == :reject
-      question.errors.add(:base, "Проверка не удалась, попробуйте позже.") if verdict.verdict == :try_later
-    end
-
-    # Echo the submitted rows back into the form after a failed save.
-    def question_rows_from_params
-      titles = Array(params[:questions_title])
-      return [] if titles.all?(&:blank?)
-      titles.each_with_index.map do |title, i|
-        { "title" => title, "answer_type" => Array(params[:questions_answer_type])[i],
-          "body" => Array(params[:questions_body])[i],
-          "reference" => Array(params[:questions_reference])[i],
-          "points" => Array(params[:questions_points])[i],
-          "options" => Array(params[:questions_options])[i] }
-      end
     end
 
     # One question's answers from the combined form, keyed by question id.

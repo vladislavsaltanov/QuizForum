@@ -8,11 +8,15 @@
 <%= render "shared/header", active: nil %>
 
 <main class="qf-main">
-  <%= link_to "← К вопросу", question_path(@question), class: "qf-back" %>
+  <% if @in_test %>
+    <%= link_to "← К тесту", edit_test_path(@test_scope), class: "qf-back" %>
+  <% else %>
+    <%= link_to "← К вопросу", question_path(@question), class: "qf-back" %>
+  <% end %>
   <p class="qf-kicker">Редактирование</p>
   <h1 class="qf-hero">Редактировать вопрос</h1>
 
-  <%= render "form", question: @question, submit_label: "Сохранить", can_manage_trustees: @can_manage_trustees %>
+  <%= render "form", question: @question, submit_label: "Сохранить", can_manage_trustees: @can_manage_trustees, in_test: @in_test %>
 
   <footer class="qf-footer">
     <span>QuizForum</span>

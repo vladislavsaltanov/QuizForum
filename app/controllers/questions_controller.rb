@@ -1,4 +1,6 @@
 # Public question pages with deadline-based visibility of answers and comments.
+# Questions bound to a test (test_id) are created and edited through the same
+# form, but deadline/tags/trustees are owned by the test and hidden from it.
 class QuestionsController < ApplicationController
   COMMENT_BATCH = 10
   # Dry-run smoke budget for code questions (spec section 3); full grading uses 120s.
@@ -25,22 +27,46 @@ class QuestionsController < ApplicationController
     @stats = @question.attempts.group(:verdict).count if @question.closed? || @is_author
   end
 
-  # Blank form prefilled with a one-week deadline.
+  # Blank form prefilled with a one-week deadline; with test_id it comes
+  # pre-bound to the test (deadline owned by the test, tags forced empty).
   def new
-    @question = Question.new(deadline: 7.days.from_now.change(sec: 0))
+    @test_scope = Test.find(params[:test_id]) if params[:test_id].present?
+    if @test_scope && !@test_scope.editable_by?(Current.user)
+      return redirect_to @test_scope, alert: "Только автор теста добавляет вопросы."
+    end
+    @question = Question.new(deadline: (@test_scope&.deadline || 7.days.from_now).change(sec: 0))
+    @question.test = @test_scope
+    @in_test = @test_scope.present?
   end
 
   # Publishes a question; trustee list syncs only when the form sent the field.
+  # Test-bound questions land on the test edit page instead of the feed.
   def create
+    @test_scope = Test.find(params[:question][:test_id]) if params[:question][:test_id].present?
+    if @test_scope && !@test_scope.editable_by?(Current.user)
+      return redirect_to @test_scope, alert: "Только автор теста добавляет вопросы."
+    end
     @question = Current.user.authored_questions.build(question_params)
-    @question.tags = parse_tags
+    if @test_scope
+      @question.test = @test_scope
+      @question.deadline = @test_scope.deadline
+      @question.tags = []
+      @question.position = @test_scope.questions.count
+    else
+      @question.tags = parse_tags
+    end
     @question.options = parse_options if @question.choice?
     moderation_blocked? if @question.valid?
     code_dry_run_blocked? if @question.errors.empty?
     saved, @trustee_alert = @question.errors.empty? ? save_with_trustees : [ false, nil ]
     if saved
-      redirect_to @question, notice: "Вопрос опубликован.", alert: @trustee_alert
+      if @test_scope
+        redirect_to edit_test_path(@test_scope), notice: "Вопрос добавлен в тест."
+      else
+        redirect_to @question, notice: "Вопрос опубликован.", alert: @trustee_alert
+      end
     else
+      @in_test = @test_scope.present?
       flash.now[:alert] = @question.errors.full_messages.to_sentence.presence || "Не удалось сохранить. Повторите."
       render :new, status: :unprocessable_entity
     end
@@ -51,22 +77,35 @@ class QuestionsController < ApplicationController
     @question = Question.find(params[:id])
     head(:forbidden) unless editable?(@question)
     @can_manage_trustees = @question.managed_by?(Current.user)
+    @test_scope = @question.test
+    @in_test = @question.in_test?
   end
 
   # Saves edits; only author/admin may change the trustee list.
+  # Test-bound questions return to the test edit page.
   def update
     @question = Question.find(params[:id])
     return head(:forbidden) unless editable?(@question)
     @question.assign_attributes(question_params)
-    @question.tags = parse_tags
+    if @question.in_test?
+      @question.tags = []
+    else
+      @question.tags = parse_tags
+    end
     @question.options = parse_options if @question.choice?
     moderation_blocked? if @question.valid?
     code_dry_run_blocked? if @question.errors.empty?
     saved, @trustee_alert = @question.errors.empty? ? save_with_trustees : [ false, nil ]
     if saved
-      redirect_to @question, notice: "Вопрос обновлён.", alert: @trustee_alert
+      if @question.in_test?
+        redirect_to edit_test_path(@question.test), notice: "Вопрос обновлён."
+      else
+        redirect_to @question, notice: "Вопрос обновлён.", alert: @trustee_alert
+      end
     else
       @can_manage_trustees = @question.managed_by?(Current.user)
+      @test_scope = @question.test
+      @in_test = @question.in_test?
       flash.now[:alert] = @question.errors.full_messages.to_sentence.presence || "Не удалось сохранить. Повторите."
       render :edit, status: :unprocessable_entity
     end

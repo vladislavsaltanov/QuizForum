@@ -8,10 +8,13 @@
 <%= render "shared/header", active: "mine" %>
 
 <main class="qf-main">
-  <p class="qf-kicker">Публикация</p>
+  <% if @in_test %>
+    <%= link_to "← К тесту", edit_test_path(@test_scope), class: "qf-back" %>
+  <% end %>
+  <p class="qf-kicker">Публикация<%= " · вопрос теста «#{@test_scope.title}»" if @in_test %></p>
   <h1 class="qf-hero">Новый вопрос</h1>
 
-  <%= render "form", question: @question, submit_label: "Опубликовать", can_manage_trustees: true %>
+  <%= render "form", question: @question, submit_label: "Опубликовать", can_manage_trustees: true, in_test: @in_test %>
 
   <footer class="qf-footer">
     <span>QuizForum</span>

@@ -1,5 +1,7 @@
 # Moodle-style test: a combination of Questions that live only inside it,
 # answered all at once with one submit. Open or password-protected.
+# Questions are managed from the test edit page, one by one, through the
+# regular question form bound to the test — never inline, never existing ones.
 class Test < ApplicationRecord
   # NULL digest = open test; has_secure_password would require a password on
   # create, so validations stay off and blank simply means no gate.
@@ -21,6 +23,11 @@ class Test < ApplicationRecord
   # Closed tests reveal scores and verdicts.
   def closed?
     !open?
+  end
+
+  # Author or admin only; same bar as questions.
+  def editable_by?(user)
+    author == user || user&.admin?
   end
 
   # True when the author set a password.

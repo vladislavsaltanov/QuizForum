@@ -8,20 +8,72 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     sign_in_as(@user)
   end
 
-  test "open test flow: create with questions, answer all at once, post-deadline score" do
+  test "manage flow: create shell, add questions one by one, edit list" do
     sign_in_as(@author)
     post tests_path, params: {
-      test: { title: "Мидтерм", body: "проверка", deadline: 1.day.from_now, max_points: "" },
-      questions_title: [ "Сколько будет 2+2?", "Столица Франции?" ],
-      questions_answer_type: %w[single_choice text],
-      questions_body: [ "посчитайте", "назовите" ],
-      questions_reference: [ "", "Париж" ],
-      questions_points: %w[2 5],
-      questions_options: [ "*4\n3\n5", "" ]
+      test: { title: "Мидтерм", body: "проверка", deadline: 1.day.from_now, max_points: "" }
     }
     test = Test.order(:created_at).last
-    assert_redirected_to test_path(test)
+    assert_redirected_to edit_test_path(test)
+
+    # Manage page: empty list plus the new-question button.
+    get edit_test_path(test)
+    assert_response :success
+    assert_match(/Вопросов пока нет/, response.body)
+    assert_match(/Новый вопрос/, response.body)
+
+    # Questions are added through the regular question screen bound to the test.
+    get new_question_path(test_id: test.id)
+    assert_response :success
+    post questions_path, params: {
+      question: { test_id: test.id, title: "Сколько будет 2+2?", body: "посчитайте",
+        answer_type: "single_choice", reference_answer: "",
+        options_text: [ "4", "3", "5" ], options_correct: [ "0" ] }
+    }
+    assert_redirected_to edit_test_path(test)
+    post questions_path, params: {
+      question: { test_id: test.id, title: "Столица Франции?", body: "назовите",
+        answer_type: "text", reference_answer: "Париж" }
+    }
+    assert_redirected_to edit_test_path(test)
     assert_equal 2, test.questions.count
+
+    # Manage page lists titles linking to each question's edit screen.
+    get edit_test_path(test)
+    assert_response :success
+    assert_match(/Сколько будет 2\+2\?/, response.body)
+    assert_match(/Столица Франции\?/, response.body)
+    q0 = test.questions.order(:position).first
+    assert_match(/\/questions\/#{q0.id}\/edit/, response.body)
+
+    # Points are set on the manage page.
+    q1 = test.questions.order(:position).last
+    patch test_path(test), params: {
+      test: { title: "Мидтерм", deadline: 1.day.from_now },
+      questions_points: { q0.id.to_s => "2", q1.id.to_s => "5" }
+    }
+    assert_redirected_to edit_test_path(test)
+    assert_equal 2, q0.reload.points
+    assert_equal 5, q1.reload.points
+    assert_equal 7, test.reload.max_score
+  end
+
+  test "open test flow: answer all at once, post-deadline score" do
+    sign_in_as(@author)
+    post tests_path, params: { test: { title: "Мидтерм", deadline: 1.day.from_now } }
+    test = Test.order(:created_at).last
+    post questions_path, params: {
+      question: { test_id: test.id, title: "Сколько будет 2+2?", body: "b",
+        answer_type: "single_choice", reference_answer: "",
+        options_text: [ "4", "3" ], options_correct: [ "0" ] }
+    }
+    post questions_path, params: {
+      question: { test_id: test.id, title: "Столица?", body: "b",
+        answer_type: "text", reference_answer: "Париж" }
+    }
+    q0, q1 = test.questions.order(:position).to_a
+    q0.update!(points: 2)
+    q1.update!(points: 5)
     sign_in_as(@user)
 
     # Both questions render on one page behind a single submit.
@@ -32,7 +84,6 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     assert_match(/Отправить все ответы/, response.body)
 
     # One submit answers everything: correct choice + text (stays pending).
-    q0, q1 = test.questions.order(:position).to_a
     post attempt_test_path(test), params: { answers: {
       q0.id.to_s => { selected: [ "0" ] },
       q1.id.to_s => { body: "Париж" }
@@ -61,16 +112,12 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
 
   test "test questions live only inside the test" do
     sign_in_as(@author)
-    post tests_path, params: {
-      test: { title: "Вложенный", deadline: 1.day.from_now },
-      questions_title: [ "Сколько?" ],
-      questions_answer_type: [ "text" ],
-      questions_body: [ "b" ],
-      questions_reference: [ "много" ],
-      questions_points: [ "1" ],
-      questions_options: [ "" ]
-    }
+    post tests_path, params: { test: { title: "Вложенный", deadline: 1.day.from_now } }
     test = Test.order(:created_at).last
+    post questions_path, params: {
+      question: { test_id: test.id, title: "Сколько?", body: "b",
+        answer_type: "text", reference_answer: "много" }
+    }
     question = test.questions.first
 
     # Never on the feed or archive.
