@@ -57,6 +57,7 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     q0 = test.questions.order(:position).first
     assert_match(/\/questions\/#{q0.id}\/edit/, response.body)
     assert_select ".qf-row", count: 2
+    assert_select ".qf-row .qf-row-drop[data-turbo-method='delete']", count: 2
     assert_select "[aria-label='Баллы за вопрос 1']"
 
     # A question drops out of the list and bounces back to the manage page.

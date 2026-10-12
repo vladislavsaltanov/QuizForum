@@ -46,8 +46,8 @@
             баллов
             <%= number_field_tag "questions_points[#{question.id}]", question.points, min: 0, max: 100, class: "qf-input qf-points", "aria-label": "Баллы за вопрос #{i + 1}" %>
           </label>
-          <%= button_to "Удалить", question_path(question), method: :delete, class: "qf-ghost qf-row-drop",
-                form: { data: { turbo_confirm: "Удалить вопрос из теста?" } } %>
+          <%= link_to "Удалить", question_path(question), class: "qf-ghost qf-row-drop",
+                data: { turbo_method: :delete, turbo_confirm: "Удалить вопрос из теста?" } %>
         </div>
       <% end %>
     <% end %>
