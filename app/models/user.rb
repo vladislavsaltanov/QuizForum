@@ -4,6 +4,8 @@ class User < ApplicationRecord
   attr_accessor :current_password
   has_many :sessions, dependent: :destroy
   has_many :authored_questions, class_name: "Question", foreign_key: :author_id, dependent: :destroy
+  has_many :authored_tests, class_name: "Test", foreign_key: :author_id, dependent: :destroy
+  has_many :test_attempts, dependent: :destroy
   has_many :attempts, dependent: :destroy
   has_many :comments, dependent: :destroy
   has_many :question_trustees, dependent: :destroy
