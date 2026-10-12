@@ -660,7 +660,7 @@ a.qf-ghost { text-decoration: none; display: inline-flex; align-items: center; j
 /* Test discussion: same chat bones, no borrowed pane flex — the composer
    stays right under the (bounded) chat instead of a stretched 70vh column. */
 .qf-test-discuss { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; max-inline-size: 48rem; margin-inline: auto; inline-size: 100%; }
-.qf-test-discuss .qf-chat { flex: 0 0 auto; max-block-size: 40vh; }
+.qf-test-discuss .qf-chat { flex: 0 0 auto; block-size: 16rem; padding-block-start: 10px; }
 .qf-test-discuss .qf-chatbar { margin-top: 0; }
 .qf-test-discuss .qf-hint { margin: 0; }
 

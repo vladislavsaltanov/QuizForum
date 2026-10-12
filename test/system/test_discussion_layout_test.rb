@@ -22,6 +22,28 @@ class TestDiscussionLayoutTest < ApplicationSystemTestCase
     assert_operator past, :<=, 0, "bubble must stay inside the discussion column, was #{past}px past"
   end
 
+  test "author deletes a comment from the test page" do
+    open_discussion
+    initial = page.all("#comments .qf-msg").size
+    within(all("#comments .qf-msg").last) { click_on "Удалить" }
+
+    assert_no_text(@test_t.comments.first.body) # removal lands on the page
+    assert_equal initial - 1, @test_t.comments.count
+  end
+
+  test "sending keeps the composer pinned and updates the live count" do
+    open_discussion
+    top = page.evaluate_script("(() => { const b = document.querySelector('.qf-chatbar').getBoundingClientRect(); return b.top; })()")
+    count_before = page.evaluate_script("document.getElementById('test-comments-count').textContent")
+
+    page.find(".qf-chat-input").set("стабильный композер под постоянным чатом")
+    page.find(".qf-send").click()
+    assert_text "стабильный композер под постоянным чатом"
+    top_after = page.evaluate_script("(() => { const b = document.querySelector('.qf-chatbar').getBoundingClientRect(); return b.top; })()")
+    assert_equal top, top_after, "composer must not move when a bubble lands"
+    assert_equal (count_before.to_i + 1).to_s, page.evaluate_script("document.getElementById('test-comments-count').textContent")
+  end
+
   test "composer sits right under the chat, inside one fold" do
     open_discussion
     gap = page.evaluate_script(PROBE_GAP)

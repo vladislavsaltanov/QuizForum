@@ -42,6 +42,7 @@ class CommentsController < ApplicationController
   def destroy
     @comment = Comment.find(params[:id])
     return head(:forbidden) unless @comment.owner.privileged?(Current.user)
+    broadcast_test_comment_count(@comment.test) if @comment.test
     @comment.destroy!
     redirect_to owner_path(@comment), notice: "Комментарий удалён."
   end
@@ -94,6 +95,7 @@ class CommentsController < ApplicationController
       else
         @comment.status = "approved" if verdict.verdict == :pass
         if @comment.save
+          broadcast_test_comment_count(@test)
           # Stream response keeps the page put: the new bubble arrives via the
           # broadcasting channel, only the composer itself is re-rendered.
           respond_to do |format|
@@ -105,6 +107,12 @@ class CommentsController < ApplicationController
           redirect_to path, alert: @comment.errors.full_messages.to_sentence
         end
       end
+    end
+
+    # The discussion heading shows a live count; only test comments own the chip.
+    def broadcast_test_comment_count(test)
+      Turbo::StreamsChannel.broadcast_replace_to(test, target: "test-comments-count",
+        partial: "tests/comment_count", locals: { test: })
     end
 
     # Where the comment lives decides where the action returns.

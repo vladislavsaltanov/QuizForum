@@ -162,10 +162,24 @@
   <% if @test.published? %>
     <%= turbo_stream_from @test %>
     <hr class="qf-divider">
-    <h2 class="qf-section-title">Обсуждение · <%= @comments.size %></h2>
+    <h2 class="qf-section-title">Обсуждение · <span id="test-comments-count"><%= @comments.size %></span></h2>
     <section class="qf-test-discuss" aria-label="Обсуждение">
       <%= render "comments/chat", comments: @comments, post_path: test_comments_path(@test), form_id: "test-chatbar" %>
     </section>
+  <% end %>
+
+  <%# Fixed-height chat: tail-follow to the newest message, composer stays put. %>
+  <% if @test.published? %>
+    <script>
+      {
+        const qfTestChat = document.getElementById("comments");
+        if (qfTestChat) {
+          qfTestChat.scrollTop = qfTestChat.scrollHeight;
+          new MutationObserver(() => { qfTestChat.scrollTop = qfTestChat.scrollHeight; })
+            .observe(qfTestChat, { childList: true });
+        }
+      }
+    </script>
   <% end %>
 
   <footer class="qf-footer">
