@@ -281,10 +281,10 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 }
 
 /* Closed on the feed: grayer outline + slightly transparent = inactive.
-   0.72 keeps body text above 7:1 on paper; hover restores opacity for reading. */
+   Hover restores full opacity for reading. */
 .qf-card.is-closed {
   border-color: color-mix(in srgb, var(--qf-border) 55%, #8a8a8a);
-  opacity: 0.72;
+  opacity: 0.8;
 }
 .qf-card.is-closed:hover {
   transform: none;
