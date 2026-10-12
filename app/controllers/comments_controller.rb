@@ -94,7 +94,13 @@ class CommentsController < ApplicationController
       else
         @comment.status = "approved" if verdict.verdict == :pass
         if @comment.save
-          redirect_to path
+          # Stream response keeps the page put: the new bubble arrives via the
+          # broadcasting channel, only the composer itself is re-rendered.
+          respond_to do |format|
+            format.html { redirect_to path }
+            format.turbo_stream { render turbo_stream: turbo_stream.replace("test-chatbar",
+            partial: "comments/composer", locals: { post_path: test_comments_path(@test), form_id: "test-chatbar" }) }
+          end
         else
           redirect_to path, alert: @comment.errors.full_messages.to_sentence
         end

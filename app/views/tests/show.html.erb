@@ -164,17 +164,7 @@
     <hr class="qf-divider">
     <h2 class="qf-section-title">Обсуждение · <%= @comments.size %></h2>
     <section class="qf-test-discuss" aria-label="Обсуждение">
-      <div id="comments" class="qf-chat">
-        <% if @comments.empty? %>
-          <p class="qf-empty">Пока тихо — начните обсуждение первым.</p>
-        <% end %>
-        <%= render @comments %>
-      </div>
-      <%= form_with url: test_comments_path(@test), class: "qf-chatbar" do |f| %>
-        <%= text_area_tag "comment[body]", nil, rows: 1, placeholder: "Написать сообщение…", class: "qf-chat-input", "aria-label": "Новый комментарий", data: { controller: "composer", action: "keydown->composer#send" } %>
-        <button type="submit" class="qf-send" aria-label="Отправить" data-turbo-submits-with="…">↑</button>
-      <% end %>
-      <p class="qf-hint">Сообщения проходят модерацию и открываются всем после дедлайна.</p>
+      <%= render "comments/chat", comments: @comments, post_path: test_comments_path(@test), form_id: "test-chatbar" %>
     </section>
   <% end %>
 

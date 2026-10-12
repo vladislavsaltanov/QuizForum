@@ -90,18 +90,8 @@
         <% end %>
       <% else %>
         <%= turbo_stream_from @question %>
-        <div id="comments" class="qf-chat">
-          <%= render "comments/more_marker", before: @comments.first&.id, url: question_comments_path(@question) if @has_older %>
-          <% if @comments.empty? %>
-            <p class="qf-empty">Пока тихо — начните обсуждение первым.</p>
-          <% end %>
-          <%= render @comments %>
-        </div>
-        <%= form_with url: question_comments_path(@question), class: "qf-chatbar" do |f| %>
-          <%= text_area_tag "comment[body]", nil, rows: 1, placeholder: "Написать сообщение…", class: "qf-chat-input", "aria-label": "Новый комментарий", data: { controller: "composer", action: "keydown->composer#send" } %>
-          <button type="submit" class="qf-send" aria-label="Отправить" data-turbo-submits-with="…">↑</button>
-        <% end %>
-        <p class="qf-hint">Сообщения проходят модерацию и открываются всем после дедлайна.</p>
+        <%= render "comments/chat", comments: @comments, post_path: question_comments_path(@question),
+              more: @has_older ? [ question_comments_path(@question), @comments.first&.id ] : nil %>
         <script>
           {
             const qfChat = document.getElementById("comments");

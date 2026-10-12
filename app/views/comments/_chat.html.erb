@@ -1,0 +1,14 @@
+<%# One discussion: empty state, preloaded comments, lazy-older marker when
+    the caller paginates, shared composer, the standing moderation hint.
+    Locals: comments:, post_path:, form_id:, more: [url, before_id] (optional). %>
+<div id="comments" class="qf-chat">
+  <% if local_assigns[:more].present? %>
+    <%= render "comments/more_marker", before: more[1], url: more[0] %>
+  <% end %>
+  <% if comments.empty? %>
+    <p class="qf-empty">Пока тихо — начните обсуждение первым.</p>
+  <% end %>
+  <%= render comments %>
+</div>
+<%= render "comments/composer", post_path: post_path, form_id: local_assigns[:form_id] %>
+<p class="qf-hint">Сообщения проходят модерацию и открываются всем после дедлайна.</p>
