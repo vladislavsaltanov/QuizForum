@@ -207,7 +207,7 @@ html { scroll-behavior: smooth; }
 
 .qf-reset { align-self: center; font-size: 0.8125rem; color: var(--qf-mute); }
 
-:where(.qf-nav-link, .qf-apply, .qf-filter, .qf-signout):focus-visible {
+:where(.qf-nav-link, .qf-apply, .qf-filter, .qf-signout, .qf-ghost):focus-visible {
   outline: 2px solid var(--qf-ink);
   outline-offset: 2px;
 }
@@ -631,6 +631,9 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   color: var(--qf-ink);
 }
 .qf-ghost:hover { border-color: var(--qf-ink); }
+/* Anchor ghosts share the button box: without this an <a> stays inline,
+   so its border and text sit off against the sibling <button>. */
+a.qf-ghost { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
 
 .qf-comments { display: grid; gap: 12px; margin-bottom: 14px; }
 
