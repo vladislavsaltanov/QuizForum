@@ -42,7 +42,7 @@ module ApplicationHelper
     VERDICT_LABELS.fetch(verdict.to_s, verdict.to_s)
   end
 
-  # Respondent mark for a question: green "решено" plaque before the Deadline,
+  # Respondent mark for a question: neutral date-chip-style plaque before the Deadline,
   # verdict dot after. my_verdict nil/false = stranger, time shows as before.
   # Pending post-Deadline returns nil: no circle, time stays. Pre-Deadline the
   # verdict is ignored, so choice verdicts derived at create never leak early.
@@ -51,7 +51,7 @@ module ApplicationHelper
   def solved_badge(question, my_verdict)
     return nil if my_verdict.nil? || my_verdict == false
     if question.open?
-      tag.span("решено", class: "qf-chip qf-solved")
+      tag.span("решено", class: "qf-chip")
     else
       icon = SOLVED_ICONS[my_verdict.to_s]
       return nil unless icon

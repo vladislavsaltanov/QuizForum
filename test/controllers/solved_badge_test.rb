@@ -13,12 +13,12 @@ class SolvedBadgeTest < ActionDispatch::IntegrationTest
 
     get root_path
     assert_response :success
-    assert_select ".qf-card-meta .qf-chip.qf-solved", text: "решено"
+    assert_select ".qf-card-meta .qf-chip", text: "решено"
 
     get question_path(question)
     assert_response :success
-    assert_select ".qf-kicker .qf-chip.qf-solved", text: "решено"
-    assert_select ".qf-author-card .qf-chip.qf-solved", text: "решено"
+    assert_select ".qf-kicker .qf-chip", text: "решено"
+    assert_select ".qf-author-card .qf-chip", text: "решено"
   end
 
   test "stranger sees time chip and no plaque before deadline" do
@@ -27,12 +27,12 @@ class SolvedBadgeTest < ActionDispatch::IntegrationTest
 
     get root_path
     assert_response :success
-    assert_select ".qf-chip.qf-solved", count: 0
+    assert_select ".qf-chip", text: "решено", count: 0
     assert_select ".qf-card-meta .qf-chip", text: /до /
 
     get question_path(question)
     assert_response :success
-    assert_select ".qf-chip.qf-solved", count: 0
+    assert_select ".qf-chip", text: "решено", count: 0
     assert_select ".qf-verdict-dot", count: 0
   end
 
@@ -74,5 +74,14 @@ class SolvedBadgeTest < ActionDispatch::IntegrationTest
     assert_response :success
     # Eager load of card counters + one solved-marks query; never per-card.
     assert_equal 2, attempts_sql.size, attempts_sql.inspect
+  end
+
+  test "closed feed card is marked inactive" do
+    Question.create!(title: "just closed", body: "b", author: users(:two),
+      answer_type: "text", reference_answer: "ref", deadline: 1.hour.ago)
+
+    get root_path
+    assert_response :success
+    assert_select ".qf-card.is-closed", minimum: 1
   end
 end

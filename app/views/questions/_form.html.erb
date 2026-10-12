@@ -3,6 +3,11 @@
     <div class="qf-alert" role="alert"><%= question.errors.full_messages.to_sentence %></div>
   <% end %>
 
+  <% in_test = local_assigns.fetch(:in_test, false) %>
+  <% if in_test %>
+    <%= f.hidden_field :test_id, value: question.test_id %>
+  <% end %>
+
   <%= f.label :title, "Заголовок", class: "qf-label" %>
   <%= f.text_field :title, required: true, class: "qf-input", placeholder: "О чём спрашиваете?" %>
 
@@ -43,14 +48,18 @@
     <p class="qf-hint">От 2 до 8 вариантов, пустые строки отбрасываются. Для одиночного выбора отметьте ровно один.</p>
   </fieldset>
 
-  <%= f.label :deadline, "Дедлайн", class: "qf-label" %>
-  <%= f.datetime_field :deadline, required: true, class: "qf-input", data: { question_form_target: "deadline" } %>
+  <% unless in_test %>
+    <%= f.label :deadline, "Дедлайн", class: "qf-label" %>
+    <%= f.datetime_field :deadline, required: true, class: "qf-input", data: { question_form_target: "deadline" } %>
 
-  <%= label_tag "question[difficulty]", "Сложность", class: "qf-label" %>
-  <%= select_tag "question[difficulty]", options_for_select([ [ "Без сложности", "" ] ] + Question::DIFFICULTIES.map { [ it.capitalize, it ] }, (question.tags & Question::DIFFICULTIES).first), class: "qf-input" %>
+    <%= label_tag "question[difficulty]", "Сложность", class: "qf-label" %>
+    <%= select_tag "question[difficulty]", options_for_select([ [ "Без сложности", "" ] ] + Question::DIFFICULTIES.map { [ it.capitalize, it ] }, (question.tags & Question::DIFFICULTIES).first), class: "qf-input" %>
 
-  <%= label_tag "question[tags_string]", "Теги через запятую", class: "qf-label" %>
-  <%= text_field_tag "question[tags_string]", (question.tags - Question::DIFFICULTIES).join(", "), class: "qf-input", placeholder: "программирование" %>
+    <%= label_tag "question[tags_string]", "Теги через запятую", class: "qf-label" %>
+    <%= text_field_tag "question[tags_string]", (question.tags - Question::DIFFICULTIES).join(", "), class: "qf-input", placeholder: "программирование" %>
+  <% else %>
+    <p class="qf-hint">Дедлайн задаёт тест, баллы — на странице теста.</p>
+  <% end %>
 
   <div id="qf-reference-wrap" data-question-form-target="reference">
     <%= f.label :reference_answer, "Правильный ответ (откроется после дедлайна)", class: "qf-label" %>
@@ -69,7 +78,7 @@
   <%= f.label :explanation, "Объяснение ответа (необязательно, откроется после дедлайна)", class: "qf-label" %>
   <%= f.text_area :explanation, rows: 3, class: "qf-input", placeholder: "Почему так — разбор, подсказки…" %>
 
-  <% if can_manage_trustees %>
+  <% if can_manage_trustees && !in_test %>
     <%= label_tag "question[trustee_emails]", "Наблюдатели (email через запятую, необязательно)", class: "qf-label" %>
     <%= text_field_tag "question[trustee_emails]", params.dig(:question, :trustee_emails) || question.trustees.order(:id).map(&:email).join(", "), class: "qf-input", placeholder: "a@example.com, b@example.com" %>
     <p class="qf-hint">Доступ уровня автора до дедлайна. Убрали email из списка — отозвали доступ.</p>
@@ -79,4 +88,3 @@
     <button type="submit" class="qf-apply" data-turbo-submits-with="Отправка…"><%= submit_label %></button>
   </div>
 <% end %>
-

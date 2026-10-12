@@ -1,9 +1,15 @@
-<div class="qf-msg<%= ' is-author' if comment.question.author_id == comment.user_id %>" id="<%= dom_id(comment) %>">
+<% owner = comment.owner %>
+<% author_of_owner = owner.author_id == comment.user_id %>
+<%# Broadcast streams render without a session (Current.user is nil there),
+    so callers must pass `manage` explicitly: global streams false, the
+    privileged manage stream true. Server renders keep the request check. %>
+<% can_manage = local_assigns.fetch(:manage) { owner.privileged?(Current.user) } %>
+<div class="qf-msg<%= ' is-author' if author_of_owner %>" id="<%= dom_id(comment) %>">
   <%= avatar_tag(comment.user.name, size: :sm) %>
   <div class="qf-bubble">
     <div class="qf-msg-head">
       <b><%= comment.user.name %></b><% if comment.user.display_role.present? %> <b class="qf-dot" aria-hidden="true">·</b> <%= comment.user.display_role %><% end %>
-      <% if comment.question.author_id == comment.user_id %>
+      <% if author_of_owner %>
         <em class="qf-badge">автор</em>
       <% end %>
       <time><%= ago_ru(comment.created_at) %></time>
@@ -12,11 +18,18 @@
       <% end %>
     </div>
     <p><%= comment.body %></p>
-    <% if !comment.approved? && comment.question.privileged?(Current.user) %>
-      <%= button_to "Опубликовать", approve_question_comment_path(comment.question, comment), method: :patch, class: "qf-ghost" %>
-    <% end %>
-    <% if comment.question.privileged?(Current.user) %>
-      <%= button_to "Удалить", question_comment_path(comment.question, comment), method: :delete, class: "qf-ghost" %>
-    <% end %>
+    <div id="comment-manage-<%= comment.id %>" class="qf-manage-slot">
+      <%# Broadcast bubbles pass manage explicitly; server renders keep the
+          session check. The slot node always exists, so the manage stream can
+          fill it before or after the bubble itself lands - no ordering race. %>
+      <% if !comment.approved? && can_manage %>
+        <%= button_to "Опубликовать", (comment.question ? approve_question_comment_path(comment.question, comment) : approve_test_comment_path(comment.test, comment)),
+              method: :patch, class: "qf-ghost" %>
+      <% end %>
+      <% if can_manage %>
+        <%= button_to "Удалить", (comment.question ? question_comment_path(comment.question, comment) : test_comment_path(comment.test, comment)),
+              method: :delete, class: "qf-ghost" %>
+      <% end %>
+    </div>
   </div>
 </div>

@@ -1,6 +1,6 @@
 <% content_for :title, "Тесты" %>
 
-<%= render "shared/header", active: nil %>
+<%= render "shared/header", active: "tests" %>
 
 <main class="qf-main">
   <p class="qf-kicker">Тесты</p>
@@ -17,14 +17,18 @@
   <% @tests.each do |test| %>
     <div class="qf-card">
       <div class="qf-attempt-head">
-        <%= link_to test.title, test_path(test), class: "qf-qtitle" %>
-        <% if test.protected? %>
-          <span class="qf-chip">по паролю</span>
+        <%= link_to test.title, test.draft? ? edit_test_path(test) : test_path(test), class: "qf-qtitle" %>
+        <% if test.draft? %>
+          <span class="qf-chip">черновик</span>
+        <% else %>
+          <% if test.protected? %>
+            <span class="qf-chip">по паролю</span>
+          <% end %>
+          <span class="qf-chip"><%= test.open? ? "открыт" : "завершён" %></span>
         <% end %>
-        <span class="qf-chip"><%= test.open? ? "открыт" : "завершён" %></span>
       </div>
       <p class="qf-hint">
-        заданий: <%= test.test_tasks.size %> · максимум: <%= test.max_score %> ·
+        вопросов: <%= test.questions.size %> · максимум: <%= test.max_score %> ·
         <%= test.author.name %> · до <%= local_time_tag(test.deadline) %>
       </p>
     </div>
