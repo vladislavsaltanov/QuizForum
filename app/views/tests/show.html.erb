@@ -2,13 +2,10 @@
 
 <%= render "shared/header", active: "tests" %>
 
+<%# Top flow mirrors the question page: back → kicker → title → author
+    plate; the manage button rides the plate row instead of crowding the kicker. %>
 <main class="qf-main qf-main-wide">
   <%= link_to "← Все тесты", tests_path, class: "qf-back" %>
-  <% if @test.editable_by?(Current.user) %>
-    <div class="qf-actions">
-      <%= link_to @test.draft? ? "Продолжить создание" : "Настроить тест", edit_test_path(@test), class: "qf-ghost" %>
-    </div>
-  <% end %>
   <p class="qf-kicker">
     <% if @test.draft? %>
       Черновик · не опубликован
@@ -30,6 +27,13 @@
         <% end %>
       </span>
       <span class="qf-card-attempts">ответили: <%= @respondents %></span>
+      <% if @test.editable_by?(Current.user) %>
+        <%= link_to "Настроить тест", edit_test_path(@test), class: "qf-ghost" %>
+      <% end %>
+    </div>
+  <% elsif @test.editable_by?(Current.user) %>
+    <div class="qf-actions">
+      <%= link_to "Продолжить создание", edit_test_path(@test), class: "qf-ghost" %>
     </div>
   <% end %>
   <% if @test.body.present? %>
@@ -158,7 +162,7 @@
   <% if @test.published? %>
     <%= turbo_stream_from @test %>
     <h2 class="qf-section-title">Обсуждение · <%= @comments.size %></h2>
-    <section class="qf-pane is-comments" aria-label="Обсуждение">
+    <section class="qf-test-discuss" aria-label="Обсуждение">
       <div id="comments" class="qf-chat">
         <% if @comments.empty? %>
           <p class="qf-empty">Пока тихо — начните обсуждение первым.</p>
