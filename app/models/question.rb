@@ -1,4 +1,6 @@
 # Published task; reference material stays hidden until the deadline.
+# A question with test_id set lives only inside that Test: never on the feed,
+# archive, leaderboard, or "my questions" — the test page is its only home.
 class Question < ApplicationRecord
   ANSWER_TYPES = %w[text code single_choice multiple_choice].freeze
   DIFFICULTIES = %w[легкое среднее сложное].freeze
@@ -8,6 +10,7 @@ class Question < ApplicationRecord
   CLOSING_SOON = 24.hours
 
   belongs_to :author, class_name: "User"
+  belongs_to :test, optional: true
   has_many :attempts, dependent: :destroy
   has_many :comments, dependent: :destroy
   has_many :reports, dependent: :destroy
@@ -20,12 +23,16 @@ class Question < ApplicationRecord
   validates :body, :reference_answer, :explanation, :example_input, :example_output, length: { maximum: 20_000 }, allow_nil: true
   validates :reference_answer, presence: true, unless: :choice?
   validates :answer_type, inclusion: { in: ANSWER_TYPES }
+  validates :points, numericality: { only_integer: true, greater_than_or_equal_to: 0 }, if: :test_id?
   before_validation :compact_options, if: :choice?
   # Unconditional: the form always submits the hidden blank; "any" is [].
   # Real strays on non-code types are still rejected by code_languages_valid.
   before_validation :compact_code_languages
   validate :options_complete, if: :choice?
   validate :code_languages_valid
+
+  # Standalone questions: the feed, archive, leaderboard, and dashboards.
+  scope :standalone, -> { where(test_id: nil) }
 
   # Deadline still in the future.
   def open?
@@ -35,6 +42,11 @@ class Question < ApplicationRecord
   # Closed questions reveal everything.
   def closed?
     !open?
+  end
+
+  # A test-scoped question is answered only via its test page, all at once.
+  def in_test?
+    test_id.present?
   end
 
   # Open with at most a day left: the cohort that needs answering first.
@@ -60,8 +72,9 @@ class Question < ApplicationRecord
   scope :human, -> { where(ai_generated: false) }
 
   # Feed/archived halves; AI halves go empty when the kill switch is off.
+  # Test-scoped questions never surface outside their test.
   def self.human_feed
-    human.where("questions.deadline >= now() - make_interval(secs => ?)", ARCHIVE_GRACE.to_i)
+    human.standalone.where("questions.deadline >= now() - make_interval(secs => ?)", ARCHIVE_GRACE.to_i)
   end
 
   def self.ai_feed
@@ -70,7 +83,7 @@ class Question < ApplicationRecord
   end
 
   def self.human_archived
-    human.where(deadline: ..ARCHIVE_GRACE.ago)
+    human.standalone.where(deadline: ..ARCHIVE_GRACE.ago)
   end
 
   def self.ai_archived
@@ -132,6 +145,16 @@ class Question < ApplicationRecord
   # Weight of this question in points.
   def difficulty_weight
     DIFFICULTY_WEIGHTS.fetch((tags & DIFFICULTIES).first, 1)
+  end
+
+  # Test score for one verdict: full points for correct, half rounded down
+  # for partial, anything else 0. Standalone questions ignore it (points = 1).
+  def score_for(verdict)
+    case verdict.to_s
+    when "correct" then points
+    when "partial" then points / 2
+    else 0
+    end
   end
 
   # Option indexes flagged correct, as strings matching Attempt#selected.

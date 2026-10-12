@@ -8,8 +8,10 @@ class QuestionsController < ApplicationController
              with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
 
   # Assembles one question page; what respondents see depends on the deadline.
+  # Test-scoped questions live only inside their test: direct visits bounce there.
   def show
     @question = Question.find(params[:id])
+    return redirect_to test_path(@question.test) if @question.in_test?
     # Privileged viewers (author, trustee, admin) see answers, reference, and comments.
     @is_author = @question.privileged?(Current.user)
     @can_edit = @question.editable_by?(Current.user)

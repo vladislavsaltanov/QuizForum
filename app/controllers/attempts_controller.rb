@@ -4,8 +4,10 @@ class AttemptsController < ApplicationController
              with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
 
   # Saves the current user's attempt. Rejects late posts; the model rejects duplicates.
+  # Test-scoped questions answer only via their test page, all at once.
   def create
     @question = Question.find(params[:question_id])
+    return redirect_to test_path(@question.test), alert: "На вопросы теста отвечают на его странице." if @question.in_test?
     return redirect_to @question, alert: "Дедлайн прошёл." if @question.closed?
     @attempt = @question.attempts.build(attempt_params.merge(user: Current.user))
     if @question.code? && !language_allowed?

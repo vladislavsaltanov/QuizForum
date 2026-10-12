@@ -24,7 +24,7 @@
         <span class="qf-chip"><%= test.open? ? "открыт" : "завершён" %></span>
       </div>
       <p class="qf-hint">
-        заданий: <%= test.test_tasks.size %> · максимум: <%= test.max_score %> ·
+        вопросов: <%= test.questions.size %> · максимум: <%= test.max_score %> ·
         <%= test.author.name %> · до <%= local_time_tag(test.deadline) %>
       </p>
     </div>
