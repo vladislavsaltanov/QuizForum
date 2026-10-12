@@ -12,10 +12,10 @@ class TestsController < ApplicationController
     @tests = Test.order(created_at: :desc).includes(:author, :questions)
   end
 
-  # Blank form with three empty question rows; blank rows are dropped on save.
+  # Blank form with one empty question block; the author appends more with the button.
   def new
     @test = Test.new(deadline: 7.days.from_now.change(sec: 0))
-    @question_rows = 3.times.map { {} }
+    @question_rows = [ {} ]
   end
 
   # Publishes the test with all its questions at once; blank password stays
@@ -30,7 +30,7 @@ class TestsController < ApplicationController
       redirect_to @test, notice: "Тест опубликован."
     else
       @test.questions.each { |q| q.errors.each { |e| @test.errors.add(:base, "#{q.title.presence || 'Вопрос'}: #{e.full_message}") } }
-      @question_rows = question_rows_from_params.presence || 3.times.map { {} }
+      @question_rows = question_rows_from_params.presence || [ {} ]
       flash.now[:alert] = @test.errors.full_messages.to_sentence.presence || "Не удалось сохранить. Повторите."
       render :new, status: :unprocessable_entity
     end

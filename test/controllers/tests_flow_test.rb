@@ -10,6 +10,12 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
 
   test "creation configures all questions inline and publishes at once" do
     sign_in_as(@author)
+    # Builder page: question list with per-question points plus the add button.
+    get new_test_path
+    assert_response :success
+    assert_match(/Добавить вопрос/, response.body)
+    assert_match(/questions_points/, response.body)
+
     post tests_path, params: {
       test: { title: "Мидтерм", body: "проверка", deadline: 1.day.from_now, max_points: "" },
       questions_title: [ "Сколько будет 2+2?", "Столица Франции?" ],
