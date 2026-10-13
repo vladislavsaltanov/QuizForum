@@ -946,3 +946,43 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 @media (prefers-reduced-motion: reduce) {
   .qf-ai-banner { animation: none; }
 }
+
+/* Test wizard: dots only render state (JS manages steps in Task 5);
+   every step stays visible so the form works without JS. */
+.qf-wizard-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+  flex-wrap: wrap;
+}
+.qf-wizard-dot {
+  inline-size: 12px;
+  block-size: 12px;
+  padding: 0;
+  border: 1px solid var(--qf-border);
+  border-radius: 50%;
+  background: var(--qf-inner);
+  cursor: pointer;
+}
+.qf-wizard-dot.is-active {
+  background: var(--qf-ink);
+  border-color: var(--qf-ink);
+}
+.qf-wizard-count {
+  margin-left: auto;
+  font-family: var(--qf-mono);
+  font-size: 0.8125rem;
+  color: var(--qf-mute);
+}
+.qf-wizard-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 14px;
+}
+.qf-wizard-done {
+  font-family: var(--qf-mono);
+  font-size: 0.8125rem;
+  color: var(--qf-mute);
+}

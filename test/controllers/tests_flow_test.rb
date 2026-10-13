@@ -140,6 +140,32 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     assert_match(/1 из 7/, response.body)
   end
 
+  test "invalid attempt re-renders with typed answers, never others' answers" do
+    sign_in_as(@author)
+    test = @author.authored_tests.create!(title: "Форма", deadline: 1.day.from_now, published: true)
+    q0 = test.questions.create!(title: "А зачем?", body: "b", answer_type: "text",
+      reference_answer: "потому", deadline: test.deadline, author: @author, points: 2, position: 0)
+    q1 = test.questions.create!(title: "Столица?", body: "b", answer_type: "text",
+      reference_answer: "Париж", deadline: test.deadline, author: @author, points: 5, position: 1)
+    # Другой пользователь успел ответить; pre-deadline чужие ответы скрыты
+    # даже в re-render после ошибки валидации.
+    @other.attempts.create!(question: q1, body: "чужой смысл")
+    sign_in_as(@user)
+
+    # Один из двух вопросов не заполнен: вся попытка валится, но введённое
+    # сохраняется в форме вместо голого redirect, который всё терял.
+    post attempt_test_path(test), params: { answers: {
+      q0.id.to_s => { body: "" },
+      q1.id.to_s => { body: "Париж" }
+    } }
+    assert_response :unprocessable_entity
+    assert_match(/Столица/, response.body)
+    assert_select "textarea", text: /Париж/
+    assert_no_match(/чужой смысл/, response.body)
+    assert_equal 0, Attempt.where(question: q0, user: @user).count
+    assert_equal 0, Attempt.where(question: q1, user: @user).count
+  end
+
   test "test questions live only inside the test" do
     sign_in_as(@author)
     test = @author.authored_tests.create!(title: "Вложенный", deadline: 1.day.from_now, published: true)

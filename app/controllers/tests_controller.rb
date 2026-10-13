@@ -93,8 +93,17 @@ class TestsController < ApplicationController
     if @test.draft? && !@test.editable_by?(Current.user)
       return redirect_to tests_path, alert: "Тест ещё не опубликован."
     end
-    @questions = @test.questions.to_a
     return render_gate unless @test.unlocked?(Current.user, session)
+    load_answer_state
+    if params[:answers].is_a?(ActionController::Parameters)
+      # Render-after-fail ride-along from attempt: repopulate typed answers.
+      @form_answers = params[:answers].to_unsafe_h.slice(*@test.questions.map { it.id.to_s })
+    end
+  end
+
+  # View state shared by show and the 422 re-render after a failed attempt.
+  def load_answer_state
+    @questions = @test.questions.to_a
     @is_author = @test.editable_by?(Current.user)
     @my_attempts = Attempt.where(question: @questions, user: Current.user).index_by(&:question_id)
     @answered = @my_attempts.any?
@@ -127,7 +136,12 @@ class TestsController < ApplicationController
     records = @test.questions.map { |q| q.attempts.build(answer_params(q.id).merge(user: Current.user)) }
     unless records.all?(&:valid?)
       msg = records.flat_map { it.errors.full_messages }.to_sentence
-      return redirect_to @test, alert: msg.presence || "Не удалось сохранить. Повторите."
+      # Re-render instead of redirect so the typed answers are not lost;
+      # @form_answers carries only this user's fresh params, nobody else's.
+      load_answer_state
+      @form_answers = @test.questions.map { |q| [ q.id.to_s, answer_params(q.id) ] }.to_h
+      flash.now[:alert] = msg.presence || "Не удалось сохранить. Повторите."
+      return render :show, status: :unprocessable_entity
     end
     Attempt.transaction do
       records.each(&:save!)

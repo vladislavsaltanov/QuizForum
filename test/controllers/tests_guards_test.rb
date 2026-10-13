@@ -83,16 +83,20 @@ class TestsGuardsTest < ActionDispatch::IntegrationTest
     assert_match(/Дедлайн прошёл/, flash[:alert].to_s)
   end
 
-  test "half-filled or malformed submissions save nothing" do
-    [ { answers: "junk" },
-      { answers: { @q0.id.to_s => "junk", @q1.id.to_s => { selected: [ "0" ] } } },
-      { answers: { @q0.id.to_s => { selected: [ "0" ] } } } ].each do |params|
-      post attempt_test_path(@test), params: params
+  test "half-filled or malformed submissions save nothing, keep typed input" do
+    # Обе попытки валятся с 422 вместо redirect; введённое остаётся в форме.
+    post attempt_test_path(@test), params: { answers: {
+      @q0.id.to_s => { body: "частичный ввод" }
+    } }
+    assert_response :unprocessable_entity
+    assert_select "textarea", text: /частичный ввод/
+    assert_equal 0, Attempt.where(question: @test.questions).count
 
-      assert_redirected_to test_path(@test)
-      assert_not_empty flash[:alert].to_s
-      assert_equal 0, Attempt.where(question: @test.questions).count
-    end
+    # Мусор среди ответов валяется так же; чистый ряд q1 остаётся отмеченным.
+    post attempt_test_path(@test), params: { answers: { @q0.id.to_s => "junk", @q1.id.to_s => { selected: [ "1" ] } } }
+    assert_response :unprocessable_entity
+    assert_select "input[type='radio'][value='1'][checked]"
+    assert_equal 0, Attempt.where(question: @test.questions).count
   end
 
   test "code answers enqueue the code check" do
@@ -112,7 +116,7 @@ class TestsGuardsTest < ActionDispatch::IntegrationTest
   end
 
   test "dashboard hides others' drafts and password tests, author sees own" do
-    draft = @author.authored_tests.create!(title: "Секрет-драфт", deadline: 1.day.from_now)
+    @author.authored_tests.create!(title: "Секрет-драфт", deadline: 1.day.from_now)
     @author.authored_tests.create!(title: "Тайник", deadline: 1.day.from_now,
       password: "s3cret", published: true)
 
