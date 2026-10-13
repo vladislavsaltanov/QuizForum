@@ -85,10 +85,15 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     assert_predicate test.reload, :published?
     assert_equal 5, test.max_score
 
-    # Published test is visible to strangers.
+    # No public test index: /tests lists only authored/taken tests. The
+    # random test itself stays reachable by direct link (open + published).
     sign_in_as(@user)
     get tests_path
-    assert_match(/Мидтерм/, response.body)
+    assert_match(/Мои тесты/, body)
+    assert_no_match(/Мидтерм/, body)
+    get test_path(test)
+    assert_response :success
+    assert_match(/Мидтерм/, body)
   end
 
   test "open test flow: answer all at once, post-deadline score" do
@@ -286,5 +291,59 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     patch approve_test_comment_path(test, pending)
     assert_redirected_to test_path(test)
     assert_equal "approved", pending.reload.status
+  end
+
+  test "my tests dashboard: sections, drafts first, author chips" do
+    sign_in_as(@author)
+    @author.authored_tests.create!(title: "Драфт Мид", deadline: 2.days.from_now)
+    @author.authored_tests.create!(title: "Открытый Мид", deadline: 3.days.from_now, published: true)
+    @author.authored_tests.create!(title: "Заперт Мид", deadline: 3.days.from_now, password: "s3cret", published: true)
+    closed = @author.authored_tests.create!(title: "Закрытый Мид", deadline: 1.hour.ago, published: true)
+    closed.questions.create!(title: "q", body: "b", answer_type: "text",
+      reference_answer: "r", deadline: closed.deadline, author: @author, points: 4, position: 0)
+
+    get tests_path
+    assert_response :success
+    assert_match(/Мои тесты/, body)
+    assert_match(/В работе/, body)
+    assert_match(/Завершённые/, body)
+    assert_match(/Пройдено мной/, body)
+    # Author sees their own password test with its chip.
+    assert_match(/Заперт Мид/, body)
+    assert_match(/по паролю/, body)
+    assert_match(/черновик/, body)
+    assert_match(/завершён/, body)
+    # Drafts first, then open published, closed into Завершённые.
+    assert_operator body.index("Драфт Мид"), :<, body.index("Открытый Мид")
+    assert_operator body.index("Открытый Мид"), :<, body.index("Закрытый Мид")
+  end
+
+  test "my tests dashboard: taken tests carry score or waiting chip" do
+    closed = @author.authored_tests.create!(title: "Сдан Мид", deadline: 1.hour.ago, published: true)
+    cq = closed.questions.create!(title: "q", body: "b", answer_type: "single_choice",
+      reference_answer: "", deadline: closed.deadline, author: @author, points: 4, position: 0,
+      options: [ { "text" => "да", "correct" => true }, { "text" => "нет", "correct" => false } ])
+    cq.attempts.create!(user: @user, selected: [ "0" ])
+    open = @author.authored_tests.create!(title: "Проходит Мид", deadline: 2.days.from_now, published: true)
+    open.questions.create!(title: "q", body: "b", answer_type: "text",
+      reference_answer: "r", deadline: open.deadline, author: @author, points: 3, position: 0)
+        .tap { |q| q.attempts.create!(user: @user, body: "x") }
+
+    sign_in_as(@user)
+    get tests_path
+    assert_match(/Сдан Мид/, body)
+    assert_match(/балл: 4 из 4/, body)
+    assert_match(/Проходит Мид/, body)
+    assert_match(/ждёт дедлайна/, body)
+    assert_no_match(/балл: 0 из 3/, body)
+  end
+
+  test "my tests dashboard: stranger without tests sees empty state" do
+    sign_in_as(@other)
+    get tests_path
+    assert_response :success
+    assert_match(/Мои тесты/, body)
+    assert_match(/Вы пока не проходили/, body)
+    assert_no_match(/qf-card-title/, body)
   end
 end

@@ -1,0 +1,33 @@
+<%# Shared test plaque: «Мои тесты» dashboard and (Task 7) home section.
+    Locals: test; num (optional, card number); taken (optional, the viewer answered it);
+    my_score (optional, points already scored by the viewer on a closed test). %>
+<%= link_to test.draft? ? edit_test_path(test) : test_path(test), class: "qf-card-link" do %>
+  <article class="qf-card">
+    <div class="qf-card-top">
+      <span class="qf-card-num"><%= format("%02d", local_assigns[:num] || 1) %></span>
+      <span class="qf-chip qf-test-mark">тест</span>
+      <span class="qf-card-attempts">вопросов: <%= test.questions.size %></span>
+      <% if test.protected? %>
+        <span class="qf-chip">по паролю</span>
+      <% end %>
+    </div>
+    <h2 class="qf-card-title"><%= test.title %></h2>
+    <div class="qf-card-meta">
+      <span class="qf-card-author"><%= test.author.name %></span>
+      <% if local_assigns[:taken] && test.open? %>
+        <span class="qf-chip">ждёт дедлайна</span>
+      <% elsif test.draft? %>
+        <span class="qf-chip">черновик</span>
+      <% elsif test.closed? %>
+        <span class="qf-chip">завершён</span>
+      <% elsif test.deadline <= 1.day.from_now %>
+        <span class="qf-chip qf-chip-urgent">заканчивается · <%= time_left(test.deadline) %></span>
+      <% else %>
+        <span class="qf-chip">до <%= local_time_tag(test.deadline) %></span>
+      <% end %>
+      <% if local_assigns[:my_score] %>
+        <span class="qf-chip">балл: <%= my_score %> из <%= test.max_score %></span>
+      <% end %>
+    </div>
+  </article>
+<% end %>

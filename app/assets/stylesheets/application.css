@@ -387,6 +387,9 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 /* Urgency badge on a card: colour lives in vars so every urgent chip matches. */
 .qf-chip.qf-chip-urgent { color: var(--qf-urgent); border-color: var(--qf-urgent); background: var(--qf-urgent-bg); font-weight: 700; }
 
+/* ТЕСТ mark on a test card: solid ink plaque, the distinct badge of the feed. */
+.qf-chip.qf-test-mark { background: var(--qf-ink); border-color: var(--qf-ink); color: var(--qf-paper); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+
 .qf-footer {
   display: flex;
   flex-wrap: wrap;
