@@ -654,6 +654,7 @@ a.qf-ghost { text-decoration: none; display: inline-flex; align-items: center; j
 .qf-row-points { display: flex; gap: 6px; align-items: center; font-family: var(--qf-mono); font-size: 13px; color: var(--qf-mute); white-space: nowrap; }
 .qf-points { inline-size: 4.5rem; text-align: center; padding-block: 4px; }
 .qf-row-drop { padding: 4px 14px; font-size: 13px; }
+.qf-move { inline-size: 2rem; padding: 4px 0; font-weight: 700; }
 
 /* Test question list: bare stacked cards need their own rhythm — the
    question page wraps cards in .qf-cards grids, tests render them bare. */

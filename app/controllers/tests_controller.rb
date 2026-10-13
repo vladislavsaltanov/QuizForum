@@ -43,6 +43,12 @@ class TestsController < ApplicationController
   def update
     @test = Test.includes(:questions).find(params[:id])
     return head(:forbidden) unless @test.editable_by?(Current.user)
+
+    params.fetch(:questions_move, {}).to_unsafe_h.each do |id, dir|
+      question = @test.questions.find_by(id: id)
+      move_question(question, dir) if question
+    end
+
     @test.assign_attributes(test_params)
     points = params.fetch(:questions_points, {}).to_unsafe_h
     @test.questions.each do |q|
@@ -156,6 +162,19 @@ class TestsController < ApplicationController
         total = @test.questions.sum { it.score_for(verdicts[it.id]&.verdict) }
         [ user, total ]
       end.sort_by { |u, total| [ -total, u.name ] }
+    end
+
+    # Up/down reflow from the editor rows: swap the question with its
+    # neighbour, then renumber so ties (default 0 positions) can't swallow
+    # the swap. Draft questions have no attempts; positions never collide.
+    def move_question(question, dir)
+      ordered = @test.questions.order(:position, :id).to_a
+      from = ordered.index(question)
+      return unless from
+      to = dir == "up" ? from - 1 : from + 1
+      return if to.negative? || to >= ordered.size
+      ordered[to], ordered[from] = ordered[from], ordered[to]
+      ordered.each_with_index { |q, i| q.update_column(:position, i) }
     end
 
     # Whitelisted test form fields; published flips only through update.

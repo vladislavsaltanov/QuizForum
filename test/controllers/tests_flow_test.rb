@@ -346,4 +346,36 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     assert_match(/Вы пока не проходили/, body)
     assert_no_match(/qf-card-title/, body)
   end
+
+  test "editor reorders questions and reserves publish for drafts" do
+    sign_in_as(@author)
+    test = @author.authored_tests.create!(title: "Пересо", deadline: 1.day.from_now)
+    q0 = test.questions.create!(title: "Первый", body: "b", answer_type: "text",
+      reference_answer: "x", deadline: test.deadline, author: @author, points: 1, position: 0)
+    q1 = test.questions.create!(title: "Второй", body: "b", answer_type: "text",
+      reference_answer: "y", deadline: test.deadline, author: @author, points: 1, position: 1)
+
+    # The row's ↑ button submits the settings form with questions_move.
+    patch test_path(test), params: {
+      test: { title: "Пересо", deadline: 1.day.from_now },
+      questions_move: { q1.id.to_s => "up" }
+    }
+    assert_redirected_to edit_test_path(test)
+    assert_equal [ q1.id, q0.id ], test.questions.order(:position, :id).pluck(:id)
+
+    # A foreign question id is a no-op: order unchanged, still a redirect.
+    patch test_path(test), params: {
+      test: { title: "Пересо", deadline: 1.day.from_now },
+      questions_move: { "999999" => "up" }
+    }
+    assert_redirected_to edit_test_path(test)
+    assert_equal [ q1.id, q0.id ], test.questions.order(:position, :id).pluck(:id)
+
+    # Publish is a draft-only action; the published edit hides its button.
+    get edit_test_path(test)
+    assert_select "button[name='publish']", count: 1
+    test.update!(published: true)
+    get edit_test_path(test)
+    assert_select "button[name='publish']", count: 0
+  end
 end

@@ -5,19 +5,19 @@
 <main class="qf-main">
   <% if @test.draft? %>
     <%= link_to "← Все тесты", tests_path, class: "qf-back" %>
-    <p class="qf-kicker">Создание теста · черновик</p>
-    <h1 class="qf-hero">Новый тест</h1>
+    <p class="qf-kicker">Черновик · виден только вам</p>
   <% else %>
     <%= link_to "← К тесту", test_path(@test), class: "qf-back" %>
-    <p class="qf-kicker">Управление тестом</p>
-    <h1 class="qf-hero"><%= @test.title %></h1>
+    <p class="qf-kicker">Управление · <%= @test.open? ? "открыт" : "завершён" %></p>
   <% end %>
+  <h1 class="qf-hero"><%= @test.title %></h1>
 
   <%= form_with model: @test, url: test_path(@test), method: :patch, class: "qf-form" do |f| %>
     <% if @test.errors.any? %>
       <div class="qf-alert" role="alert"><%= @test.errors.full_messages.to_sentence %></div>
     <% end %>
 
+    <h2 class="qf-section-title">Настройки</h2>
     <%= f.label :title, "Название", class: "qf-label" %>
     <%= f.text_field :title, required: true, class: "qf-input" %>
 
@@ -46,6 +46,11 @@
             баллов
             <%= number_field_tag "questions_points[#{question.id}]", question.points, min: 0, max: 100, class: "qf-input qf-points", "aria-label": "Баллы за вопрос #{i + 1}" %>
           </label>
+          <%# The move buttons submit this settings form; the controller swaps positions. %>
+          <button type="submit" class="qf-ghost qf-move" name="questions_move[<%= question.id %>]" value="up"
+            aria-label="Выше — вопрос <%= i + 1 %>" <%= "disabled" if i.zero? %>>↑</button>
+          <button type="submit" class="qf-ghost qf-move" name="questions_move[<%= question.id %>]" value="down"
+            aria-label="Ниже — вопрос <%= i + 1 %>" <%= "disabled" if i == @questions.size - 1 %>>↓</button>
           <%= link_to "Удалить", question_path(question), class: "qf-ghost qf-row-drop",
                 data: { turbo_method: :delete, turbo_confirm: "Удалить вопрос из теста?" } %>
         </div>
@@ -54,21 +59,17 @@
 
     <div class="qf-actions">
       <button type="submit" class="qf-apply">Сохранить</button>
-      <%= link_to "Новый вопрос", new_question_path(test_id: @test.id), class: "qf-ghost" %>
+      <%= link_to "+ Новый вопрос", new_question_path(test_id: @test.id), class: "qf-ghost" %>
     </div>
 
     <% if @test.draft? %>
       <div class="qf-actions">
-        <button type="submit" name="publish" value="1" class="qf-apply">Опубликовать тест</button>
+        <button type="submit" name="publish" value="1" class="qf-apply"
+          data-turbo-confirm="Опубликовать тест? Вопросов: <%= @questions.size %>, дедлайн: <%= local_time_tag(@test.deadline) %>">Опубликовать тест</button>
+        <%= button_to "Удалить черновик", test_path(@test), method: :delete, class: "qf-ghost",
+              form: { data: { turbo_confirm: "Удалить черновик и все его вопросы?" } } %>
       </div>
     <% end %>
-  <% end %>
-
-  <% if @test.draft? %>
-    <div class="qf-actions">
-      <%= button_to "Удалить черновик", test_path(@test), method: :delete, class: "qf-ghost",
-            form: { data: { turbo_confirm: "Удалить черновик и все его вопросы?" } } %>
-    </div>
   <% end %>
 
   <footer class="qf-footer">
