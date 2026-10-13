@@ -404,4 +404,28 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     get edit_test_path(test)
     assert_select "button[name='publish']", count: 0
   end
+
+  test "wizard markup ships visible steps, no JS-only state in raw HTML" do
+    sign_in_as(@author)
+    test = @author.authored_tests.create!(title: "Викторина", deadline: 1.day.from_now, published: true)
+    test.questions.create!(title: "Раз", body: "b", answer_type: "text", reference_answer: "x",
+      deadline: test.deadline, author: @author, points: 1, position: 0)
+    test.questions.create!(title: "Два", body: "b", answer_type: "single_choice", reference_answer: "",
+      deadline: test.deadline, author: @author, points: 1, position: 1,
+      options: [ { "text" => "a", "correct" => true }, { "text" => "b", "correct" => false } ])
+    sign_in_as(@user)
+
+    get test_path(test)
+    assert_response :success
+    # Hooks the wizard script binds to.
+    assert_select 'form[data-wizard="1"]'
+    assert_select "section.qf-step[data-step]", count: 2
+    assert_select "nav.qf-wizard-progress .qf-wizard-dot[data-goto]", count: 2
+    assert_select ".qf-wizard-bar .qf-wizard-done"
+    assert_select ".qf-wizard-bar button[type='submit']"
+    # No-JS fallback: .qf-wizard-on / .qf-step-hint appear only from the inline
+    # script or the stylesheet, never as server-rendered class attributes.
+    assert_no_match(/class="[^"]*qf-wizard-on/, response.body)
+    assert_no_match(/class="[^"]*qf-step-hint/, response.body)
+  end
 end

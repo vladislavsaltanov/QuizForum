@@ -986,3 +986,15 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
   font-size: 0.8125rem;
   color: var(--qf-mute);
 }
+/* Step hiding engages only after the script adds .qf-wizard-on onto the
+   form, so without JS every step stays visible in one stacked form. */
+.qf-wizard-on .qf-step:not(.is-active) { display: none; }
+.qf-wizard-prev, .qf-wizard-next { margin-block-start: 12px; }
+.qf-wizard-prev { margin-inline-end: 10px; }
+.qf-step-hint {
+  display: none;
+  margin: 10px 0 0;
+  font-size: 0.875rem;
+  color: var(--qf-urgent);
+}
+.qf-step-hint.is-visible { display: block; }
