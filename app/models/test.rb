@@ -19,6 +19,18 @@ class Test < ApplicationRecord
 
   scope :published, -> { where(published: true) }
 
+  # Home feed: strangers see open published tests without a password gate,
+  # nearest deadline first (direct link is the only way to password tests).
+  scope :home_feed, -> do
+    published.where(password_digest: nil).where(deadline: Time.current..).order(deadline: :asc)
+  end
+
+  # Tests the user answered: attempts point at questions, questions know
+  # their test. Two subqueries, no row loading and no N+1.
+  scope :taken_by, ->(user) do
+    where(id: Question.where(id: Attempt.where(user_id: user.id).select(:question_id)).select(:test_id))
+  end
+
   # Still being assembled: invisible to everyone but the author.
   def draft?
     !published?

@@ -7,8 +7,17 @@ class TestsController < ApplicationController
   rate_limit to: 10, within: 3.minutes, only: %i[update authenticate attempt],
              with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
 
-  # Feed of published tests plus the author's own drafts, newest first.
+  # «Мои тесты» dashboard: authored tests (open first by nearest deadline,
+  # then drafts, closed last) plus tests the user answered; per-test score
+  # stays lazy via Test#total_score in the view. Legacy feed stays in @tests
+  # until the index view is rebuilt on top of @authored/@taken.
   def index
+    authored = Test.where(author: Current.user).includes(:author, :questions)
+    @authored =
+      authored.published.where(deadline: Time.current..).order(deadline: :asc) +
+      authored.where(published: false).order(created_at: :desc) +
+      authored.published.where(deadline: ..Time.current).order(deadline: :desc)
+    @taken = Test.taken_by(Current.user).includes(:author, :questions).order(deadline: :desc)
     @tests = Test.published.or(Test.where(author: Current.user)).order(created_at: :desc)
       .includes(:author, :questions)
   end
