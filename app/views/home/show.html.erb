@@ -26,7 +26,7 @@
           <%# Belt and braces: home_feed already filters, but never render a
               protected or draft test if data ever sneaks in. %>
           <% next if test.protected? || test.draft? %>
-          <%= render "tests/test_card", test: test, num: i + 1 %>
+          <%= render "tests/test_card", test: test, num: i + 1, my_state: @my_test_state[test.id] %>
         <% end %>
       </section>
     </div>

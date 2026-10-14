@@ -18,6 +18,9 @@
     </div>
     <h2 class="qf-card-title"><%= test.title %></h2>
     <div class="qf-card-meta">
+      <% if local_assigns[:my_state] %>
+        <span class="qf-chip"><%= my_state %></span>
+      <% end %>
       <span class="qf-card-author"><%= test.author.name %></span>
       <% if local_assigns[:taken] && test.open? %>
         <span class="qf-chip">ждёт дедлайна</span>

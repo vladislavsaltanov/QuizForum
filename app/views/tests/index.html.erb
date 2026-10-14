@@ -44,7 +44,7 @@
     <% end %>
     <% @taken.each_with_index do |test, i| %>
       <% score = test.closed? ? test.total_score(Current.user) : nil %>
-      <%= render "tests/test_card", test: test, num: i + 1, taken: true, my_score: score %>
+      <%= render "tests/test_card", test: test, num: i + 1, my_state: (test.open? ? "вы ответили · ждёт дедлайна" : nil), my_score: score %>
     <% end %>
   </section>
 
