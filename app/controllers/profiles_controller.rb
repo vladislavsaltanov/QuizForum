@@ -34,40 +34,17 @@ class ProfilesController < ApplicationController
     end
   end
 
-  # Тумблер старого вида прохождения теста; cookie per-browser, как у ИИ-баннера.
-  def toggle_old_tests_ui
-    if params[:old_test_wizard] == "1"
-      cookies[:old_test_wizard] = { value: "1", expires: 1.year }
-      notice = "Включён старый вид прохождения теста."
-    else
-      cookies.delete(:old_test_wizard)
-      notice = "Включён пошаговый вид прохождения теста."
+  # Все тумблеры настроек одним запросом; cookie per-browser, все отмеченные
+  # чекбоксы применяются атомично.
+  def update_settings
+    %i[hide_ai_banner old_cards old_test_wizard].each do |key|
+      if params[key] == "1"
+        cookies[key] = { value: "1", expires: 1.year }
+      else
+        cookies.delete(key)
+      end
     end
-    redirect_to profile_path, notice:
-  end
-
-  # Прежний объёмный дизайн карточек; cookie per-browser, как у ИИ-баннера.
-  def toggle_old_cards
-    if params[:old_cards] == "1"
-      cookies[:old_cards] = { value: "1", expires: 1.year }
-      notice = "Возвращён прежний дизайн карточек."
-    else
-      cookies.delete(:old_cards)
-      notice = "Включён компактный дизайн карточек."
-    end
-    redirect_to profile_path, notice:
-  end
-
-  # Toggles the AI banner via a persistent cookie; per-browser, no reauth needed.
-  def toggle_ai_banner
-    if params[:hide_ai_banner] == "1"
-      cookies[:hide_ai_banner] = { value: "1", expires: 1.year }
-      notice = "Баннер ИИ-рубрики скрыт."
-    else
-      cookies.delete(:hide_ai_banner)
-      notice = "Баннер ИИ-рубрики возвращён."
-    end
-    redirect_to profile_path, notice:
+    redirect_to profile_path, notice: "Настройки сохранены."
   end
 
   # Admin-only cosmetic role grant; never part of mass-assigned params.

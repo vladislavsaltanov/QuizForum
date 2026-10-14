@@ -60,14 +60,14 @@ class AiFeedArchiveTest < ActionDispatch::IntegrationTest
   test "feed hides the banner when the cookie is set" do
     sign_in_as(users(:one))
     AiQuestionIngest.call(items: pack_items)
-    patch toggle_ai_banner_profile_path, params: { hide_ai_banner: "1" }
+    patch update_settings_profile_path, params: { hide_ai_banner: "1" }
 
     get root_path
 
     assert_response :success
     assert_select ".qf-ai-banner", count: 0
 
-    patch toggle_ai_banner_profile_path
+    patch update_settings_profile_path
 
     get root_path
 

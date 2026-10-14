@@ -131,15 +131,19 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "one@example.com", @user.reload.email
   end
 
-  test "toggles the AI banner cookie from profile settings" do
-    patch toggle_ai_banner_profile_path, params: { hide_ai_banner: "1" }
+  test "update_settings applies all three toggles and resets the rest" do
+    patch update_settings_profile_path, params: { hide_ai_banner: "1", old_cards: "1", old_test_wizard: "1" }
 
     assert_redirected_to profile_path
     assert_equal "1", cookies[:hide_ai_banner]
+    assert_equal "1", cookies[:old_cards]
+    assert_equal "1", cookies[:old_test_wizard]
 
-    patch toggle_ai_banner_profile_path
+    patch update_settings_profile_path
 
     assert_redirected_to profile_path
     assert cookies[:hide_ai_banner].blank?
+    assert cookies[:old_cards].blank?
+    assert cookies[:old_test_wizard].blank?
   end
 end

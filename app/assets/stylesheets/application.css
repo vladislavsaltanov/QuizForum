@@ -455,7 +455,7 @@ a.qf-qtitle:hover { color: var(--qf-ink); text-decoration: underline; text-under
 .qf-pane { min-width: 0; }
 
 .qf-section-title {
-  margin: 26px 0 0px;
+  margin: 26px 0 14px;
   font-family: var(--qf-mono);
   font-size: 12px;
   font-weight: 600;

@@ -387,7 +387,7 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     assert_select ".qf-step-title", text: "Первый"
 
     # Тумблер в профиле возвращает старый вид: без прогресса, вопросы подряд.
-    patch toggle_old_tests_ui_profile_path, params: { old_test_wizard: "1" }
+    patch update_settings_profile_path, params: { old_test_wizard: "1" }
     assert_redirected_to profile_path
     get test_path(test)
     assert_select ".qf-wizard-progress", count: 0
@@ -395,7 +395,7 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     assert_select ".qf-actions button[type='submit']", text: "Отправить все ответы"
 
     # Обратное переключение возвращает wizard.
-    patch toggle_old_tests_ui_profile_path
+    patch update_settings_profile_path
     get test_path(test)
     assert_select ".qf-wizard-progress", count: 1
   end
