@@ -100,12 +100,14 @@
           presented as a step wizard (steps stay visible without JS);
           typed answers ride back on the 422 re-render to keep the input. %>
       <% typed = @form_answers || {} %>
-      <nav class="qf-wizard-progress" aria-label="Прогресс вопросов">
-        <% @questions.each_with_index do |_, i| %>
-          <button type="button" class="qf-wizard-dot<%= " is-active" if i.zero? %>" data-goto="<%= i %>" aria-label="Вопрос <%= i + 1 %>"></button>
-        <% end %>
-        <span class="qf-wizard-count">шаг 1 из <%= @questions.size %></span>
-      </nav>
+      <% if @questions.size > 1 %>
+        <nav class="qf-wizard-progress" aria-label="Прогресс вопросов">
+          <% @questions.each_with_index do |_, i| %>
+            <button type="button" class="qf-wizard-dot<%= " is-active" if i.zero? %>" data-goto="<%= i %>" aria-label="Вопрос <%= i + 1 %>"></button>
+          <% end %>
+          <span class="qf-wizard-count">шаг 1 из <%= @questions.size %></span>
+        </nav>
+      <% end %>
       <%= form_with url: attempt_test_path(@test), class: "qf-form", data: { wizard: "1", turbo_frame: "_top" } do %>
         <% @questions.each_with_index do |question, i| %>
           <section class="qf-card qf-step" data-step="<%= i %>" aria-label="Вопрос <%= i + 1 %>">
@@ -212,7 +214,7 @@
             function show(i) {
               steps.forEach((s, k) => s.classList.toggle("is-active", k === i));
               dots.forEach((d) => d.classList.toggle("is-active", d.dataset.goto === String(i)));
-              count.textContent = `шаг ${i + 1} из ${M}`;
+              if (count) count.textContent = `шаг ${i + 1} из ${M}`;
               form.querySelectorAll(".qf-step-hint.is-visible").forEach((h) => h.classList.remove("is-visible"));
             }
 

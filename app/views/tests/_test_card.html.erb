@@ -7,6 +7,11 @@
       <span class="qf-card-num"><%= format("%02d", local_assigns[:num] || 1) %></span>
       <span class="qf-chip qf-test-mark">тест</span>
       <span class="qf-card-attempts">вопросов: <%= test.questions.size %></span>
+      <%# Respondents render only for non-drafts with a preloaded attempt
+          association, so a card outside a preloaded context stays query-free. %>
+      <% if !test.draft? && test.questions.first&.association(:attempts)&.loaded? %>
+        <span class="qf-chip">ответили: <%= test.questions.flat_map { it.attempts.map(&:user_id) }.uniq.size %></span>
+      <% end %>
       <% if test.protected? %>
         <span class="qf-chip">по паролю</span>
       <% end %>

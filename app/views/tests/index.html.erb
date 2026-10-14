@@ -11,11 +11,11 @@
   <% @in_work = @authored.select(&:draft?) + @authored.select { it.published? && it.open? } %>
   <% @finished = @authored.select { it.published? && it.closed? } %>
 
-  <p class="qf-kicker">Мои тесты · <%= @authored.size + @taken.size %></p>
+  <p class="qf-kicker">Всего · <%= @authored.size + @taken.size %></p>
   <h1 class="qf-hero">Мои тесты</h1>
 
   <div class="qf-list-top">
-    <%= link_to "+ Новый тест", new_test_path, class: "qf-apply qf-link-btn" %>
+    <%= link_to "+ Новый тест", new_test_path, class: "qf-apply" %>
   </div>
 
   <section class="qf-cards" aria-label="В работе">

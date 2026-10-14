@@ -7,19 +7,18 @@ class TestsController < ApplicationController
   rate_limit to: 10, within: 3.minutes, only: %i[update authenticate attempt],
              with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
 
-  # «Мои тесты» dashboard: authored tests (open first by nearest deadline,
-  # then drafts, closed last) plus tests the user answered; per-test score
-  # stays lazy via Test#total_score in the view. Legacy feed stays in @tests
-  # until the index view is rebuilt on top of @authored/@taken.
+  # «Мои тесты» dashboard: open published (nearest deadline first), then
+  # drafts, then closed; attempts preloaded for the respondents chip.
+  # Per-test score stays lazy via Test#total_score in the view.
   def index
-    authored = Test.where(author: Current.user).includes(:author, :questions)
+    authored = Test.where(author: Current.user).includes(:author, questions: :attempts)
     @authored =
       authored.published.where(deadline: Time.current..).order(deadline: :asc) +
       authored.where(published: false).order(created_at: :desc) +
       authored.published.where(deadline: ..Time.current).order(deadline: :desc)
-    @taken = Test.taken_by(Current.user).includes(:author, :questions).order(deadline: :desc)
+    @taken = Test.taken_by(Current.user).includes(:author, questions: :attempts).order(deadline: :desc)
     @tests = Test.published.or(Test.where(author: Current.user)).order(created_at: :desc)
-      .includes(:author, :questions)
+      .includes(:author, questions: :attempts)
   end
 
   # One creation screen: the draft opens immediately, so the question list
@@ -135,12 +134,12 @@ class TestsController < ApplicationController
     return redirect_to @test, alert: "Вы уже ответили на этот тест." if @test.answered_by?(Current.user)
     records = @test.questions.map { |q| q.attempts.build(answer_params(q.id).merge(user: Current.user)) }
     unless records.all?(&:valid?)
-      msg = records.flat_map { it.errors.full_messages }.to_sentence
       # Re-render instead of redirect so the typed answers are not lost;
       # @form_answers carries only this user's fresh params, nobody else's.
       load_answer_state
       @form_answers = @test.questions.map { |q| [ q.id.to_s, answer_params(q.id) ] }.to_h
-      flash.now[:alert] = msg.presence || "Не удалось сохранить. Повторите."
+      msg = records.each_with_index.filter_map { |attempt, i| attempt_alert_message(attempt, i) }.join(" · ")
+      flash.now[:alert] = msg.presence || "Не удалось сохранить. Ответьте на все вопросы."
       return render :show, status: :unprocessable_entity
     end
     Attempt.transaction do
@@ -189,6 +188,19 @@ class TestsController < ApplicationController
       return if to.negative? || to >= ordered.size
       ordered[to], ordered[from] = ordered[from], ordered[to]
       ordered.each_with_index { |q, i| q.update_column(:position, i) }
+    end
+
+    # Russian copy over ActiveRecord defaults; the numbering follows the
+    # wizard steps the user just filled.
+    def attempt_alert_message(record, position)
+      copy = {
+        "body.blank" => "заполните ответ",
+        "selected.blank" => "выберите хотя бы один вариант",
+        "selected.invalid" => "выбор недопустим",
+        "language.inclusion" => "выберите язык"
+      }
+      detail = record.errors.map { |e| "#{e.attribute}.#{e.type}" }.first
+      return "Вопрос #{position + 1}: #{copy[detail] || record.errors.full_messages.first}." if detail
     end
 
     # Whitelisted test form fields; published flips only through update.

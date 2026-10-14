@@ -373,6 +373,28 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     assert_no_match(/qf-card-title/, body)
   end
 
+  test "invalid attempt alert is russian and dashboard cards count respondents" do
+    sign_in_as(@author)
+    test = @author.authored_tests.create!(title: "Отвечалки", deadline: 1.day.from_now, published: true)
+    q0 = test.questions.create!(title: "Выбор", body: "b", answer_type: "single_choice",
+      reference_answer: "", deadline: test.deadline, author: @author, points: 1, position: 0,
+      options: [ { "text" => "да", "correct" => true }, { "text" => "нет", "correct" => false } ])
+    q1 = test.questions.create!(title: "Текст", body: "b", answer_type: "text",
+      reference_answer: "а", deadline: test.deadline, author: @author, points: 1, position: 1)
+
+    # Someone answered the choice question: the author's dashboard card says so.
+    Attempt.create!(question: q0, user: @other, selected: [ "0" ])
+    get tests_path
+    assert_select ".qf-chip", text: /ответили: 1/, count: 1
+
+    # The 422 alert speaks Russian and names the failing question.
+    sign_in_as(@user)
+    post attempt_test_path(test), params: { answers: { q0.id.to_s => { selected: [ "0" ] } } }
+    assert_response :unprocessable_entity
+    assert_match("Вопрос 2: заполните ответ.", flash.now[:alert].to_s)
+    assert_no_match(/Body can't be blank/, flash.now[:alert].to_s)
+  end
+
   test "editor reorders questions and reserves publish for drafts" do
     sign_in_as(@author)
     test = @author.authored_tests.create!(title: "Пересо", deadline: 1.day.from_now)
