@@ -15,14 +15,14 @@ class HomeController < ApplicationController
     @ai_pack = cookies[:hide_ai_banner] == "1" ? [] : Question.latest_ai_pack
     # Licensed home feed: strangers' published open unguarded tests only.
     @feed_tests = Test.home_feed.where.not(author: @user).includes(:author, :questions).limit(6)
-    # Отметки «вы ответили» на тестовых плашках: одна выборка попыток
+    # Отметка «решено» на тестовых плашках: одна выборка попыток
     # зрителя по всем вопросам ленты, без N+1.
     @my_test_state = {}
     if @feed_tests.any?
       ids = @feed_tests.flat_map(&:question_ids)
       mine = Attempt.where(user: Current.user, question_id: ids).index_by(&:question_id)
       @feed_tests.each do |test|
-        @my_test_state[test.id] = "вы ответили" if test.questions.any? { mine.key?(it.id) }
+        @my_test_state[test.id] = "решено" if test.questions.any? { mine.key?(it.id) }
       end
     end
   end

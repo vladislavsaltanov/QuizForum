@@ -178,7 +178,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "nav[aria-label=?]", "Постраничная навигация", count: 0
   end
 
-  test "answered test card shows «вы ответили» mark" do
+  test "answered test card shows «решено» mark" do
     stranger = users(:two)
     test = stranger.authored_tests.create!(title: "Решил чужое", deadline: 1.day.from_now, published: true)
     q = test.questions.create!(title: "q", body: "b", answer_type: "text",
@@ -188,7 +188,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     sign_in_as(users(:one))
     get root_path
 
-    assert_select ".qf-chip", text: "вы ответили", count: 1
+    assert_select ".qf-chip", text: "решено", count: 1
   end
 
   test "own published test stays out of Открытые тесты" do
