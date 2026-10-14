@@ -7,6 +7,15 @@ class CommentModerationTest < ActionDispatch::IntegrationTest
     sign_in_as(@user)
   end
 
+  test "own comment carries a delete button, others' do not" do
+    with_verdict(:pass) do
+      post question_comments_path(@question), params: { comment: { body: "мой добрый" } }
+    end
+    get question_path(@question, tab: "comments")
+    # Own bubble: server-rendered delete; strangers' bubbles stay buttonless.
+    assert_select "button", text: "Удалить", count: 1
+  end
+
   test "toxic comment is rejected and never saved" do
     with_verdict(:reject, "оскорбление") do
       assert_no_difference("Comment.count") do

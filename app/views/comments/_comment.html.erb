@@ -1,4 +1,5 @@
 <% owner = comment.owner %>
+<% own_comment = Current.user && comment.user_id == Current.user.id %>
 <% author_of_owner = owner.author_id == comment.user_id %>
 <%# Broadcast streams render without a session (Current.user is nil there),
     so callers must pass `manage` explicitly: global streams false, the
@@ -26,7 +27,7 @@
         <%= button_to "Опубликовать", (comment.question ? approve_question_comment_path(comment.question, comment) : approve_test_comment_path(comment.test, comment)),
               method: :patch, class: "qf-ghost" %>
       <% end %>
-      <% if can_manage %>
+      <% if can_manage || own_comment %>
         <%= button_to "Удалить", (comment.question ? question_comment_path(comment.question, comment) : test_comment_path(comment.test, comment)),
               method: :delete, class: "qf-ghost" %>
       <% end %>

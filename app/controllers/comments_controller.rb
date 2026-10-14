@@ -39,12 +39,12 @@ class CommentsController < ApplicationController
     redirect_to owner_path(@comment), notice: "Комментарий опубликован."
   end
 
-  # Deletes a comment; author, trustee, or admin only.
+  # Deletes a comment; author, trustee, admin — or the comment's own author.
   # The visible node goes off the live pages too: question bubbles always sat
   # in the global stream, test bubbles carry the manage copy on their stream.
   def destroy
     @comment = Comment.find(params[:id])
-    return head(:forbidden) unless @comment.owner.privileged?(Current.user)
+    return head(:forbidden) unless @comment.owner.privileged?(Current.user) || @comment.user_id == Current.user.id
     if @comment.test
       broadcast_test_comment_count(@comment.test)
     end
@@ -137,6 +137,7 @@ class CommentsController < ApplicationController
     def broadcast_question_bubbles(comment)
       Turbo::StreamsChannel.broadcast_append_to(comment.question, target: "comments",
         partial: "comments/comment", locals: { comment:, manage: false })
+      broadcast_own_slot(comment)
     end
 
     # Bubbles: everyone gets the plain bubble, the privileged manage stream
@@ -147,13 +148,24 @@ class CommentsController < ApplicationController
         partial: "comments/comment", locals: { comment:, manage: false })
       Turbo::StreamsChannel.broadcast_replace_to(comment.test, "manage",
         target: "comment-manage-#{comment.id}",
-        partial: "comments/manage_buttons", locals: { comment: })
+        partial: "comments/manage_buttons", locals: { comment:, manage: true, own: false })
+      broadcast_own_slot(comment)
     end
 
     # The discussion heading shows a live count; only test comments own the chip.
     def broadcast_test_comment_count(test)
       Turbo::StreamsChannel.broadcast_replace_to(test, target: "test-comments-count",
         partial: "tests/comment_count", locals: { test: })
+    end
+
+    # Кнопки «Удалить» для автора на его личном потоке: у остальных слот пуст.
+    def broadcast_own_slot(comment)
+      owner = comment.test || comment.question
+      Turbo::StreamsChannel.broadcast_replace_to(
+        owner, "personal-#{comment.user_id}",
+        target: "comment-manage-#{comment.id}",
+        partial: "comments/manage_buttons",
+        locals: { comment:, manage: false, own: true })
     end
 
     # Where the comment lives decides where the action returns.

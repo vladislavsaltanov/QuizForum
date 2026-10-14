@@ -275,6 +275,7 @@
   <%# the Deadline opens everything. Live stream mirrors the question page. %>
   <% if @test.published? %>
     <%= turbo_stream_from @test %>
+    <%= turbo_stream_from @test, "personal-#{Current.user.id}" %>
     <% if @test.privileged?(Current.user) %>
       <%= turbo_stream_from @test, "manage" %>
     <% end %>

@@ -1015,3 +1015,44 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
   color: var(--qf-urgent);
 }
 .qf-step-hint.is-visible { display: block; }
+
+
+/* Тумблер «прежний дизайн карточек»: отмена компактных списков.
+   Объёмный титул в рамке, просторный скелет — как было до сжатия. */
+[data-old-cards] .qf-cards { gap: clamp(1rem, 0.75rem + 2vw, 1.5rem); }
+[data-old-cards] .qf-card {
+  row-gap: 0.875rem;
+  border-radius: var(--qf-radius-lg);
+  padding-block: clamp(1rem, 0.875rem + 1vw, 1.25rem);
+  padding-inline: clamp(1rem, 0.875rem + 2vw, 1.625rem);
+}
+[data-old-cards] .qf-card-title {
+  padding-block: 1rem;
+  padding-inline: 1.25rem;
+  background: var(--qf-inner);
+  border: 1.5px solid var(--qf-border);
+  border-radius: var(--qf-radius-md);
+  font-size: clamp(1.1875rem, 1rem + 1.2vw, 1.75rem);
+  line-height: 1.35;
+  white-space: normal;
+}
+[data-old-cards] .qf-card-link:hover .qf-card-title { text-decoration: none; }
+[data-old-cards] .qf-card-meta {
+  gap: 0.5rem 0.75rem;
+  padding-block-start: 0.75rem;
+}
+
+/* Хедер: мягкий хвост размытия под разделителем, чтобы скользящий контент
+   не «обрезался» о жёсткую нижнюю кромку шапки. */
+.qf-header::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  block-size: 1.5rem;
+  background: linear-gradient(to bottom,
+    color-mix(in srgb, var(--qf-paper) 72%, transparent), transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
+}

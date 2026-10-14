@@ -46,6 +46,18 @@ class ProfilesController < ApplicationController
     redirect_to profile_path, notice:
   end
 
+  # Прежний объёмный дизайн карточек; cookie per-browser, как у ИИ-баннера.
+  def toggle_old_cards
+    if params[:old_cards] == "1"
+      cookies[:old_cards] = { value: "1", expires: 1.year }
+      notice = "Возвращён прежний дизайн карточек."
+    else
+      cookies.delete(:old_cards)
+      notice = "Включён компактный дизайн карточек."
+    end
+    redirect_to profile_path, notice:
+  end
+
   # Toggles the AI banner via a persistent cookie; per-browser, no reauth needed.
   def toggle_ai_banner
     if params[:hide_ai_banner] == "1"

@@ -43,6 +43,14 @@
       <button type="submit" class="qf-apply">Сохранить</button>
     </div>
   <% end %>
+  <%= form_with url: toggle_old_cards_profile_path, method: :patch, class: "qf-form" do %>
+    <label class="qf-check">
+      <%= check_box_tag "old_cards", "1", cookies[:old_cards] == "1" %> Вернуть прежний дизайн карточек вопросов и тестов (крупные заголовки в рамке)
+    </label>
+    <div class="qf-actions">
+      <button type="submit" class="qf-apply">Сохранить</button>
+    </div>
+  <% end %>
   <%= form_with url: toggle_old_tests_ui_profile_path, method: :patch, class: "qf-form" do %>
     <label class="qf-check">
       <%= check_box_tag "old_test_wizard", "1", cookies[:old_test_wizard] == "1" %> Вернуть старый вид прохождения теста (все вопросы подряд)

@@ -85,11 +85,13 @@
 
       <% if @tab == "answers" %>
         <%= turbo_stream_from @question %>
+        <%= turbo_stream_from @question, "personal-#{Current.user.id}" %>
         <%= turbo_frame_tag "question-answers", data: { controller: "reveal", reveal_deadline_value: @question.deadline.iso8601, reveal_url_value: question_path(@question) } do %>
           <%= render "answers" %>
         <% end %>
       <% else %>
         <%= turbo_stream_from @question %>
+        <%= turbo_stream_from @question, "personal-#{Current.user.id}" %>
         <%= render "comments/chat", comments: @comments, post_path: question_comments_path(@question),
               more: @has_older ? [ question_comments_path(@question), @comments.first&.id ] : nil %>
         <script>
