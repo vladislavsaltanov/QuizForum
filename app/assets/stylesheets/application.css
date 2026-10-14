@@ -80,7 +80,19 @@ html { scroll-behavior: smooth; }
   white-space: nowrap;
 }
 
+/* One scrollable row on phones: the wrap stacked the whole nav over the content. */
 .qf-nav { display: flex; flex-wrap: wrap; column-gap: 0.25rem; row-gap: 0.5rem; }
+@media (max-width: 48rem) {
+  .qf-header { column-gap: 0.5rem; }
+  .qf-nav {
+    column-gap: 0.25rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .qf-nav::-webkit-scrollbar { display: none; }
+}
 
 .qf-nav-item {
   padding: 8px 14px;
@@ -994,6 +1006,10 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
   font-size: 0.8125rem;
   color: var(--qf-mute);
 }
+/* Step buttons live in the form grid; park them at the right edge
+   (Назад takes the left half) instead of stretching full width. */
+.qf-wizard-next, .qf-wizard-prev { justify-self: end; }
+.qf-wizard-step-controls { display: contents; }
 /* Step hiding engages only after the script adds .qf-wizard-on onto the
    form, so without JS every step stays visible in one stacked form. */
 .qf-wizard-on .qf-step:not(.is-active) { display: none; }
