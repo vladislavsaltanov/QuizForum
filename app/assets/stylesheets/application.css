@@ -227,7 +227,7 @@ html { scroll-behavior: smooth; }
 .qf-cards {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: clamp(1rem, 0.75rem + 2vw, 1.5rem);
+  gap: clamp(0.75rem, 0.55rem + 1.5vw, 1.125rem);
 }
 
 @container qf-main (inline-size >= 48rem) {
@@ -272,18 +272,19 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 .qf-check input { accent-color: var(--qf-ink); }
 
 /* Card: number + tags + attempts row, mono title, hairline meta row. */
+/* List cardsCompact: one spine, no inner title box — Moodle-like density. */
 .qf-card {
   display: grid;
   grid-template-rows: auto 1fr auto;
-  row-gap: 0.875rem;
+  row-gap: 0.5rem;
   align-content: start;
   block-size: 100%;
   box-sizing: border-box;
   background: var(--qf-outer);
   border: 1.5px solid var(--qf-border);
-  border-radius: var(--qf-radius-lg);
-  padding-block: clamp(1rem, 0.875rem + 1vw, 1.25rem);
-  padding-inline: clamp(1rem, 0.875rem + 2vw, 1.625rem);
+  border-radius: var(--qf-radius-md);
+  padding-block: 0.875rem;
+  padding-inline: 1rem;
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
@@ -334,26 +335,15 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 .qf-card-title {
   margin: 0;
   min-inline-size: 0;
-  padding-block: 1rem;
-  padding-inline: 1.25rem;
-  background: var(--qf-inner);
-  border: 1.5px solid var(--qf-border);
-  border-radius: var(--qf-radius-md);
   font-family: var(--qf-mono);
-  font-size: clamp(1.1875rem, 1rem + 1.2vw, 1.75rem);
+  font-size: clamp(1rem, 0.925rem + 0.35vw, 1.1875rem);
   font-weight: 600;
-  line-height: 1.35;
-  text-wrap: balance;
-  overflow-wrap: break-word;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-
-@supports (font-size: 1cqi) {
-  .qf-card-title { font-size: clamp(1.1875rem, 1rem + 1.5cqi, 1.75rem); }
-}
-
-@container qf-main (inline-size >= 48rem) {
-  .qf-card-title { font-size: clamp(1.125rem, 1rem + 1cqi, 1.5rem); }
-}
+.qf-card-link:hover .qf-card-title { text-decoration: underline; text-underline-offset: 3px; }
 
 .qf-card-meta {
   display: flex;
@@ -361,8 +351,8 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   min-inline-size: 0;
   justify-content: space-between;
   align-items: center;
-  gap: 0.5rem 0.75rem;
-  padding-block-start: 0.75rem;
+  gap: 0.25rem 0.625rem;
+  padding-block-start: 0.5rem;
   border-top: 1px solid var(--qf-border);
 }
 
@@ -370,7 +360,7 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   flex: 1 1 12ch;
   min-inline-size: 0;
   overflow-wrap: break-word;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: var(--qf-ink-soft);
 }
 
@@ -385,6 +375,8 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   background: var(--qf-inner);
   white-space: nowrap;
 }
+
+.qf-card-meta .qf-chip { padding-block: 3px; padding-inline: 10px; font-size: 12px; }
 
 /* Verdict colors: instant read, warm-palette compatible. */
 .qf-verdict-correct { --vq: #1e7a3c; --vq-bg: #e2f2e7; }
