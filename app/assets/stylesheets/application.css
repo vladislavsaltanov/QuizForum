@@ -80,7 +80,19 @@ html { scroll-behavior: smooth; }
   white-space: nowrap;
 }
 
+/* One scrollable row on phones: the wrap stacked the whole nav over the content. */
 .qf-nav { display: flex; flex-wrap: wrap; column-gap: 0.25rem; row-gap: 0.5rem; }
+@media (max-width: 48rem) {
+  .qf-header { column-gap: 0.5rem; }
+  .qf-nav {
+    column-gap: 0.25rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .qf-nav::-webkit-scrollbar { display: none; }
+}
 
 .qf-nav-item {
   padding: 8px 14px;
@@ -207,7 +219,7 @@ html { scroll-behavior: smooth; }
 
 .qf-reset { align-self: center; font-size: 0.8125rem; color: var(--qf-mute); }
 
-:where(.qf-nav-link, .qf-apply, .qf-filter, .qf-signout):focus-visible {
+:where(.qf-nav-link, .qf-apply, .qf-filter, .qf-signout, .qf-ghost):focus-visible {
   outline: 2px solid var(--qf-ink);
   outline-offset: 2px;
 }
@@ -215,7 +227,7 @@ html { scroll-behavior: smooth; }
 .qf-cards {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: clamp(1rem, 0.75rem + 2vw, 1.5rem);
+  gap: clamp(0.75rem, 0.55rem + 1.5vw, 1.125rem);
 }
 
 @container qf-main (inline-size >= 48rem) {
@@ -260,24 +272,36 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 .qf-check input { accent-color: var(--qf-ink); }
 
 /* Card: number + tags + attempts row, mono title, hairline meta row. */
+/* List cardsCompact: one spine, no inner title box — Moodle-like density. */
 .qf-card {
   display: grid;
   grid-template-rows: auto 1fr auto;
-  row-gap: 0.875rem;
+  row-gap: 0.5rem;
   align-content: start;
   block-size: 100%;
   box-sizing: border-box;
   background: var(--qf-outer);
   border: 1.5px solid var(--qf-border);
-  border-radius: var(--qf-radius-lg);
-  padding-block: clamp(1rem, 0.875rem + 1vw, 1.25rem);
-  padding-inline: clamp(1rem, 0.875rem + 2vw, 1.625rem);
+  border-radius: var(--qf-radius-md);
+  padding-block: 0.875rem;
+  padding-inline: 1rem;
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
 .qf-card:hover {
   transform: translateY(-2px);
   border-color: var(--qf-ink);
+}
+
+/* Closed on the feed: grayer outline + slightly transparent = inactive.
+   Hover restores full opacity for reading. */
+.qf-card.is-closed {
+  border-color: color-mix(in srgb, var(--qf-border) 55%, #8a8a8a);
+  opacity: 0.8;
+}
+.qf-card.is-closed:hover {
+  transform: none;
+  opacity: 1;
 }
 
 .qf-card-top {
@@ -311,26 +335,15 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 .qf-card-title {
   margin: 0;
   min-inline-size: 0;
-  padding-block: 1rem;
-  padding-inline: 1.25rem;
-  background: var(--qf-inner);
-  border: 1.5px solid var(--qf-border);
-  border-radius: var(--qf-radius-md);
   font-family: var(--qf-mono);
-  font-size: clamp(1.1875rem, 1rem + 1.2vw, 1.75rem);
+  font-size: clamp(1rem, 0.925rem + 0.35vw, 1.1875rem);
   font-weight: 600;
-  line-height: 1.35;
-  text-wrap: balance;
-  overflow-wrap: break-word;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-
-@supports (font-size: 1cqi) {
-  .qf-card-title { font-size: clamp(1.1875rem, 1rem + 1.5cqi, 1.75rem); }
-}
-
-@container qf-main (inline-size >= 48rem) {
-  .qf-card-title { font-size: clamp(1.125rem, 1rem + 1cqi, 1.5rem); }
-}
+.qf-card-link:hover .qf-card-title { text-decoration: underline; text-underline-offset: 3px; }
 
 .qf-card-meta {
   display: flex;
@@ -338,8 +351,8 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   min-inline-size: 0;
   justify-content: space-between;
   align-items: center;
-  gap: 0.5rem 0.75rem;
-  padding-block-start: 0.75rem;
+  gap: 0.25rem 0.625rem;
+  padding-block-start: 0.5rem;
   border-top: 1px solid var(--qf-border);
 }
 
@@ -347,7 +360,7 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   flex: 1 1 12ch;
   min-inline-size: 0;
   overflow-wrap: break-word;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: var(--qf-ink-soft);
 }
 
@@ -363,16 +376,23 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   white-space: nowrap;
 }
 
+.qf-card-meta .qf-chip { padding-block: 3px; padding-inline: 10px; font-size: 12px; }
+
 /* Verdict colors: instant read, warm-palette compatible. */
 .qf-verdict-correct { --vq: #1e7a3c; --vq-bg: #e2f2e7; }
 .qf-verdict-partial { --vq: #96600a; --vq-bg: #fbeecd; }
 .qf-verdict-incorrect { --vq: #b3261e; --vq-bg: #f9ddd6; }
 .qf-verdict-pending { --vq: var(--qf-mute); --vq-bg: transparent; }
 .qf-chip[class*="qf-verdict-"] { color: var(--vq); border-color: var(--vq); background: var(--vq-bg); font-weight: 700; }
+/* Respondent mark: neutral plaque pre-Deadline, verdict-colored dot after. */
+.qf-verdict-dot { display: inline-flex; align-items: center; justify-content: center; inline-size: 1.5rem; block-size: 1.5rem; flex-shrink: 0; border: 1.5px solid var(--vq); border-radius: 50%; background: var(--vq-bg); color: var(--vq); font-weight: 700; line-height: 1; }
 .qf-stat b[class*="qf-verdict-"] { color: var(--vq); }
 
 /* Urgency badge on a card: colour lives in vars so every urgent chip matches. */
 .qf-chip.qf-chip-urgent { color: var(--qf-urgent); border-color: var(--qf-urgent); background: var(--qf-urgent-bg); font-weight: 700; }
+
+/* ТЕСТ mark on a test card: solid ink plaque, the distinct badge of the feed. */
+.qf-chip.qf-test-mark { background: var(--qf-ink); border-color: var(--qf-ink); color: var(--qf-paper); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 
 .qf-footer {
   display: flex;
@@ -406,6 +426,16 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 .qf-back { font-size: 14px; color: var(--qf-mute); }
 .qf-back:hover { color: var(--qf-ink); }
 
+/* Title links in list rows (test manage page, tests index): same voice,
+   row-sized, design-system color instead of browser-default blue. */
+a.qf-qtitle {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.3;
+  color: inherit;
+  text-decoration: none;
+}
+a.qf-qtitle:hover { color: var(--qf-ink); text-decoration: underline; text-underline-offset: 3px; }
 .qf-qtitle {
   margin: 0 0 28px;
   font-family: var(--qf-mono);
@@ -425,7 +455,7 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 .qf-pane { min-width: 0; }
 
 .qf-section-title {
-  margin: 26px 0 10px;
+  margin: 26px 0 14px;
   font-family: var(--qf-mono);
   font-size: 12px;
   font-weight: 600;
@@ -558,7 +588,7 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   margin-bottom: 8px;
 }
 
-.qf-summary { display: grid; gap: 6px; margin-bottom: 10px; }
+.qf-summary { display: grid; gap: 6px; margin: 16px 0 0 0; }
 .qf-summary-row { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
 .qf-summary-names { color: var(--qf-ink-soft); }
 .qf-answers-details > summary { cursor: pointer; }
@@ -618,6 +648,35 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
   color: var(--qf-ink);
 }
 .qf-ghost:hover { border-color: var(--qf-ink); }
+/* Anchor ghosts share the button box: without this an <a> stays inline,
+   so its border and text sit off against the sibling <button>. */
+a.qf-ghost { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+
+/* Title links in list rows share the row's compact voice. */
+.qf-row > a { text-decoration: none; font-family: var(--qf-mono); font-weight: 600; color: var(--qf-ink); min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qf-row > a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.qf-row-points { display: flex; gap: 6px; align-items: center; font-family: var(--qf-mono); font-size: 13px; color: var(--qf-mute); white-space: nowrap; }
+.qf-points { inline-size: 4.5rem; text-align: center; padding-block: 4px; }
+.qf-row-drop { padding: 4px 14px; font-size: 13px; }
+.qf-move { inline-size: 2rem; padding: 4px 0; font-weight: 700; }
+
+/* Test question list: bare stacked cards need their own rhythm — the
+   question page wraps cards in .qf-cards grids, tests render them bare. */
+.qf-main-wide > section.qf-card { margin-block-end: 12px; }
+.qf-main-wide > section.qf-card .qf-section-title { margin-block: 6px 8px; }
+
+/* Test discussion: same chat bones, no borrowed pane flex — the composer
+   stays right under the (bounded) chat instead of a stretched 70vh column. */
+/* Test discussion: the question comment pane, at its own width. */
+.qf-test-discuss {
+  display: flex; flex-direction: column; gap: 12px;
+  max-inline-size: 48rem; inline-size: 100%; margin-inline: auto;
+  margin-top: 6px;
+}
+.qf-test-discuss.is-comments { max-block-size: 70vh; }
+.qf-test-discuss .qf-list-head { margin-inline: -24px; padding-inline: 24px; }
+.qf-test-discuss .qf-chatbar { margin-top: 0; }
+.qf-test-discuss .qf-hint { margin: 0; }
 
 .qf-comments { display: grid; gap: 12px; margin-bottom: 14px; }
 
@@ -890,4 +949,110 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 .qf-tabs { display: flex; gap: 0.5rem;  }
 @media (prefers-reduced-motion: reduce) {
   .qf-ai-banner { animation: none; }
+}
+
+/* Test wizard: dots only render state (JS manages steps in Task 5);
+   every step stays visible so the form works without JS. */
+.qf-wizard-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.875rem 0 1rem;
+  flex-wrap: wrap;
+}
+.qf-wizard-dot {
+  inline-size: 12px;
+  block-size: 12px;
+  padding: 0;
+  border: 1px solid var(--qf-border);
+  border-radius: 50%;
+  background: var(--qf-inner);
+  cursor: pointer;
+}
+.qf-wizard-dot.is-active {
+  background: var(--qf-ink);
+  border-color: var(--qf-ink);
+}
+/* Заголовок вопроса в карточке прохождения: обычный текст, не mono-капс kickера. */
+.qf-step-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+.qf-step-title + .qf-body { margin-top: 6px; }
+.qf-wizard-count {
+  margin-left: auto;
+  font-family: var(--qf-mono);
+  font-size: 0.8125rem;
+  color: var(--qf-mute);
+}
+.qf-wizard-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 14px;
+}
+.qf-wizard-done {
+  font-family: var(--qf-mono);
+  font-size: 0.8125rem;
+  color: var(--qf-mute);
+}
+/* Step buttons live in the form grid; park them at the right edge
+   (Назад takes the left half) instead of stretching full width. */
+.qf-wizard-next, .qf-wizard-prev { justify-self: end; }
+/* Step hiding engages only after the script adds .qf-wizard-on onto the
+   form, so without JS every step stays visible in one stacked form. */
+.qf-wizard-on .qf-step:not(.is-active) { display: none; }
+.qf-wizard-prev, .qf-wizard-next { margin-block-start: 12px; }
+.qf-wizard-prev { margin-inline-end: 10px; }
+.qf-step-hint {
+  display: none;
+  margin: 10px 0 0;
+  font-size: 0.875rem;
+  color: var(--qf-urgent);
+}
+.qf-step-hint.is-visible { display: block; }
+
+
+/* Тумблер «прежний дизайн карточек»: отмена компактных списков.
+   Объёмный титул в рамке, просторный скелет — как было до сжатия. */
+[data-old-cards] .qf-cards { gap: clamp(1rem, 0.75rem + 2vw, 1.5rem); }
+[data-old-cards] .qf-card {
+  row-gap: 0.875rem;
+  border-radius: var(--qf-radius-lg);
+  padding-block: clamp(1rem, 0.875rem + 1vw, 1.25rem);
+  padding-inline: clamp(1rem, 0.875rem + 2vw, 1.625rem);
+}
+[data-old-cards] .qf-card-title {
+  padding-block: 1rem;
+  padding-inline: 1.25rem;
+  background: var(--qf-inner);
+  border: 1.5px solid var(--qf-border);
+  border-radius: var(--qf-radius-md);
+  font-size: clamp(1.1875rem, 1rem + 1.2vw, 1.75rem);
+  line-height: 1.35;
+  white-space: normal;
+}
+[data-old-cards] .qf-card-link:hover .qf-card-title { text-decoration: none; }
+[data-old-cards] .qf-card-meta {
+  gap: 0.5rem 0.75rem;
+  padding-block-start: 0.75rem;
+}
+
+/* Хедер: мягкий хвост размытия под разделителем, чтобы скользящий контент
+   не «обрезался» о жёсткую нижнюю кромку шапки. */
+.qf-header::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  block-size: 1.5rem;
+  background: linear-gradient(to bottom,
+    color-mix(in srgb, var(--qf-paper) 72%, transparent), transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
 }

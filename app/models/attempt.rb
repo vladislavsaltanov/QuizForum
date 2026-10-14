@@ -19,10 +19,11 @@ class Attempt < ApplicationRecord
   validate :answer_present
   validate :selected_indices_valid, if: -> { question&.choice? }
 
-  # Points per user for correct verdicts on revealed questions, highest first.
+  # Points per user for correct verdicts on revealed standalone questions, highest first.
+  # Test-scoped questions stay out: they score inside their test, never here.
   # ponytail: Ruby sum over correct attempts, not SQL; fine at forum scale.
   def self.revealed_points(difficulty: nil, topic: nil)
-    scope = joins(:question).where(verdict: "correct").where("questions.deadline <= ?", Time.current)
+    scope = joins(:question).where(verdict: "correct").where(questions: { test_id: nil }).where("questions.deadline <= ?", Time.current)
     scope = scope.where("? = ANY (questions.tags)", difficulty) if difficulty.present?
     scope = scope.where("? = ANY (questions.tags)", topic) if topic.present?
     points = Hash.new(0)
@@ -50,7 +51,6 @@ class Attempt < ApplicationRecord
     broadcast_replace_to(question, target: "question-summary",
       partial: "questions/summary", locals: { attempts: question.attempts.includes(:user).order(:created_at) })
   end
-
 
   private
     # Choice answers need selected options, text answers need a body.

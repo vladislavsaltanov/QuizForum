@@ -20,6 +20,13 @@ Rails.application.routes.draw do
     end
     resources :reports, only: %i[ create ]
   end
+  resources :tests, only: %i[index show new edit update destroy] do
+    post :authenticate, on: :member
+    post :attempt, on: :member
+    resources :comments, only: %i[create destroy], controller: "comments" do
+      patch :approve, on: :member
+    end
+  end
   namespace :api do
     resources :ai_questions, only: %i[ create ]
   end
@@ -29,7 +36,7 @@ Rails.application.routes.draw do
   resource :my_questions, only: %i[show]
   resource :profile, only: %i[show edit update] do
     patch :grant_role, on: :member
-    patch :toggle_ai_banner, on: :member
+    patch :update_settings, on: :member
   end
   get "ui-kit" => "ui_kit#show", as: :ui_kit
   match "/auth/google_oauth2/callback" => "sessions#google_oauth2", via: %i[get post]

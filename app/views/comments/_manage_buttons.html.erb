@@ -1,0 +1,12 @@
+<%# Управление одним комментарием для слота; manage = модераторские права,
+    own = автор комментария (личный поток). Молчаливые флаги опускают кнопку. %>
+<div class="qf-manage-buttons">
+  <% if !comment.approved? && local_assigns[:manage] %>
+    <%= button_to "Опубликовать", (comment.question ? approve_question_comment_path(comment.question, comment) : approve_test_comment_path(comment.test, comment)),
+          method: :patch, class: "qf-ghost" %>
+  <% end %>
+  <% if local_assigns[:manage] || local_assigns[:own] %>
+    <%= button_to "Удалить", (comment.question ? question_comment_path(comment.question, comment) : test_comment_path(comment.test, comment)),
+          method: :delete, class: "qf-ghost" %>
+  <% end %>
+</div>

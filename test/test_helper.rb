@@ -5,6 +5,7 @@ unless ENV["COVERAGE"] == "false"
     enable_coverage :branch
     primary_coverage :branch
     minimum_coverage line: 90, branch: 90
+    merge_timeout 3600 # suite runs >600s; default drops "Unit Tests" result from merged report
   end
 end
 require_relative "../config/environment"

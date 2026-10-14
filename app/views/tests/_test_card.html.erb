@@ -1,0 +1,38 @@
+<%# Shared test plaque: «Мои тесты» dashboard and home «Открытые тесты».
+    Locals: test; num (optional, card number); my_state (optional truthy — the
+    viewer answered); my_score (optional int — closed test, viewer's own score). %>
+<%= link_to test.draft? ? edit_test_path(test) : test_path(test), class: "qf-card-link" do %>
+  <article class="qf-card">
+    <div class="qf-card-top">
+      <span class="qf-card-num"><%= format("%02d", local_assigns[:num] || 1) %></span>
+      <span class="qf-chip qf-test-mark">тест</span>
+      <span class="qf-card-attempts">вопросов: <%= test.questions.size %></span>
+      <%# Respondents render only for non-drafts with a preloaded attempt
+          association, so a card outside a preloaded context stays query-free. %>
+      <% if !test.draft? && test.questions.first&.association(:attempts)&.loaded? %>
+        <span class="qf-chip">ответили: <%= test.questions.flat_map { it.attempts.map(&:user_id) }.uniq.size %></span>
+      <% end %>
+      <% if test.protected? %>
+        <span class="qf-chip">по паролю</span>
+      <% end %>
+    </div>
+    <h2 class="qf-card-title"><%= test.title %></h2>
+    <div class="qf-card-meta">
+      <span class="qf-card-author"><%= test.author.name %></span>
+      <% if local_assigns[:my_score] %>
+        <span class="qf-chip">ваш балл: <%= my_score %> из <%= test.max_score %></span>
+      <% elsif local_assigns[:my_state] %>
+        <%# Решёный тест: «решено» вместо срока — как у решённых вопросов. %>
+        <span class="qf-chip">решено</span>
+      <% elsif test.draft? %>
+        <span class="qf-chip">черновик</span>
+      <% elsif test.closed? %>
+        <span class="qf-chip">завершён</span>
+      <% elsif test.deadline <= 1.day.from_now %>
+        <span class="qf-chip qf-chip-urgent">заканчивается · <%= time_left(test.deadline) %></span>
+      <% else %>
+        <span class="qf-chip">до <%= local_time_tag(test.deadline) %></span>
+      <% end %>
+    </div>
+  </article>
+<% end %>

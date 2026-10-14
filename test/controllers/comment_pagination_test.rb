@@ -51,6 +51,15 @@ class CommentPaginationTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "index without a cursor serves the newest batch" do
+    seed_comments(15)
+    get question_comments_path(@question), headers: { "Accept" => TURBO }
+
+    assert_response :success
+    assert_equal TURBO, response.media_type
+    assert_select "turbo-stream[action=prepend][target=comments] .qf-msg", count: 10
+  end
+
   test "index drops the load marker once nothing older is left" do
     seed_comments(12)
     get question_comments_path(@question), params: { before: newest_first_ids[9] },

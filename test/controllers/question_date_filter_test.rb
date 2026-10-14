@@ -63,6 +63,26 @@ class QuestionDateFilterTest < ActionDispatch::IntegrationTest
     assert_select ".qf-pager a[href*='date_to=2025-10-10']", minimum: 1
   end
 
+  test "open-ended ranges filter with either bound alone" do
+    sign_in_as(users(:one))
+    from_only = question("От нижней границы", deadline: 7.days.from_now)
+    to_only = question("До верхней границы", deadline: 7.days.from_now)
+    outside = question("Снаружи диапазона", deadline: 7.days.from_now)
+    from_only.update_column(:created_at, Time.zone.local(2025, 10, 8))
+    to_only.update_column(:created_at, Time.zone.local(2025, 10, 8))
+    outside.update_column(:created_at, Time.zone.local(2025, 10, 1))
+
+    get root_path, params: { date_from: "2025-10-06" }
+
+    assert_select ".qf-card-title", text: "От нижней границы"
+    assert_select ".qf-card-title", text: "Снаружи диапазона", count: 0
+
+    get root_path, params: { date_to: "2025-10-06" }
+
+    assert_select ".qf-card-title", text: "До верхней границы", count: 0
+    assert_select ".qf-card-title", text: "Снаружи диапазона"
+  end
+
   test "invalid or reversed date range renders a validation message" do
     sign_in_as(users(:one))
     [ { date_from: "not-a-date" }, { date_from: "2025-10-11", date_to: "2025-10-06" } ].each do |range|

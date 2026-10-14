@@ -39,6 +39,16 @@ class CodeRunnerClientTest < ActiveSupport::TestCase
       language: "python", reference_language: "python", seed: 1)
   end
 
+  test "refused runner is retried once, then given up" do
+    old = ENV["CODERUNNER_URL"]
+    ENV["CODERUNNER_URL"] = "http://127.0.0.1:9"
+
+    assert_nil CodeRunnerClient.new.run_check(reference: "ref", attempt: "att",
+      language: "python", reference_language: "python", seed: 1)
+  ensure
+    old.nil? ? ENV.delete("CODERUNNER_URL") : ENV["CODERUNNER_URL"] = old
+  end
+
   test "same triple yields same idempotency key" do
     assert_equal capture_key("att"), capture_key("att")
     assert_not_equal capture_key("att"), capture_key("other")

@@ -34,10 +34,24 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_equal "завершён", time_left(1.minute.ago)
   end
 
+  test "time_left covers the last minute and the minute tier" do
+    travel_to(Time.current) do
+      assert_equal "меньше минуты", time_left(Time.current + 30.seconds)
+      assert_equal "5 минут", time_left(Time.current + 5.minutes)
+    end
+  end
+
   test "ago_ru humanizes recent times" do
     assert_equal "только что", ago_ru(Time.current)
     assert_equal "5 минут назад", ago_ru(320.seconds.ago)
     assert_match(/\d{2}\.\d{2} \d{2}:\d{2}/, ago_ru(10.days.ago))
+  end
+
+  test "ago_ru covers the hour and day tiers" do
+    travel_to(Time.current) do
+      assert_equal "2 часа назад", ago_ru(2.hours.ago)
+      assert_equal "2 дня назад", ago_ru(2.days.ago)
+    end
   end
 
   test "jury_summary falls back when check hasn't finished" do
@@ -48,6 +62,13 @@ class ApplicationHelperTest < ActionView::TestCase
     attempt.jury_score = 0.5
 
     assert_equal "частично · 0.5", jury_summary(attempt)
+  end
+
+  test "jury_summary omits the score when only the label is known" do
+    attempt = Attempt.new(jury_label: "positive")
+
+    assert_equal "похоже на верный", jury_summary(attempt)
+    assert_no_match(/·/, jury_summary(attempt))
   end
 
   test "local_time_tag renders utc fallback with iso datetime" do

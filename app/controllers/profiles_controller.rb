@@ -34,16 +34,17 @@ class ProfilesController < ApplicationController
     end
   end
 
-  # Toggles the AI banner via a persistent cookie; per-browser, no reauth needed.
-  def toggle_ai_banner
-    if params[:hide_ai_banner] == "1"
-      cookies[:hide_ai_banner] = { value: "1", expires: 1.year }
-      notice = "Баннер ИИ-рубрики скрыт."
-    else
-      cookies.delete(:hide_ai_banner)
-      notice = "Баннер ИИ-рубрики возвращён."
+  # Все тумблеры настроек одним запросом; cookie per-browser, все отмеченные
+  # чекбоксы применяются атомично.
+  def update_settings
+    %i[hide_ai_banner old_cards old_test_wizard].each do |key|
+      if params[key] == "1"
+        cookies[key] = { value: "1", expires: 1.year }
+      else
+        cookies.delete(key)
+      end
     end
-    redirect_to profile_path, notice:
+    redirect_to profile_path, notice: "Настройки сохранены."
   end
 
   # Admin-only cosmetic role grant; never part of mass-assigned params.

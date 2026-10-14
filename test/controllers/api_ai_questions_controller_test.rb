@@ -25,6 +25,16 @@ class ApiAiQuestionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :unauthorized
   end
 
+  test "blank server token keeps the endpoint closed to every caller" do
+    ENV["AI_INGEST_TOKEN"] = ""
+
+    post api_ai_questions_path, params: { batch_date: AiQuestions.today.to_s, questions: pack_items },
+         headers: { "Authorization" => "Bearer whatever" }
+
+    assert_response :unauthorized
+    assert_equal 0, Question.ai.count
+  end
+
   test "valid token creates the pack" do
     post api_ai_questions_path, params: { batch_date: AiQuestions.today.to_s, questions: pack_items },
          headers: { "Authorization" => "Bearer secret-token" }
@@ -51,6 +61,14 @@ class ApiAiQuestionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :conflict
     assert_equal 9, Question.ai.count
+  end
+
+  test "authorized but invalid pack is unprocessable, not a conflict" do
+    post api_ai_questions_path, params: { batch_date: AiQuestions.today.to_s, questions: pack_items.first(3) },
+         headers: { "Authorization" => "Bearer secret-token" }
+
+    assert_response :unprocessable_entity
+    assert_equal 0, Question.ai.count
   end
 
   test "garbage batch_date is unprocessable" do

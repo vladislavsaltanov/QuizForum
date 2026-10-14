@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_08_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_12_000006) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -31,20 +31,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_010000) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.string "verdict", default: "pending", null: false
-    t.index ["question_id", "user_id"], name: "index_attempts_on_question_id_and_user_id", unique: true
-    t.index ["question_id"], name: "index_attempts_on_question_id"
-    t.index ["user_id"], name: "index_attempts_on_user_id"
+    t.index [ "question_id", "user_id" ], name: "index_attempts_on_question_id_and_user_id", unique: true
+    t.index [ "question_id" ], name: "index_attempts_on_question_id"
+    t.index [ "user_id" ], name: "index_attempts_on_user_id"
   end
 
   create_table "comments", force: :cascade do |t|
     t.text "body", null: false
     t.datetime "created_at", null: false
-    t.bigint "question_id", null: false
+    t.bigint "question_id"
     t.string "status", default: "pending", null: false
+    t.bigint "test_id"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.index ["question_id"], name: "index_comments_on_question_id"
-    t.index ["user_id"], name: "index_comments_on_user_id"
+    t.index [ "question_id" ], name: "index_comments_on_question_id"
+    t.index [ "test_id" ], name: "index_comments_on_test_id"
+    t.index [ "user_id" ], name: "index_comments_on_user_id"
   end
 
   create_table "question_trustees", force: :cascade do |t|
@@ -52,9 +54,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_010000) do
     t.bigint "question_id", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.index ["question_id", "user_id"], name: "index_question_trustees_on_question_id_and_user_id", unique: true
-    t.index ["question_id"], name: "index_question_trustees_on_question_id"
-    t.index ["user_id"], name: "index_question_trustees_on_user_id"
+    t.index [ "question_id", "user_id" ], name: "index_question_trustees_on_question_id_and_user_id", unique: true
+    t.index [ "question_id" ], name: "index_question_trustees_on_question_id"
+    t.index [ "user_id" ], name: "index_question_trustees_on_user_id"
   end
 
   create_table "questions", force: :cascade do |t|
@@ -70,13 +72,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_010000) do
     t.text "example_output"
     t.text "explanation"
     t.jsonb "options", default: [], null: false
+    t.integer "points", default: 1, null: false
+    t.integer "position", default: 0, null: false
     t.text "reference_answer", default: "", null: false
     t.string "reference_language"
     t.string "tags", default: [], null: false, array: true
+    t.bigint "test_id"
     t.string "title", null: false
     t.datetime "updated_at", null: false
-    t.index ["ai_batch"], name: "index_questions_on_ai_batch_ai_only", where: "ai_generated"
-    t.index ["author_id"], name: "index_questions_on_author_id"
+    t.index [ "ai_batch" ], name: "index_questions_on_ai_batch_ai_only", where: "ai_generated"
+    t.index [ "author_id" ], name: "index_questions_on_author_id"
+    t.index [ "test_id" ], name: "index_questions_on_test_id"
   end
 
   create_table "reports", force: :cascade do |t|
@@ -84,9 +90,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_010000) do
     t.bigint "question_id", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.index ["question_id", "user_id"], name: "index_reports_on_question_id_and_user_id", unique: true
-    t.index ["question_id"], name: "index_reports_on_question_id"
-    t.index ["user_id"], name: "index_reports_on_user_id"
+    t.index [ "question_id", "user_id" ], name: "index_reports_on_question_id_and_user_id", unique: true
+    t.index [ "question_id" ], name: "index_reports_on_question_id"
+    t.index [ "user_id" ], name: "index_reports_on_user_id"
   end
 
   create_table "sessions", force: :cascade do |t|
@@ -95,7 +101,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_010000) do
     t.datetime "updated_at", null: false
     t.string "user_agent"
     t.bigint "user_id", null: false
-    t.index ["user_id"], name: "index_sessions_on_user_id"
+    t.index [ "user_id" ], name: "index_sessions_on_user_id"
+  end
+
+  create_table "tests", force: :cascade do |t|
+    t.bigint "author_id", null: false
+    t.text "body", default: "", null: false
+    t.datetime "created_at", null: false
+    t.datetime "deadline", null: false
+    t.integer "max_points"
+    t.string "password_digest"
+    t.boolean "published", default: false, null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index [ "author_id" ], name: "index_tests_on_author_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -110,18 +129,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_010000) do
     t.string "uid"
     t.datetime "updated_at", null: false
     t.index "lower((name)::text)", name: "index_users_on_lower_name", unique: true
-    t.index ["email"], name: "index_users_on_email", unique: true
-    t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true
+    t.index [ "email" ], name: "index_users_on_email", unique: true
+    t.index [ "provider", "uid" ], name: "index_users_on_provider_and_uid", unique: true
   end
 
   add_foreign_key "attempts", "questions"
   add_foreign_key "attempts", "users"
   add_foreign_key "comments", "questions"
+  add_foreign_key "comments", "tests"
   add_foreign_key "comments", "users"
   add_foreign_key "question_trustees", "questions"
   add_foreign_key "question_trustees", "users"
+  add_foreign_key "questions", "tests"
   add_foreign_key "questions", "users", column: "author_id"
   add_foreign_key "reports", "questions"
   add_foreign_key "reports", "users"
   add_foreign_key "sessions", "users"
+  add_foreign_key "tests", "users", column: "author_id"
 end

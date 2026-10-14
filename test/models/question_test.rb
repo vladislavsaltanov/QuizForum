@@ -116,6 +116,19 @@ class QuestionTest < ActiveSupport::TestCase
     assert_equal 2, problems.size
   end
 
+  test "a failed save names the trustee, not the author" do
+    q = questions(:open_text)
+    other = users(:two)
+    unsavable = QuestionTrustee.new(user: other) # no question: save refuses
+    proxy = q.question_trustees
+    proxy.define_singleton_method(:find_or_initialize_by) { |*| unsavable }
+
+    ok, alert, problems = q.sync_trustees_by_emails(other.email)
+
+    assert_equal [ false, "Добавлено наблюдателей: 0 из 1." ], [ ok, alert ]
+    assert_equal [ "#{other.email} — не удалось сохранить" ], problems
+  end
+
   test "no problems means an empty third element" do
     q = questions(:open_text)
 
@@ -213,6 +226,14 @@ class QuestionTest < ActiveSupport::TestCase
 
     assert_equal [ newest, oldest ].map(&:title), titles
     assert_not_includes titles, tail.title
+  end
+
+  test "privileged and editable stay closed to a plain stranger" do
+    q = questions(:open_text)
+
+    assert_not q.privileged?(users(:two))
+    assert_not q.editable_by?(users(:two))
+    assert_not q.editable_by?(nil)
   end
 
   private

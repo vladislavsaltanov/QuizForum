@@ -19,7 +19,9 @@
     </div>
   <% end %>
   <p class="qf-kicker">
-    <% if @question.open? %>
+    <% if (badge = solved_badge(@question, @my_attempt&.verdict)) %>
+      <%= badge %>
+    <% elsif @question.open? %>
       До дедлайна · <%= time_left(@question.deadline) %>
     <% else %>
       Завершён <%= local_time_tag(@question.deadline) %>
@@ -39,7 +41,11 @@
           <% end %>
         </span>
         <span class="qf-card-attempts">ответили: <%= @question.attempts.size %></span>
-        <span class="qf-chip">до <%= local_time_tag(@question.deadline) %></span>
+        <% if (badge = solved_badge(@question, @my_attempt&.verdict)) %>
+          <%= badge %>
+        <% else %>
+          <span class="qf-chip">до <%= local_time_tag(@question.deadline) %></span>
+        <% end %>
       </div>
 
       <h2 class="qf-section-title">Описание</h2>
@@ -79,23 +85,15 @@
 
       <% if @tab == "answers" %>
         <%= turbo_stream_from @question %>
+        <%= turbo_stream_from @question, "personal-#{Current.user.id}" %>
         <%= turbo_frame_tag "question-answers", data: { controller: "reveal", reveal_deadline_value: @question.deadline.iso8601, reveal_url_value: question_path(@question) } do %>
           <%= render "answers" %>
         <% end %>
       <% else %>
         <%= turbo_stream_from @question %>
-        <div id="comments" class="qf-chat">
-          <%= render "comments/more_marker", before: @comments.first&.id, url: question_comments_path(@question) if @has_older %>
-          <% if @comments.empty? %>
-            <p class="qf-empty">Пока тихо — начните обсуждение первым.</p>
-          <% end %>
-          <%= render @comments %>
-        </div>
-        <%= form_with url: question_comments_path(@question), class: "qf-chatbar" do |f| %>
-          <%= text_area_tag "comment[body]", nil, rows: 1, placeholder: "Написать сообщение…", class: "qf-chat-input", "aria-label": "Новый комментарий", data: { controller: "composer", action: "keydown->composer#send" } %>
-          <button type="submit" class="qf-send" aria-label="Отправить" data-turbo-submits-with="…">↑</button>
-        <% end %>
-        <p class="qf-hint">Сообщения проходят модерацию и открываются всем после дедлайна.</p>
+        <%= turbo_stream_from @question, "personal-#{Current.user.id}" %>
+        <%= render "comments/chat", comments: @comments, post_path: question_comments_path(@question),
+              more: @has_older ? [ question_comments_path(@question), @comments.first&.id ] : nil %>
         <script>
           {
             const qfChat = document.getElementById("comments");

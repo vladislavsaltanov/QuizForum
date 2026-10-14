@@ -191,7 +191,8 @@ class QuestionsFlowTest < ActionDispatch::IntegrationTest
 
   test "stranger cannot delete comment" do
     q = questions(:open_text)
-    Comment.create!(question: q, user: @user, body: "не тронь")
+    # Чужой чужому: комментарий автора, в сессии — посторонний (@user из setup).
+    Comment.create!(question: q, user: @author, body: "не тронь")
 
     assert_no_difference("Comment.count") do
       delete question_comment_path(q, Comment.last)

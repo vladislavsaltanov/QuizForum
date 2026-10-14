@@ -38,6 +38,28 @@ class AiQuestionIngestTest < ActiveSupport::TestCase
     assert_match(/Нужно 9 вопросов/, errors.first)
   end
 
+  test "kill switch refuses the pack outright" do
+    old = ENV["AI_QUESTIONS_ENABLED"]
+    ENV["AI_QUESTIONS_ENABLED"] = "0"
+
+    questions, errors, = AiQuestionIngest.call(items: pack_items).deconstruct
+
+    assert_empty questions
+    assert_equal [ "AI выключен." ], errors
+  ensure
+    ENV["AI_QUESTIONS_ENABLED"] = old
+  end
+
+  test "blank option rows never reach the built question" do
+    item = { title: "Пустые опции", body: "Условие", answer_type: "single_choice",
+      reference_answer: "", explanation: nil, difficulty: "легкое", topics: [] }
+    built = AiQuestionIngest.send(:build,
+      item.merge(options: [ { text: "   ", correct: true }, { text: "Верно", correct: true } ]),
+      author: users(:one), deadline: 1.day.from_now, batch: AiQuestions.today)
+
+    assert_equal [ { "text" => "Верно", "correct" => true } ], built.options
+  end
+
   test "one rejected item rolls the whole pack back" do
     with_verdict(:reject, "спам") do
       questions, errors, _ = AiQuestionIngest.call(items: pack_items).deconstruct

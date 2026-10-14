@@ -1,0 +1,7 @@
+<%# Composer shared by the question and test discussions. `post_path` is the
+    owner-specific comments route; the stream response swaps this form back
+    after a send, so give it the id the controller replaces by. %>
+<%= form_with url: post_path, id: local_assigns[:form_id], class: "qf-chatbar" do |f| %>
+  <%= text_area_tag "comment[body]", nil, rows: 1, placeholder: "Написать сообщение…", class: "qf-chat-input", "aria-label": "Новый комментарий", data: { controller: "composer", action: "keydown->composer#send" } %>
+  <button type="submit" class="qf-send" aria-label="Отправить" data-turbo-submits-with="…">↑</button>
+<% end %>
