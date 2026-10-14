@@ -85,10 +85,15 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     assert_predicate test.reload, :published?
     assert_equal 5, test.max_score
 
-    # Published test is visible to strangers.
+    # No public test index: /tests lists only authored/taken tests. The
+    # random test itself stays reachable by direct link (open + published).
     sign_in_as(@user)
     get tests_path
-    assert_match(/Мидтерм/, response.body)
+    assert_match(/Мои тесты/, body)
+    assert_no_match(/Мидтерм/, body)
+    get test_path(test)
+    assert_response :success
+    assert_match(/Мидтерм/, body)
   end
 
   test "open test flow: answer all at once, post-deadline score" do
@@ -133,6 +138,32 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     assert_response :success
     # partial on 2 points => 1; pending text => 0; total "1 из 7".
     assert_match(/1 из 7/, response.body)
+  end
+
+  test "invalid attempt re-renders with typed answers, never others' answers" do
+    sign_in_as(@author)
+    test = @author.authored_tests.create!(title: "Форма", deadline: 1.day.from_now, published: true)
+    q0 = test.questions.create!(title: "А зачем?", body: "b", answer_type: "text",
+      reference_answer: "потому", deadline: test.deadline, author: @author, points: 2, position: 0)
+    q1 = test.questions.create!(title: "Столица?", body: "b", answer_type: "text",
+      reference_answer: "Париж", deadline: test.deadline, author: @author, points: 5, position: 1)
+    # Другой пользователь успел ответить; pre-deadline чужие ответы скрыты
+    # даже в re-render после ошибки валидации.
+    @other.attempts.create!(question: q1, body: "чужой смысл")
+    sign_in_as(@user)
+
+    # Один из двух вопросов не заполнен: вся попытка валится, но введённое
+    # сохраняется в форме вместо голого redirect, который всё терял.
+    post attempt_test_path(test), params: { answers: {
+      q0.id.to_s => { body: "" },
+      q1.id.to_s => { body: "Париж" }
+    } }
+    assert_response :unprocessable_entity
+    assert_match(/Столица/, response.body)
+    assert_select "textarea", text: /Париж/
+    assert_no_match(/чужой смысл/, response.body)
+    assert_equal 0, Attempt.where(question: q0, user: @user).count
+    assert_equal 0, Attempt.where(question: q1, user: @user).count
   end
 
   test "test questions live only inside the test" do
@@ -286,5 +317,137 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     patch approve_test_comment_path(test, pending)
     assert_redirected_to test_path(test)
     assert_equal "approved", pending.reload.status
+  end
+
+  test "my tests dashboard: sections, drafts first, author chips" do
+    sign_in_as(@author)
+    @author.authored_tests.create!(title: "Драфт Мид", deadline: 2.days.from_now)
+    @author.authored_tests.create!(title: "Открытый Мид", deadline: 3.days.from_now, published: true)
+    @author.authored_tests.create!(title: "Заперт Мид", deadline: 3.days.from_now, password: "s3cret", published: true)
+    closed = @author.authored_tests.create!(title: "Закрытый Мид", deadline: 1.hour.ago, published: true)
+    closed.questions.create!(title: "q", body: "b", answer_type: "text",
+      reference_answer: "r", deadline: closed.deadline, author: @author, points: 4, position: 0)
+
+    get tests_path
+    assert_response :success
+    assert_match(/Мои тесты/, body)
+    assert_match(/В работе/, body)
+    assert_match(/Завершённые/, body)
+    assert_match(/Пройдено мной/, body)
+    # Author sees their own password test with its chip.
+    assert_match(/Заперт Мид/, body)
+    assert_match(/по паролю/, body)
+    assert_match(/черновик/, body)
+    assert_match(/завершён/, body)
+    # Drafts first, then open published, closed into Завершённые.
+    assert_operator body.index("Драфт Мид"), :<, body.index("Открытый Мид")
+    assert_operator body.index("Открытый Мид"), :<, body.index("Закрытый Мид")
+  end
+
+  test "my tests dashboard: taken tests carry score or waiting chip" do
+    closed = @author.authored_tests.create!(title: "Сдан Мид", deadline: 1.hour.ago, published: true)
+    cq = closed.questions.create!(title: "q", body: "b", answer_type: "single_choice",
+      reference_answer: "", deadline: closed.deadline, author: @author, points: 4, position: 0,
+      options: [ { "text" => "да", "correct" => true }, { "text" => "нет", "correct" => false } ])
+    cq.attempts.create!(user: @user, selected: [ "0" ])
+    open = @author.authored_tests.create!(title: "Проходит Мид", deadline: 2.days.from_now, published: true)
+    open.questions.create!(title: "q", body: "b", answer_type: "text",
+      reference_answer: "r", deadline: open.deadline, author: @author, points: 3, position: 0)
+        .tap { |q| q.attempts.create!(user: @user, body: "x") }
+
+    sign_in_as(@user)
+    get tests_path
+    assert_match(/Сдан Мид/, body)
+    assert_match(/балл: 4 из 4/, body)
+    assert_match(/Проходит Мид/, body)
+    assert_match(/ждёт дедлайна/, body)
+    assert_no_match(/балл: 0 из 3/, body)
+  end
+
+  test "my tests dashboard: stranger without tests sees empty state" do
+    sign_in_as(@other)
+    get tests_path
+    assert_response :success
+    assert_match(/Мои тесты/, body)
+    assert_match(/Вы пока не проходили/, body)
+    assert_no_match(/qf-card-title/, body)
+  end
+
+  test "invalid attempt alert is russian and dashboard cards count respondents" do
+    sign_in_as(@author)
+    test = @author.authored_tests.create!(title: "Отвечалки", deadline: 1.day.from_now, published: true)
+    q0 = test.questions.create!(title: "Выбор", body: "b", answer_type: "single_choice",
+      reference_answer: "", deadline: test.deadline, author: @author, points: 1, position: 0,
+      options: [ { "text" => "да", "correct" => true }, { "text" => "нет", "correct" => false } ])
+    q1 = test.questions.create!(title: "Текст", body: "b", answer_type: "text",
+      reference_answer: "а", deadline: test.deadline, author: @author, points: 1, position: 1)
+
+    # Someone answered the choice question: the author's dashboard card says so.
+    Attempt.create!(question: q0, user: @other, selected: [ "0" ])
+    get tests_path
+    assert_select ".qf-chip", text: /ответили: 1/, count: 1
+
+    # The 422 alert speaks Russian and names the failing question.
+    sign_in_as(@user)
+    post attempt_test_path(test), params: { answers: { q0.id.to_s => { selected: [ "0" ] } } }
+    assert_response :unprocessable_entity
+    assert_match("Вопрос 2: заполните ответ.", flash.now[:alert].to_s)
+    assert_no_match(/Body can't be blank/, flash.now[:alert].to_s)
+  end
+
+  test "editor reorders questions and reserves publish for drafts" do
+    sign_in_as(@author)
+    test = @author.authored_tests.create!(title: "Пересо", deadline: 1.day.from_now)
+    q0 = test.questions.create!(title: "Первый", body: "b", answer_type: "text",
+      reference_answer: "x", deadline: test.deadline, author: @author, points: 1, position: 0)
+    q1 = test.questions.create!(title: "Второй", body: "b", answer_type: "text",
+      reference_answer: "y", deadline: test.deadline, author: @author, points: 1, position: 1)
+
+    # The row's ↑ button submits the settings form with questions_move.
+    patch test_path(test), params: {
+      test: { title: "Пересо", deadline: 1.day.from_now },
+      questions_move: { q1.id.to_s => "up" }
+    }
+    assert_redirected_to edit_test_path(test)
+    assert_equal [ q1.id, q0.id ], test.questions.order(:position, :id).pluck(:id)
+
+    # A foreign question id is a no-op: order unchanged, still a redirect.
+    patch test_path(test), params: {
+      test: { title: "Пересо", deadline: 1.day.from_now },
+      questions_move: { "999999" => "up" }
+    }
+    assert_redirected_to edit_test_path(test)
+    assert_equal [ q1.id, q0.id ], test.questions.order(:position, :id).pluck(:id)
+
+    # Publish is a draft-only action; the published edit hides its button.
+    get edit_test_path(test)
+    assert_select "button[name='publish']", count: 1
+    test.update!(published: true)
+    get edit_test_path(test)
+    assert_select "button[name='publish']", count: 0
+  end
+
+  test "wizard markup ships visible steps, no JS-only state in raw HTML" do
+    sign_in_as(@author)
+    test = @author.authored_tests.create!(title: "Викторина", deadline: 1.day.from_now, published: true)
+    test.questions.create!(title: "Раз", body: "b", answer_type: "text", reference_answer: "x",
+      deadline: test.deadline, author: @author, points: 1, position: 0)
+    test.questions.create!(title: "Два", body: "b", answer_type: "single_choice", reference_answer: "",
+      deadline: test.deadline, author: @author, points: 1, position: 1,
+      options: [ { "text" => "a", "correct" => true }, { "text" => "b", "correct" => false } ])
+    sign_in_as(@user)
+
+    get test_path(test)
+    assert_response :success
+    # Hooks the wizard script binds to.
+    assert_select 'form[data-wizard="1"]'
+    assert_select "section.qf-step[data-step]", count: 2
+    assert_select "nav.qf-wizard-progress .qf-wizard-dot[data-goto]", count: 2
+    assert_select ".qf-wizard-bar .qf-wizard-done"
+    assert_select ".qf-wizard-bar button[type='submit']"
+    # No-JS fallback: .qf-wizard-on / .qf-step-hint appear only from the inline
+    # script or the stylesheet, never as server-rendered class attributes.
+    assert_no_match(/class="[^"]*qf-wizard-on/, response.body)
+    assert_no_match(/class="[^"]*qf-step-hint/, response.body)
   end
 end

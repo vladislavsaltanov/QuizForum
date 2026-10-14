@@ -1,41 +1,55 @@
-<% content_for :title, "Тесты" %>
+<% content_for :title, "Мои тесты" %>
+<% content_for :head do %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<% end %>
 
 <%= render "shared/header", active: "tests" %>
 
 <main class="qf-main">
-  <p class="qf-kicker">Тесты</p>
-  <h1 class="qf-hero">Тесты</h1>
+  <% @in_work = @authored.select(&:draft?) + @authored.select { it.published? && it.open? } %>
+  <% @finished = @authored.select { it.published? && it.closed? } %>
 
-  <div class="qf-actions">
-    <%= link_to "Новый тест", new_test_path, class: "qf-apply" %>
+  <p class="qf-kicker">Всего · <%= @authored.size + @taken.size %></p>
+  <h1 class="qf-hero">Мои тесты</h1>
+
+  <div class="qf-list-top">
+    <%= link_to "+ Новый тест", new_test_path, class: "qf-apply" %>
   </div>
 
-  <% if @tests.empty? %>
-    <p class="qf-empty">Пока нет тестов — опубликуйте первый.</p>
+  <section class="qf-cards" aria-label="В работе">
+    <% if @in_work.empty? %>
+      <p class="qf-empty">Пока нет ваших тестов — создайте первый кнопкой выше.</p>
+    <% end %>
+    <% @in_work.each_with_index do |test, i| %>
+      <%= render "tests/test_card", test: test, num: i + 1 %>
+    <% end %>
+  </section>
+
+  <% unless @finished.empty? %>
+    <hr class="qf-divider">
+    <h2 class="qf-section-title">Завершённые</h2>
+    <section class="qf-cards" aria-label="Завершённые">
+      <% @finished.each_with_index do |test, i| %>
+        <%= render "tests/test_card", test: test, num: i + 1 %>
+      <% end %>
+    </section>
   <% end %>
 
-  <% @tests.each do |test| %>
-    <div class="qf-card">
-      <div class="qf-attempt-head">
-        <%= link_to test.title, test.draft? ? edit_test_path(test) : test_path(test), class: "qf-qtitle" %>
-        <% if test.draft? %>
-          <span class="qf-chip">черновик</span>
-        <% else %>
-          <% if test.protected? %>
-            <span class="qf-chip">по паролю</span>
-          <% end %>
-          <span class="qf-chip"><%= test.open? ? "открыт" : "завершён" %></span>
-        <% end %>
-      </div>
-      <p class="qf-hint">
-        вопросов: <%= test.questions.size %> · максимум: <%= test.max_score %> ·
-        <%= test.author.name %> · до <%= local_time_tag(test.deadline) %>
-      </p>
-    </div>
-  <% end %>
+  <h2 class="qf-section-title">Пройдено мной</h2>
+  <section class="qf-cards" aria-label="Пройдено мной">
+    <% if @taken.empty? %>
+      <p class="qf-empty">Вы пока не проходили тесты. Открытые тесты ищите на <%= link_to "главном экране", root_path %>.</p>
+    <% end %>
+    <% @taken.each_with_index do |test, i| %>
+      <% score = test.closed? ? test.total_score(Current.user) : nil %>
+      <%= render "tests/test_card", test: test, num: i + 1, taken: true, my_score: score %>
+    <% end %>
+  </section>
 
   <footer class="qf-footer">
     <span>QuizForum</span>
-    <span>Тесты</span>
+    <span><%= plural_ru(@authored.size + @taken.size, "тест", "теста", "тестов") %></span>
   </footer>
 </main>

@@ -7,10 +7,16 @@ class TestsController < ApplicationController
   rate_limit to: 10, within: 3.minutes, only: %i[update authenticate attempt],
              with: -> { redirect_back fallback_location: root_path, alert: "Попробуйте позже." }
 
-  # Feed of published tests plus the author's own drafts, newest first.
+  # «Мои тесты» dashboard: open published (nearest deadline first), then
+  # drafts, then closed; attempts preloaded for the respondents chip.
+  # Per-test score stays lazy via Test#total_score in the view.
   def index
-    @tests = Test.published.or(Test.where(author: Current.user)).order(created_at: :desc)
-      .includes(:author, :questions)
+    authored = Test.where(author: Current.user).includes(:author, questions: :attempts)
+    @authored =
+      authored.published.where(deadline: Time.current..).order(deadline: :asc) +
+      authored.where(published: false).order(created_at: :desc) +
+      authored.published.where(deadline: ..Time.current).order(deadline: :desc)
+    @taken = Test.taken_by(Current.user).includes(:author, questions: :attempts).order(deadline: :desc)
   end
 
   # One creation screen: the draft opens immediately, so the question list
@@ -34,6 +40,12 @@ class TestsController < ApplicationController
   def update
     @test = Test.includes(:questions).find(params[:id])
     return head(:forbidden) unless @test.editable_by?(Current.user)
+
+    params.fetch(:questions_move, {}).to_unsafe_h.each do |id, dir|
+      question = @test.questions.find_by(id: id)
+      move_question(question, dir) if question
+    end
+
     @test.assign_attributes(test_params)
     points = params.fetch(:questions_points, {}).to_unsafe_h
     @test.questions.each do |q|
@@ -78,8 +90,17 @@ class TestsController < ApplicationController
     if @test.draft? && !@test.editable_by?(Current.user)
       return redirect_to tests_path, alert: "Тест ещё не опубликован."
     end
-    @questions = @test.questions.to_a
     return render_gate unless @test.unlocked?(Current.user, session)
+    load_answer_state
+    if params[:answers].is_a?(ActionController::Parameters)
+      # Render-after-fail ride-along from attempt: repopulate typed answers.
+      @form_answers = params[:answers].to_unsafe_h.slice(*@test.questions.map { it.id.to_s })
+    end
+  end
+
+  # View state shared by show and the 422 re-render after a failed attempt.
+  def load_answer_state
+    @questions = @test.questions.to_a
     @is_author = @test.editable_by?(Current.user)
     @my_attempts = Attempt.where(question: @questions, user: Current.user).index_by(&:question_id)
     @answered = @my_attempts.any?
@@ -111,8 +132,13 @@ class TestsController < ApplicationController
     return redirect_to @test, alert: "Вы уже ответили на этот тест." if @test.answered_by?(Current.user)
     records = @test.questions.map { |q| q.attempts.build(answer_params(q.id).merge(user: Current.user)) }
     unless records.all?(&:valid?)
-      msg = records.flat_map { it.errors.full_messages }.to_sentence
-      return redirect_to @test, alert: msg.presence || "Не удалось сохранить. Повторите."
+      # Re-render instead of redirect so the typed answers are not lost;
+      # @form_answers carries only this user's fresh params, nobody else's.
+      load_answer_state
+      @form_answers = @test.questions.map { |q| [ q.id.to_s, answer_params(q.id) ] }.to_h
+      msg = records.each_with_index.filter_map { |attempt, i| attempt_alert_message(attempt, i) }.join(" · ")
+      flash.now[:alert] = msg.presence || "Не удалось сохранить. Ответьте на все вопросы."
+      return render :show, status: :unprocessable_entity
     end
     Attempt.transaction do
       records.each(&:save!)
@@ -147,6 +173,32 @@ class TestsController < ApplicationController
         total = @test.questions.sum { it.score_for(verdicts[it.id]&.verdict) }
         [ user, total ]
       end.sort_by { |u, total| [ -total, u.name ] }
+    end
+
+    # Up/down reflow from the editor rows: swap the question with its
+    # neighbour, then renumber so ties (default 0 positions) can't swallow
+    # the swap. Draft questions have no attempts; positions never collide.
+    def move_question(question, dir)
+      ordered = @test.questions.order(:position, :id).to_a
+      from = ordered.index(question)
+      return unless from
+      to = dir == "up" ? from - 1 : from + 1
+      return if to.negative? || to >= ordered.size
+      ordered[to], ordered[from] = ordered[from], ordered[to]
+      ordered.each_with_index { |q, i| q.update_column(:position, i) }
+    end
+
+    # Russian copy over ActiveRecord defaults; the numbering follows the
+    # wizard steps the user just filled.
+    def attempt_alert_message(record, position)
+      copy = {
+        "body.blank" => "заполните ответ",
+        "selected.blank" => "выберите хотя бы один вариант",
+        "selected.invalid" => "выбор недопустим",
+        "language.inclusion" => "выберите язык"
+      }
+      detail = record.errors.map { |e| "#{e.attribute}.#{e.type}" }.first
+      "Вопрос #{position + 1}: #{copy[detail] || record.errors.full_messages.first}." if detail
     end
 
     # Whitelisted test form fields; published flips only through update.

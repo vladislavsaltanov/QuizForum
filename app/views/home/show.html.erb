@@ -14,7 +14,21 @@
 
   <%= render "shared/filters", url: root_path %>
 
+  <%= render "my_tests_strip" if @my_tests.any? %>
+
   <%= render "ai_banner" if @ai_pack.any? %>
+
+  <% if @feed_tests.any? %>
+    <h2 class="qf-section-title">Открытые тесты · <%= @feed_tests.size %></h2>
+    <section class="qf-cards" aria-label="Открытые тесты">
+      <% @feed_tests.each_with_index do |test, i| %>
+        <%# Belt and braces: home_feed already filters, but never render a
+            protected or draft test if data ever sneaks in. %>
+        <% next if test.protected? || test.draft? %>
+        <%= render "tests/test_card", test: test, num: i + 1 %>
+      <% end %>
+    </section>
+  <% end %>
 
   <section class="qf-cards" aria-label="Вопросы">
     <% if @questions.empty? %>

@@ -5,7 +5,7 @@
 <%# Top flow mirrors the question page: back → kicker → title → author
     plate; the manage button rides the plate row instead of crowding the kicker. %>
 <main class="qf-main qf-main-wide">
-  <%= link_to "← Все тесты", tests_path, class: "qf-back" %>
+  <%= link_to "← Мои тесты", tests_path, class: "qf-back" %>
   <p class="qf-kicker">
     <% if @test.draft? %>
       Черновик · не опубликован
@@ -96,45 +96,150 @@
         </section>
       <% end %>
     <% elsif @test.open? %>
-      <%# One form, one submit: the whole test is a single indivisible attempt. %>
-      <%= form_with url: attempt_test_path(@test), class: "qf-form", data: { turbo_frame: "_top" } do %>
+      <%# One form, one submit: the whole test is a single indivisible attempt,
+          presented as a step wizard (steps stay visible without JS);
+          typed answers ride back on the 422 re-render to keep the input. %>
+      <% typed = @form_answers || {} %>
+      <% if @questions.size > 1 %>
+        <nav class="qf-wizard-progress" aria-label="Прогресс вопросов">
+          <% @questions.each_with_index do |_, i| %>
+            <button type="button" class="qf-wizard-dot<%= " is-active" if i.zero? %>" data-goto="<%= i %>" aria-label="Вопрос <%= i + 1 %>"></button>
+          <% end %>
+          <span class="qf-wizard-count">шаг 1 из <%= @questions.size %></span>
+        </nav>
+      <% end %>
+      <%= form_with url: attempt_test_path(@test), class: "qf-form", data: { wizard: "1", turbo_frame: "_top" } do %>
         <% @questions.each_with_index do |question, i| %>
-          <section class="qf-card" aria-label="Вопрос <%= i + 1 %>">
+          <section class="qf-card qf-step" data-step="<%= i %>" aria-label="Вопрос <%= i + 1 %>">
             <div class="qf-attempt-head">
               <b>Вопрос <%= i + 1 %> из <%= @questions.size %></b>
               <span class="qf-chip">баллов: <%= question.points %></span>
             </div>
             <h2 class="qf-section-title"><%= question.title %></h2>
             <div class="qf-body"><%= simple_format(question.body) %></div>
+            <% saved = typed[question.id.to_s].is_a?(Hash) ? typed[question.id.to_s] : {} %>
             <% case question.answer_type %>
             <% when "text" %>
-              <%= text_area_tag "answers[#{question.id}][body]", nil, rows: 6, placeholder: "Ваш ответ…", class: "qf-input qf-answer-area", "aria-label": "Ответ на вопрос #{i + 1}" %>
+              <%= text_area_tag "answers[#{question.id}][body]", saved["body"], rows: 6, placeholder: "Ваш ответ…", class: "qf-input qf-answer-area", "aria-label": "Ответ на вопрос #{i + 1}" %>
             <% when "code" %>
               <% allowed = question.code_languages.presence || CodeRunnerClient::SUPPORTED_LANGUAGES %>
-              <%= select_tag "answers[#{question.id}][language]", options_for_select(allowed), class: "qf-input", "aria-label": "Язык вопроса #{i + 1}" %>
-              <%= text_area_tag "answers[#{question.id}][body]", nil, rows: 8, placeholder: "Ваш код…", class: "qf-input qf-code qf-answer-area", "aria-label": "Код на вопрос #{i + 1}" %>
+              <%= select_tag "answers[#{question.id}][language]", options_for_select(allowed, saved["language"]), class: "qf-input", "aria-label": "Язык вопроса #{i + 1}" %>
+              <%= text_area_tag "answers[#{question.id}][body]", saved["body"], rows: 8, placeholder: "Ваш код…", class: "qf-input qf-code qf-answer-area", "aria-label": "Код на вопрос #{i + 1}" %>
             <% when "single_choice" %>
+              <% picked = Array(saved["selected"]).map(&:to_s) %>
               <% question.options.each_with_index do |opt, oi| %>
                 <label class="qf-option">
-                  <%= radio_button_tag "answers[#{question.id}][selected][]", oi, false, required: true %>
+                  <%# no required: attribute — once JS hides a step, a required
+                      field there blocks the submit with a native error;
+                      validation stays in the model instead. %>
+                  <%= radio_button_tag "answers[#{question.id}][selected][]", oi, picked.include?(oi.to_s) %>
                   <span><%= opt["text"] %></span>
                 </label>
               <% end %>
             <% when "multiple_choice" %>
+              <% picked = Array(saved["selected"]).map(&:to_s) %>
               <% question.options.each_with_index do |opt, oi| %>
                 <label class="qf-option">
-                  <%= check_box_tag "answers[#{question.id}][selected][]", oi %>
+                  <%= check_box_tag "answers[#{question.id}][selected][]", oi, picked.include?(oi.to_s) %>
                   <span><%= opt["text"] %></span>
                 </label>
               <% end %>
             <% end %>
           </section>
         <% end %>
-        <div class="qf-actions">
+        <div class="qf-wizard-bar">
+          <span class="qf-wizard-done">отвечено 0 из <%= @questions.size %></span>
           <button type="submit" class="qf-apply">Отправить все ответы</button>
         </div>
       <% end %>
-    <% end %>
+      <%# Wizard step engine, same end-of-main inline pattern as the chat
+          tail-follow. Markup ships every step visible; the script adds
+          .qf-wizard-on FIRST, so CSS hides steps only when JS is present.
+          Dot jumps skip validation on purpose: dots are shortcuts, the
+          submit button final-validates (fields + server-side checks). %>
+      <script>
+        {
+          const form = document.querySelector('form[data-wizard="1"]');
+          if (form && !form.classList.contains("qf-wizard-on")) {
+            const steps = [...form.querySelectorAll(".qf-step")];
+            const dots = [...document.querySelectorAll(".qf-wizard-dot[data-goto]")];
+            const count = document.querySelector(".qf-wizard-count");
+            const done = document.querySelector(".qf-wizard-done");
+            const M = steps.length;
+            form.classList.add("qf-wizard-on");
+
+            const emptyField = (step) => {
+              for (const area of step.querySelectorAll("textarea")) if (!area.value.trim()) return area;
+              // single_choice and multiple_choice both need one checkbox ticked,
+              // mirroring the model-level answer_present check.
+              const boxes = [...step.querySelectorAll("input[type='radio'], input[type='checkbox']")];
+              if (boxes.length && !boxes.some((b) => b.checked)) return boxes[0];
+              return null;
+            };
+            const stepDone = (step) => emptyField(step) === null;
+            const recount = () => {
+              done.textContent = `отвечено ${steps.filter(stepDone).length} из ${M}`;
+            };
+
+            // Далее/Назад and the hint are JS-built so a no-JS page never shows them.
+            steps.forEach((step, i) => {
+              if (i > 0) {
+                const prev = document.createElement("button");
+                prev.type = "button";
+                prev.className = "qf-ghost qf-wizard-prev";
+                prev.textContent = "Назад";
+                prev.addEventListener("click", () => show(i - 1));
+                step.append(prev);
+              }
+              if (i < M - 1) {
+                const next = document.createElement("button");
+                next.type = "button";
+                next.className = "qf-apply qf-wizard-next";
+                next.textContent = "Далее";
+                next.addEventListener("click", () => {
+                  const bad = emptyField(step);
+                  if (bad) {
+                    step.querySelector(".qf-step-hint").classList.add("is-visible");
+                    bad.focus();
+                  } else show(i + 1);
+                });
+                step.append(next);
+              }
+              const hint = document.createElement("p");
+              hint.className = "qf-step-hint";
+              hint.textContent = "Заполните ответ, чтобы продолжить";
+              step.append(hint);
+            });
+
+            function show(i) {
+              steps.forEach((s, k) => s.classList.toggle("is-active", k === i));
+              dots.forEach((d) => d.classList.toggle("is-active", d.dataset.goto === String(i)));
+              if (count) count.textContent = `шаг ${i + 1} из ${M}`;
+              form.querySelectorAll(".qf-step-hint.is-visible").forEach((h) => h.classList.remove("is-visible"));
+            }
+
+            dots.forEach((d) => d.addEventListener("click", () => show(Number(d.dataset.goto))));
+            form.addEventListener("input", recount);
+            form.addEventListener("change", recount);
+            recount();
+            // After a 422 re-render with restored answers, start on the first
+            // incomplete step; otherwise that is step 1.
+            show(Math.max(0, steps.findIndex((s) => !stepDone(s))));
+
+            // Turbo keeps a snapshot: strip JS-built state so a cache restore
+            // (scripts do not re-run) falls back to the visible stacked form.
+            document.addEventListener("turbo:before-cache", () => {
+              // A later visit's form owns the only live listener; stale forms
+              // (already detached by the body swap) do nothing.
+              if (document.querySelector('form[data-wizard="1"]') !== form) return;
+              form.classList.remove("qf-wizard-on");
+              steps.forEach((s) => s.classList.remove("is-active"));
+              form.querySelectorAll(".qf-wizard-prev, .qf-wizard-next, .qf-step-hint")
+                .forEach((n) => n.remove());
+            });
+          }
+        }
+      </script>    <% end %>
   <% end %>
 
   <% if @test.closed? && @test.published? %>

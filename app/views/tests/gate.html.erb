@@ -3,12 +3,16 @@
 <%= render "shared/header", active: "tests" %>
 
 <main class="qf-main">
-  <%= link_to "← Все тесты", tests_path, class: "qf-back" %>
+  <%= link_to "← Мои тесты", tests_path, class: "qf-back" %>
+  <p class="qf-kicker">Тест по прямой ссылке</p>
   <h1 class="qf-qtitle"><%= @test.title %></h1>
-  <p class="qf-hint">Этот тест защищён паролем. Введите пароль, чтобы увидеть задания.</p>
+  <p class="qf-hint">Этот тест защищён паролем или кодовым словом. Введите его, чтобы увидеть задания.</p>
+  <% if @test.body.present? %>
+    <div class="qf-body"><%= simple_format(@test.body) %></div>
+  <% end %>
 
   <%= form_with url: authenticate_test_path(@test), class: "qf-form" do %>
-    <%= label_tag :password, "Пароль", class: "qf-label" %>
+    <%= label_tag :password, "Пароль или кодовое слово", class: "qf-label" %>
     <%= password_field_tag :password, nil, required: true, class: "qf-input", autocomplete: "off" %>
     <div class="qf-actions">
       <button type="submit" class="qf-apply">Открыть</button>
