@@ -588,7 +588,7 @@ a.qf-qtitle:hover { color: var(--qf-ink); text-decoration: underline; text-under
   margin-bottom: 8px;
 }
 
-.qf-summary { display: grid; gap: 6px; margin-bottom: 10px; }
+.qf-summary { display: grid; gap: 6px; margin: 16px 0 0 0; }
 .qf-summary-row { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
 .qf-summary-names { color: var(--qf-ink-soft); }
 .qf-answers-details > summary { cursor: pointer; }

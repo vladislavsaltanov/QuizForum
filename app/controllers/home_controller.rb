@@ -22,7 +22,7 @@ class HomeController < ApplicationController
       ids = @feed_tests.flat_map(&:question_ids)
       mine = Attempt.where(user: Current.user, question_id: ids).index_by(&:question_id)
       @feed_tests.each do |test|
-        @my_test_state[test.id] = "решено" if test.questions.any? { mine.key?(it.id) }
+        @my_test_state[test.id] = true if test.questions.any? { mine.key?(it.id) }
       end
     end
   end

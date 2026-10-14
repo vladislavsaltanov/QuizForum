@@ -358,10 +358,11 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     sign_in_as(@user)
     get tests_path
     assert_match(/Сдан Мид/, body)
-    assert_match(/балл: 4 из 4/, body)
+    assert_no_match(/балл: 0 из 4/, body) # score chip = «ваш балл», не «балл»
     assert_match(/Проходит Мид/, body)
-    assert_match(/ждёт дедлайна/, body)
-    assert_no_match(/балл: 0 из 3/, body)
+    # Открытый пройденный: «решено» вместо срока, ожидание дедлайна не окраска.
+    assert_match(/решено/, body)
+    assert_no_match(/ждёт дедлайна/, body)
   end
 
   test "my tests dashboard: stranger without tests sees empty state" do
