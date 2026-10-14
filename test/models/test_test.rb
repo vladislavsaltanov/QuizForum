@@ -39,7 +39,7 @@ class TestTest < ActiveSupport::TestCase
   test "home_feed orders open tests by nearest deadline" do
     later = @author.authored_tests.create!(title: "Позже", deadline: 3.days.from_now, published: true)
 
-    assert_equal [@test, later].map(&:deadline), Test.home_feed.map(&:deadline)
+    assert_equal [ @test, later ].map(&:deadline), Test.home_feed.map(&:deadline)
   end
 
   test "taken_by returns only tests whose questions the user answered" do
