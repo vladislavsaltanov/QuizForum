@@ -409,6 +409,11 @@ a.qf-apply { text-decoration: none; display: inline-flex; align-items: center; j
 .qf-strip-row .qf-strip-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qf-strip-row:hover .qf-strip-title { text-decoration: underline; }
 .qf-strip-more { margin-left: auto; color: var(--qf-ink); }
+/* Home rhythm: the strip and the «Открытые тесты» block need the same
+   breathing room as other section groups, otherwise the AI banner and the
+   question feed glue straight to them. */
+.qf-my-strip { margin-block-end: 2.25rem; }
+.qf-home-tests { margin-block-end: 2.25rem; }
 
 .qf-footer {
   display: flex;
