@@ -3,7 +3,7 @@
 <%= render "shared/header", active: "tests" %>
 
 <main class="qf-main">
-  <%= link_to "← Все тесты", tests_path, class: "qf-back" %>
+  <%= link_to "← Мои тесты", tests_path, class: "qf-back" %>
   <p class="qf-kicker">Тест по прямой ссылке</p>
   <h1 class="qf-qtitle"><%= @test.title %></h1>
   <p class="qf-hint">Этот тест защищён паролем или кодовым словом. Введите его, чтобы увидеть задания.</p>

@@ -5,7 +5,7 @@
 <%# Top flow mirrors the question page: back → kicker → title → author
     plate; the manage button rides the plate row instead of crowding the kicker. %>
 <main class="qf-main qf-main-wide">
-  <%= link_to "← Все тесты", tests_path, class: "qf-back" %>
+  <%= link_to "← Мои тесты", tests_path, class: "qf-back" %>
   <p class="qf-kicker">
     <% if @test.draft? %>
       Черновик · не опубликован
@@ -229,6 +229,9 @@
             // Turbo keeps a snapshot: strip JS-built state so a cache restore
             // (scripts do not re-run) falls back to the visible stacked form.
             document.addEventListener("turbo:before-cache", () => {
+              // A later visit's form owns the only live listener; stale forms
+              // (already detached by the body swap) do nothing.
+              if (document.querySelector('form[data-wizard="1"]') !== form) return;
               form.classList.remove("qf-wizard-on");
               steps.forEach((s) => s.classList.remove("is-active"));
               form.querySelectorAll(".qf-wizard-prev, .qf-wizard-next, .qf-step-hint")

@@ -1009,7 +1009,6 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
 /* Step buttons live in the form grid; park them at the right edge
    (Назад takes the left half) instead of stretching full width. */
 .qf-wizard-next, .qf-wizard-prev { justify-self: end; }
-.qf-wizard-step-controls { display: contents; }
 /* Step hiding engages only after the script adds .qf-wizard-on onto the
    form, so without JS every step stays visible in one stacked form. */
 .qf-wizard-on .qf-step:not(.is-active) { display: none; }

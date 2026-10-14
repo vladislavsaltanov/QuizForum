@@ -17,8 +17,6 @@ class TestsController < ApplicationController
       authored.where(published: false).order(created_at: :desc) +
       authored.published.where(deadline: ..Time.current).order(deadline: :desc)
     @taken = Test.taken_by(Current.user).includes(:author, questions: :attempts).order(deadline: :desc)
-    @tests = Test.published.or(Test.where(author: Current.user)).order(created_at: :desc)
-      .includes(:author, questions: :attempts)
   end
 
   # One creation screen: the draft opens immediately, so the question list
@@ -200,7 +198,7 @@ class TestsController < ApplicationController
         "language.inclusion" => "выберите язык"
       }
       detail = record.errors.map { |e| "#{e.attribute}.#{e.type}" }.first
-      return "Вопрос #{position + 1}: #{copy[detail] || record.errors.full_messages.first}." if detail
+      "Вопрос #{position + 1}: #{copy[detail] || record.errors.full_messages.first}." if detail
     end
 
     # Whitelisted test form fields; published flips only through update.

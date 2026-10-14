@@ -1,0 +1,15 @@
+import { chromium } from "/Users/kowie/.local/share/fnm/node-versions/v24.21.0/installation/lib/node_modules/playwright/index.mjs";
+const base = "http://127.0.0.1:3001";
+const browser = await chromium.launch();
+const page = await browser.newPage();
+await page.setViewportSize({ width: 1280, height: 900 });
+await page.goto(base + "/session/new");
+await page.fill('input#email', "uxfour@example.com");
+await page.fill('input[type="password"]', "ux-pass-1234");
+await page.click('button[type="submit"]');
+await page.waitForLoadState("networkidle");
+await page.goto(base + "/tests/3", { waitUntil: "networkidle" });
+await page.waitForTimeout(600);
+await page.screenshot({ path: "/tmp/ux-shots/18-wizard-final.png", fullPage: true });
+await browser.close();
+console.log("ok");

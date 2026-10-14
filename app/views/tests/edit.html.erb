@@ -4,7 +4,7 @@
 
 <main class="qf-main">
   <% if @test.draft? %>
-    <%= link_to "← Все тесты", tests_path, class: "qf-back" %>
+    <%= link_to "← Мои тесты", tests_path, class: "qf-back" %>
     <p class="qf-kicker">Черновик · виден только вам</p>
   <% else %>
     <%= link_to "← К тесту", test_path(@test), class: "qf-back" %>
