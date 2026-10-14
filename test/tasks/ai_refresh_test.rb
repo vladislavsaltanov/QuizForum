@@ -68,4 +68,35 @@ class AiRefreshTaskTest < ActiveSupport::TestCase
       remove_method :new
     end
   end
+
+  test "regenerate honours an explicit date, then defaults to today" do
+    ENV["GEMINI_API_KEY"] = "test-key"
+    GeminiClient.define_singleton_method(:new) do
+      Object.new.tap do |client|
+        def client.generate_pack(**_)
+          levels = %w[легкое среднее сложное]
+          Array.new(9) do |i|
+            { title: "Регенерированный #{i}", body: "Условие #{i}", answer_type: "text",
+              reference_answer: "Ответ #{i}", explanation: "Разбор #{i}",
+              difficulty: levels[i / 3], topics: [ "тема#{i}" ] }
+          end
+        end
+      end
+    end
+
+    Rake::Task["ai:regenerate"].reenable
+    Rake::Task["ai:regenerate"].invoke("2026-01-05")
+
+    assert_equal 9, Question.ai.where(ai_batch: Date.new(2026, 1, 5)).count
+
+    Rake::Task["ai:regenerate"].reenable
+    Rake::Task["ai:regenerate"].invoke
+
+    assert_equal 9, Question.ai.where(ai_batch: AiQuestions.today).count
+  ensure
+    ENV.delete("GEMINI_API_KEY")
+    class << GeminiClient
+      remove_method :new
+    end
+  end
 end

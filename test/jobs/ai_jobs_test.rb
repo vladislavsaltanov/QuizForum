@@ -61,6 +61,30 @@ class AiJobsTest < ActiveJob::TestCase
     end
   end
 
+  test "generate logs an ingest rejection and creates nothing" do
+    ENV["GEMINI_API_KEY"] = "test-key"
+    GeminiClient.define_singleton_method(:new) do
+      Object.new.tap do |client|
+        def client.generate_pack(**_)
+          Array.new(9) do |i|
+            { title: "Легонький #{i}", body: "Условие #{i}", answer_type: "text",
+              reference_answer: "Ответ #{i}", explanation: "Разбор #{i}",
+              difficulty: "легкое", topics: [ "тема#{i}" ] }
+          end
+        end
+      end
+    end
+
+    AiDailyGenerateJob.perform_now
+
+    assert_equal 0, Question.ai.count
+  ensure
+    ENV.delete("GEMINI_API_KEY")
+    class << GeminiClient
+      remove_method :new
+    end
+  end
+
   test "generate skips pack creation when the batch already exists" do
     ENV["GEMINI_API_KEY"] = "test-key"
     AiQuestionIngest.call(items: generated_items)

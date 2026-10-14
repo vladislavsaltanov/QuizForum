@@ -43,6 +43,25 @@ class CommentTest < ActiveSupport::TestCase
     assert_includes Comment.visible_for(questions(:open_text), users(:one)).pluck(:id), pending.id
   end
 
+  test "visible_live? on a test comment ignores the question branch" do
+    test = users(:one).authored_tests.create!(title: "Т", deadline: 1.day.from_now)
+    pending = test.comments.create!(user: users(:two), body: "ждёт")
+    approved = test.comments.create!(user: users(:two), body: "ок", status: "approved")
+
+    assert_not pending.visible_live?
+    assert approved.visible_live?
+  end
+
+  test "comment belongs to exactly one of question or test" do
+    neither = Comment.new(user: users(:one), body: "бездомный")
+    both = Comment.new(user: users(:one), body: "жадный", question: questions(:open_text),
+      test: users(:two).authored_tests.create!(title: "T", deadline: 1.day.from_now))
+
+    assert_not neither.valid?
+    assert_not both.valid?
+    assert both.errors[:base].any?
+  end
+
   private
     def comment_for(user, body)
       Comment.create!(question: questions(:open_text), user: user, body: body)

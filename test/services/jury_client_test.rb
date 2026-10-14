@@ -26,6 +26,10 @@ class JuryClientTest < ActiveSupport::TestCase
     assert_nil check_with(grade_json(label: "maybe", score: 0.5, needs_review: true))
   end
 
+  test "non-hash payload returns nil" do
+    assert_nil check_with(JSON.generate([ 1, 2 ]))
+  end
+
   test "garbage response returns nil" do
     assert_nil check_with("not json")
   end
@@ -35,6 +39,15 @@ class JuryClientTest < ActiveSupport::TestCase
     client.define_singleton_method(:post) { |*_, **_| raise Errno::ECONNREFUSED }
 
     assert_nil client.grade(reference: "эталон", answer: "ответ")
+  end
+
+  test "refused sidecar is retried once, then given up" do
+    old = ENV["JURY_SIDECAR_URL"]
+    ENV["JURY_SIDECAR_URL"] = "http://127.0.0.1:9"
+
+    assert_nil JuryClient.new.grade(reference: "эталон", answer: "ответ")
+  ensure
+    old.nil? ? ENV.delete("JURY_SIDECAR_URL") : ENV["JURY_SIDECAR_URL"] = old
   end
 
   test "same body yields same idempotency key" do

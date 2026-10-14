@@ -48,6 +48,56 @@ class GeminiClientTest < ActiveSupport::TestCase
     assert_equal 9, client.generate_pack.size
   end
 
+  test "prompt lists recent titles to avoid" do
+    prompt = GeminiClient.new.send(:prompt, Question::DIFFICULTIES, %w[Старый1 Старый2])
+
+    assert_match(/Не повторяй эти темы/, prompt)
+    assert_match(/- Старый1/, prompt)
+  end
+
+  test "request returns nil on an http error" do
+    fake = Object.new
+    fake.define_singleton_method(:use_ssl=) { |*| }
+    fake.define_singleton_method(:open_timeout=) { |*| }
+    fake.define_singleton_method(:read_timeout=) { |*| }
+    fake.define_singleton_method(:request) do |_req|
+      Net::HTTPNotFound.new("1.1", "404", "Not Found").tap { |res| res.instance_variable_set(:@read, true) }
+    end
+    Net::HTTP.define_singleton_method(:new) { |*_| fake }
+
+    assert_nil GeminiClient.new.send(:request, "prompt", model: @primary)
+  ensure
+    Net::HTTP.singleton_class.remove_method(:new)
+  end
+
+  test "request parses a successful response body" do
+    body = JSON.generate(candidates: [ { content: { parts: [ { text: "[]" } ] } } ])
+    fake = Object.new
+    fake.define_singleton_method(:use_ssl=) { |*| }
+    fake.define_singleton_method(:open_timeout=) { |*| }
+    fake.define_singleton_method(:read_timeout=) { |*| }
+    fake.define_singleton_method(:request) do |_req|
+      Net::HTTPOK.new("1.1", "200", "OK").tap do |res|
+        res.instance_variable_set(:@body, body)
+        res.instance_variable_set(:@read, true)
+      end
+    end
+    Net::HTTP.define_singleton_method(:new) { |*_| fake }
+
+    payload = GeminiClient.new.send(:request, "prompt", model: @primary)
+
+    assert payload.is_a?(Hash)
+    assert_equal "[]", payload.dig("candidates", 0, "content", "parts", 0, "text")
+  ensure
+    Net::HTTP.singleton_class.remove_method(:new)
+  end
+
+  test "extract returns nil for a json array body" do
+    payload = { "candidates" => [ { "content" => { "parts" => [ { "text" => JSON.generate([ 1, 2 ]) } ] } } ] }
+
+    assert_nil GeminiClient.new.send(:extract, payload, model: @primary)
+  end
+
   private
     def pack_payload
       { "candidates" => [ { "content" => { "parts" => [ { "text" => JSON.generate(questions: pack_items) } ] } } ] }
