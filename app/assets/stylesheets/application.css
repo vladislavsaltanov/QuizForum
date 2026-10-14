@@ -957,7 +957,7 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  margin: 0 0 1rem;
+  margin: 0.875rem 0 1rem;
   flex-wrap: wrap;
 }
 .qf-wizard-dot {
@@ -973,6 +973,16 @@ textarea.qf-answer-area.qf-code { min-height: 380px; }
   background: var(--qf-ink);
   border-color: var(--qf-ink);
 }
+/* Заголовок вопроса в карточке прохождения: обычный текст, не mono-капс kickера. */
+.qf-step-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+.qf-step-title + .qf-body { margin-top: 6px; }
 .qf-wizard-count {
   margin-left: auto;
   font-family: var(--qf-mono);

@@ -37,6 +37,7 @@ Rails.application.routes.draw do
   resource :profile, only: %i[show edit update] do
     patch :grant_role, on: :member
     patch :toggle_ai_banner, on: :member
+    patch :toggle_old_tests_ui, on: :member
   end
   get "ui-kit" => "ui_kit#show", as: :ui_kit
   match "/auth/google_oauth2/callback" => "sessions#google_oauth2", via: %i[get post]

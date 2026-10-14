@@ -34,6 +34,18 @@ class ProfilesController < ApplicationController
     end
   end
 
+  # Тумблер старого вида прохождения теста; cookie per-browser, как у ИИ-баннера.
+  def toggle_old_tests_ui
+    if params[:old_test_wizard] == "1"
+      cookies[:old_test_wizard] = { value: "1", expires: 1.year }
+      notice = "Включён старый вид прохождения теста."
+    else
+      cookies.delete(:old_test_wizard)
+      notice = "Включён пошаговый вид прохождения теста."
+    end
+    redirect_to profile_path, notice:
+  end
+
   # Toggles the AI banner via a persistent cookie; per-browser, no reauth needed.
   def toggle_ai_banner
     if params[:hide_ai_banner] == "1"

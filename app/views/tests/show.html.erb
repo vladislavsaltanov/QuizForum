@@ -48,7 +48,7 @@
           <b>Вопрос <%= i + 1 %> из <%= @questions.size %></b>
           <span class="qf-chip">баллов: <%= question.points %></span>
         </div>
-        <h2 class="qf-section-title"><%= question.title %></h2>
+        <h2 class="qf-step-title"><%= question.title %></h2>
       </section>
     <% end %>
   <% elsif @is_author %>
@@ -59,7 +59,7 @@
           <b>Вопрос <%= i + 1 %> из <%= @questions.size %></b>
           <span class="qf-chip">баллов: <%= question.points %></span>
         </div>
-        <h2 class="qf-section-title"><%= question.title %></h2>
+        <h2 class="qf-step-title"><%= question.title %></h2>
         <div class="qf-body"><%= simple_format(question.body) %></div>
       </section>
     <% end %>
@@ -80,7 +80,7 @@
               <span class="qf-chip <%= verdict_class(attempt.verdict) %>"><%= verdict_label(attempt.verdict) %></span>
             <% end %>
           </div>
-          <h2 class="qf-section-title"><%= question.title %></h2>
+          <h2 class="qf-step-title"><%= question.title %></h2>
           <div class="qf-body"><%= simple_format(question.body) %></div>
           <% if attempt %>
             <% if @test.closed? %>
@@ -100,7 +100,10 @@
           presented as a step wizard (steps stay visible without JS);
           typed answers ride back on the 422 re-render to keep the input. %>
       <% typed = @form_answers || {} %>
-      <% if @questions.size > 1 %>
+      <%# Тумблер в профиле (cookie old_test_wizard) возвращает старый вид:
+          без шагов и прогресса, вопросы подряд в одной форме. %>
+      <% wizard_mode = cookies[:old_test_wizard] != "1" %>
+      <% if wizard_mode && @questions.size > 1 %>
         <nav class="qf-wizard-progress" aria-label="Прогресс вопросов">
           <% @questions.each_with_index do |_, i| %>
             <button type="button" class="qf-wizard-dot<%= " is-active" if i.zero? %>" data-goto="<%= i %>" aria-label="Вопрос <%= i + 1 %>"></button>
@@ -108,14 +111,14 @@
           <span class="qf-wizard-count">шаг 1 из <%= @questions.size %></span>
         </nav>
       <% end %>
-      <%= form_with url: attempt_test_path(@test), class: "qf-form", data: { wizard: "1", turbo_frame: "_top" } do %>
+      <%= form_with url: attempt_test_path(@test), class: "qf-form", data: { wizard: ("1" if wizard_mode), turbo_frame: "_top" } do %>
         <% @questions.each_with_index do |question, i| %>
           <section class="qf-card qf-step" data-step="<%= i %>" aria-label="Вопрос <%= i + 1 %>">
             <div class="qf-attempt-head">
               <b>Вопрос <%= i + 1 %> из <%= @questions.size %></b>
               <span class="qf-chip">баллов: <%= question.points %></span>
             </div>
-            <h2 class="qf-section-title"><%= question.title %></h2>
+            <h2 class="qf-step-title"><%= question.title %></h2>
             <div class="qf-body"><%= simple_format(question.body) %></div>
             <% saved = typed[question.id.to_s].is_a?(Hash) ? typed[question.id.to_s] : {} %>
             <% case question.answer_type %>
@@ -147,10 +150,16 @@
             <% end %>
           </section>
         <% end %>
-        <div class="qf-wizard-bar">
-          <span class="qf-wizard-done">отвечено 0 из <%= @questions.size %></span>
-          <button type="submit" class="qf-apply">Отправить все ответы</button>
-        </div>
+        <% if wizard_mode %>
+          <div class="qf-wizard-bar">
+            <span class="qf-wizard-done">отвечено 0 из <%= @questions.size %></span>
+            <button type="submit" class="qf-apply">Отправить все ответы</button>
+          </div>
+        <% else %>
+          <div class="qf-actions">
+            <button type="submit" class="qf-apply">Отправить все ответы</button>
+          </div>
+        <% end %>
       <% end %>
       <%# Wizard step engine, same end-of-main inline pattern as the chat
           tail-follow. Markup ships every step visible; the script adds

@@ -373,6 +373,33 @@ class TestsFlowTest < ActionDispatch::IntegrationTest
     assert_no_match(/qf-card-title/, body)
   end
 
+  test "old-test-ui toggle switches wizard markup on the answering page" do
+    test = @author.authored_tests.create!(title: "Тумблер", deadline: 1.day.from_now, published: true)
+    test.questions.create!(title: "Первый", body: "b", answer_type: "text",
+      reference_answer: "x", deadline: test.deadline, author: @author, points: 1, position: 0)
+    test.questions.create!(title: "Второй", body: "b", answer_type: "text",
+      reference_answer: "y", deadline: test.deadline, author: @author, points: 1, position: 1)
+
+    sign_in_as(@user)
+    get test_path(test)
+    assert_select ".qf-wizard-progress", count: 1
+    assert_select "form[data-wizard='1']", count: 1
+    assert_select ".qf-step-title", text: "Первый"
+
+    # Тумблер в профиле возвращает старый вид: без прогресса, вопросы подряд.
+    patch toggle_old_tests_ui_profile_path, params: { old_test_wizard: "1" }
+    assert_redirected_to profile_path
+    get test_path(test)
+    assert_select ".qf-wizard-progress", count: 0
+    assert_select "form[data-wizard]", count: 0
+    assert_select ".qf-actions button[type='submit']", text: "Отправить все ответы"
+
+    # Обратное переключение возвращает wizard.
+    patch toggle_old_tests_ui_profile_path
+    get test_path(test)
+    assert_select ".qf-wizard-progress", count: 1
+  end
+
   test "invalid attempt alert is russian and dashboard cards count respondents" do
     sign_in_as(@author)
     test = @author.authored_tests.create!(title: "Отвечалки", deadline: 1.day.from_now, published: true)
