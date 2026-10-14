@@ -176,6 +176,67 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "nav[aria-label=?]", "Постраничная навигация", count: 0
   end
 
+  test "my tests strip lists drafts first with edit links" do
+    user = users(:one)
+    user.authored_tests.create!(title: "Открытый мой", deadline: 3.days.from_now, published: true)
+    draft = user.authored_tests.create!(title: "Мой черновик", deadline: 5.days.from_now)
+
+    sign_in_as(user)
+    get root_path
+
+    assert_select ".qf-my-strip" do
+      assert_select ".qf-kicker", text: /Мои тесты · 2/
+      assert_select "a[href=?]", tests_path, text: /все мои тесты/
+      assert_select "a[href=?]", edit_test_path(draft)
+      assert_select ".qf-chip", text: "черновик"
+      assert_select ".qf-chip", text: /до /
+    end
+    assert_operator response.body.index("Мой черновик"), :<, response.body.index("Открытый мой"),
+      "draft must come first in the strip"
+  end
+
+  test "stranger's open published test lands in Открытые тесты" do
+    stranger = users(:two)
+    test = stranger.authored_tests.create!(title: "Чужой тест", deadline: 1.day.from_now, published: true)
+    test.questions.create!(title: "q", body: "b", answer_type: "text", reference_answer: "r",
+      deadline: test.deadline, author: stranger, points: 1, position: 0)
+
+    sign_in_as(users(:one))
+    get root_path
+
+    assert_select "h2.qf-section-title", text: /Открытые тесты · 1/
+    assert_select ".qf-cards[aria-label='Открытые тесты']" do
+      assert_select ".qf-test-mark", text: "тест"
+      assert_select ".qf-card-title", text: "Чужой тест"
+      assert_select ".qf-card-attempts", text: /вопросов: 1/
+    end
+    assert_select "a[href=?]", test_path(test)
+  end
+
+  test "stranger's password-protected test never reaches home" do
+    stranger = users(:two)
+    stranger.authored_tests.create!(title: "Секретный тест", deadline: 1.day.from_now,
+      password: "s3cret", published: true)
+
+    sign_in_as(users(:one))
+    get root_path
+
+    assert_no_match(/Секретный тест/, response.body)
+    assert_select ".qf-test-mark", count: 0
+  end
+
+  test "own authored open test stays in the strip, out of Открытые тесты" do
+    user = users(:one)
+    own = user.authored_tests.create!(title: "Сам себе", deadline: 1.day.from_now, published: true)
+
+    sign_in_as(user)
+    get root_path
+
+    assert_no_match(/Открытые тесты/, response.body)
+    assert_select ".qf-my-strip a[href=?]", test_path(own)
+    assert_select ".qf-test-mark", count: 0
+  end
+
   private
     def bulk_question(title)
       Question.create!(title: title, body: "Тело", answer_type: "text",
