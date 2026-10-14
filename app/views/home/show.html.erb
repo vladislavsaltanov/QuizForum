@@ -9,12 +9,11 @@
 
 <main class="qf-main qf-main-home">
   <% pager = @pagers[:page] %>
-  <p class="qf-kicker"><%= @date_filter_active ? "Вопросы по дате" : "Открытые вопросы" %> · <%= pager[:count] %></p>
+  <p class="qf-kicker"><%= @date_filter_active ? "Вопросы по дате" : "Вопросы" %> · <%= pager[:count] %></p>
   <h1 class="qf-hero">Вопросы</h1>
 
   <%= render "shared/filters", url: root_path %>
 
-  <%= render "my_tests_strip" if @my_tests.any? %>
 
   <%= render "ai_banner" if @ai_pack.any? %>
 
@@ -33,35 +32,29 @@
     </div>
   <% end %>
 
-  <section class="qf-cards" aria-label="Вопросы">
-    <% if @questions.empty? %>
-      <p class="qf-empty">Ничего не найдено. Попробуйте смягчить фильтры.</p>
-    <% end %>
-    <% @questions.each_with_index do |question, i| %>
-      <%= link_to question_path(question), class: "qf-card-link" do %>
-        <article class="qf-card<%= " is-closed" if question.closed? %>">
-          <div class="qf-card-top">
-            <span class="qf-card-num"><%= format("%02d", i + 1) %></span>
-            <span class="qf-card-tags"><%= question.tags.map { "##{it}" }.join(" ") %></span>
-            <span class="qf-card-attempts">ответили: <%= question.attempts.size %></span>
-          </div>
-          <h2 class="qf-card-title"><%= question_title_with_date(question) %></h2>
-          <div class="qf-card-meta">
-            <span class="qf-card-author"><%= question.author.name %><%= " • #{question.author.display_role}" if question.author.display_role.present? %></span>
-            <% if (badge = solved_badge(question, @solved[question.id])) %>
-              <%= badge %>
-            <% elsif question.closed? %>
-              <span class="qf-chip">закрыт <%= local_time_tag(question.deadline) %></span>
-            <% elsif question.closing_soon? %>
-              <span class="qf-chip qf-chip-urgent">заканчивается · <%= time_left(question.deadline) %></span>
-            <% else %>
-              <span class="qf-chip">до <%= local_time_tag(question.deadline) %></span>
-            <% end %>
-          </div>
-        </article>
+  <%# The feed splits into named groups so it reads like the test block above:
+      open first, the seven-day closed tail after. Empty groups collapse away. %>
+  <% open_questions = @questions.select(&:open?) %>
+  <% closed_tail = @questions.select(&:closed?) %>
+  <% if @questions.empty? %>
+    <p class="qf-empty">Ничего не найдено. Попробуйте смягчить фильтры.</p>
+  <% end %>
+  <% if open_questions.any? %>
+    <h2 class="qf-section-title">Открытые вопросы · <%= open_questions.size %></h2>
+    <section class="qf-cards" aria-label="Открытые вопросы">
+      <% open_questions.each_with_index do |question, i| %>
+        <%= render "home/question_card", question: question, i: i %>
       <% end %>
-    <% end %>
-  </section>
+    </section>
+  <% end %>
+  <% if closed_tail.any? %>
+    <h2 class="qf-section-title qf-closed-tail-title">Недавно закрытые вопросы · <%= closed_tail.size %></h2>
+    <section class="qf-cards" aria-label="Недавно закрытые вопросы">
+      <% closed_tail.each_with_index do |question, i| %>
+        <%= render "home/question_card", question: question, i: i %>
+      <% end %>
+    </section>
+  <% end %>
 
   <%= render "shared/pager", pager: pager %>
 

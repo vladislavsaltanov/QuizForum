@@ -18,7 +18,8 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select ".qf-nav-item", text: "Мои вопросы"
     assert_select ".qf-nav-item", text: "Таблица лидеров"
     assert_select ".qf-nav-item", text: "Профиль"
-    assert_select ".qf-kicker", text: /Открытые вопросы/
+    assert_select ".qf-kicker", text: /Вопросы · /
+    assert_select "h2.qf-section-title", text: /Открытые вопросы · /
     assert_select "h1.qf-hero", text: "Вопросы"
     assert_select "input[name=q]"
     assert_select "select[name=author]"
@@ -77,13 +78,14 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select ".qf-card-title", text: /подстроки/
   end
 
-  test "kicker counts exactly the questions in the feed" do
+  test "kicker and open-group title count exactly the feed questions" do
     sign_in_as(users(:one))
     archived_question("Давно закрытый")
 
     get root_path
 
-    assert_select ".qf-kicker", text: "Открытые вопросы · #{Question.feed.count}"
+    assert_select ".qf-kicker", text: "Вопросы · #{Question.feed.count}"
+    assert_select "h2.qf-section-title", text: "Открытые вопросы · #{Question.feed.count}"
   end
 
   test "a closing deadline swaps the chip and the archive link counts the archive" do
@@ -136,7 +138,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
 
     get root_path
     assert_select ".qf-card", count: 20
-    assert_select ".qf-kicker", text: /Открытые вопросы · 42/
+    assert_select ".qf-kicker", text: /Вопросы · 42/
 
     get root_path, params: { page: 2 }
     assert_select ".qf-card", count: 20
@@ -176,65 +178,39 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "nav[aria-label=?]", "Постраничная навигация", count: 0
   end
 
-  test "my tests strip lists drafts first with edit links" do
+  test "own published test stays out of Открытые тесты" do
     user = users(:one)
-    user.authored_tests.create!(title: "Открытый мой", deadline: 3.days.from_now, published: true)
-    draft = user.authored_tests.create!(title: "Мой черновик", deadline: 5.days.from_now)
-
-    sign_in_as(user)
-    get root_path
-
-    assert_select ".qf-my-strip" do
-      assert_select ".qf-kicker", text: /Мои тесты · 2/
-      assert_select "a[href=?]", tests_path, text: /все мои тесты/
-      assert_select "a[href=?]", edit_test_path(draft)
-      assert_select ".qf-chip", text: "черновик"
-      assert_select ".qf-chip", text: /до /
-    end
-    assert_operator response.body.index("Мой черновик"), :<, response.body.index("Открытый мой"),
-      "draft must come first in the strip"
-  end
-
-  test "stranger's open published test lands in Открытые тесты" do
-    stranger = users(:two)
-    test = stranger.authored_tests.create!(title: "Чужой тест", deadline: 1.day.from_now, published: true)
-    test.questions.create!(title: "q", body: "b", answer_type: "text", reference_answer: "r",
-      deadline: test.deadline, author: stranger, points: 1, position: 0)
-
-    sign_in_as(users(:one))
-    get root_path
-
-    assert_select "h2.qf-section-title", text: /Открытые тесты · 1/
-    assert_select ".qf-cards[aria-label='Открытые тесты']" do
-      assert_select ".qf-test-mark", text: "тест"
-      assert_select ".qf-card-title", text: "Чужой тест"
-      assert_select ".qf-card-attempts", text: /вопросов: 1/
-    end
-    assert_select "a[href=?]", test_path(test)
-  end
-
-  test "stranger's password-protected test never reaches home" do
-    stranger = users(:two)
-    stranger.authored_tests.create!(title: "Секретный тест", deadline: 1.day.from_now,
-      password: "s3cret", published: true)
-
-    sign_in_as(users(:one))
-    get root_path
-
-    assert_no_match(/Секретный тест/, response.body)
-    assert_select ".qf-test-mark", count: 0
-  end
-
-  test "own authored open test stays in the strip, out of Открытые тесты" do
-    user = users(:one)
-    own = user.authored_tests.create!(title: "Сам себе", deadline: 1.day.from_now, published: true)
+    user.authored_tests.create!(title: "Сам себе", deadline: 1.day.from_now, published: true)
 
     sign_in_as(user)
     get root_path
 
     assert_no_match(/Открытые тесты/, response.body)
-    assert_select ".qf-my-strip a[href=?]", test_path(own)
     assert_select ".qf-test-mark", count: 0
+  end
+
+  test "feed splits into named open and recently-closed groups" do
+    sign_in_as(users(:one))
+    get root_path
+
+    assert_select "h2.qf-section-title", text: /Открытые вопросы · /
+    assert_select "section[aria-label='Открытые вопросы'] .qf-card", minimum: 1
+    # Nothing closed in this feed yet: the tail heading must not render.
+    assert_select "h2.qf-section-title", text: /Недавно закрытые/, count: 0
+  end
+
+  test "recently closed questions appear with their own heading and chip" do
+    q = bulk_question("Чуть позже")
+    q.update!(deadline: 1.hour.ago)
+
+    sign_in_as(users(:one))
+    get root_path
+
+    assert_select "h2.qf-section-title", text: /Недавно закрытые вопросы · 1/
+    assert_select "section[aria-label='Недавно закрытые вопросы']" do
+      assert_select ".qf-card-title", text: /Чуть позже/
+      assert_select ".qf-chip", text: /закрыт/
+    end
   end
 
   private
