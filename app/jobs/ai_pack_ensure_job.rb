@@ -6,6 +6,7 @@ class AiPackEnsureJob < ApplicationJob
 
   def perform
     [ AiQuestions.today, AiQuestions.today - 1 ].each do |batch|
+      next if Time.current < AiQuestions.pack_due_at(batch)
       next if AiQuestions.deadline_for(batch) <= Time.current
       next if Question.ai.where(ai_batch: batch).exists?
       AiDailyGenerateJob.perform_now(batch: batch.to_s)

@@ -13,10 +13,25 @@ class AiPackEnsureJobTest < ActiveSupport::TestCase
     AiDailyGenerateJob.define_singleton_method(:perform_now, original)
   end
 
-  test "generates missing today pack" do
-    AiPackEnsureJob.perform_now
+  test "generates missing today pack after its due time" do
+    travel_to AiQuestions.pack_due_at(AiQuestions.today) + 1.hour do
+      AiPackEnsureJob.perform_now
 
-    assert_equal [ { batch: AiQuestions.today.to_s } ], @calls
+      assert_equal [ { batch: AiQuestions.today.to_s } ], @calls
+    end
+  end
+
+  test "boot with live pack does not generate before 17:00 due time" do
+    travel_to AiQuestions.pack_due_at(AiQuestions.today) - 1.hour do
+      Question.create!(title: "Живая", body: "Тело", answer_type: "text",
+        deadline: 7.days.from_now, reference_answer: "Ответ",
+        author: users(:one), ai_generated: true, ai_batch: AiQuestions.today - 1)
+
+      AiPackEnsureJob.perform_now
+
+      assert_empty @calls
+      assert_equal AiQuestions.today - 1, Question.latest_ai_pack.first.ai_batch
+    end
   end
 
   test "does nothing when today pack exists" do
