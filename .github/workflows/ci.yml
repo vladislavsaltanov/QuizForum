@@ -106,7 +106,7 @@ jobs:
 
     steps:
       - name: Install packages
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libpq-dev # yamllint disable-line rule:line-length
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libpq-dev libvips # yamllint disable-line rule:line-length
 
       - name: Checkout code
         uses: actions/checkout@v7
