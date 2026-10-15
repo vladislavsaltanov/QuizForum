@@ -1,12 +1,17 @@
 version: 2
 updates:
-- package-ecosystem: bundler
-  directory: "/"
-  schedule:
-    interval: weekly
-  open-pull-requests-limit: 10
-- package-ecosystem: github-actions
-  directory: "/"
-  schedule:
-    interval: weekly
-  open-pull-requests-limit: 10
+  - package-ecosystem: bundler
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    ignore:
+      # json 3.x changed JSON.parse to kwargs-only; ActiveSupport 8.1 still
+      # calls JSON.parse(json, options) positionally. See Gemfile pin.
+      - dependency-name: json
+        versions: ">= 3"
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
