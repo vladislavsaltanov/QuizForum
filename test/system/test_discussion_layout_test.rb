@@ -23,9 +23,12 @@ class TestDiscussionLayoutTest < ApplicationSystemTestCase
   test "author deletes a comment from the test page" do
     open_discussion
     initial = page.all("#comments .qf-msg").size
+    # Capture before the click: on CI the DELETE can already have destroyed the
+    # record by the time this assert evaluates, leaving comments.last as nil.
+    message = @test_t.comments.last.body
     within(all("#comments .qf-msg").last) { click_on "Удалить" }
 
-    assert_no_text(@test_t.comments.last.body)
+    assert_no_text(message)
     assert_equal initial - 1, @test_t.comments.count
   end
 

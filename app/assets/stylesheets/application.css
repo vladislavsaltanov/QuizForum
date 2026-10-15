@@ -675,6 +675,9 @@ a.qf-ghost { text-decoration: none; display: inline-flex; align-items: center; j
 }
 .qf-test-discuss.is-comments { max-block-size: 70vh; }
 .qf-test-discuss .qf-list-head { margin-inline: -24px; padding-inline: 24px; }
+/* The count-only head is ~56px against ~92px with tabs; the shared -80px
+   slide-in would poke the scroller's clip edge above it — local depth. */
+.qf-test-discuss .qf-chat { margin-top: -60px; padding-top: 40px; }
 .qf-test-discuss .qf-chatbar { margin-top: 0; }
 .qf-test-discuss .qf-hint { margin: 0; }
 
