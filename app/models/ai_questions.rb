@@ -44,6 +44,26 @@ module AiQuestions
     Time.use_zone(zone) { Time.zone.today }
   end
 
+  # Instant the pack for +batch+ becomes due: 17:00 on the batch day, zone time.
+  def self.pack_due_at(batch)
+    Time.use_zone(zone) { Time.zone.local(batch.year, batch.month, batch.day, 17, 0) }
+  end
+
+  # Non-blocking cross-process generation guard: yields with the lock held and
+  # returns the block value, or :locked when another process already generates.
+  # Same pool connection locks and unlocks; the key is a stable CRC of the batch.
+  def self.with_generation_lock(batch)
+    key = Zlib.crc32("ai-generate-#{batch.to_date}")
+    ActiveRecord::Base.connection_pool.with_connection do |conn|
+      return :locked unless conn.select_value("SELECT pg_try_advisory_lock(#{key})")
+      begin
+        yield
+      ensure
+        conn.execute("SELECT pg_advisory_unlock(#{key})")
+      end
+    end
+  end
+
   # The bot author AI packs are published under.
   def self.bot_user!
     User.find_or_create_by!(email: BOT_EMAIL) do |u|

@@ -60,6 +60,14 @@ class ProfilesController < ApplicationController
     redirect_to profile_path, notice: "Роль пользователя ##{target.id} обновлена."
   end
 
+  # Admin-only forced regen of today's pack, UI twin of rake ai:regenerate.
+  # Enqueues and redirects; the slow Gemini call never blocks the request.
+  def regenerate_ai_pack
+    return head(:forbidden) unless Current.user&.admin?
+    AiDailyGenerateJob.perform_later(batch: AiQuestions.today.to_s, force: true)
+    redirect_to profile_path, notice: "Генерация ИИ-рубрики на сегодня запущена."
+  end
+
   private
     # Scopes every action to the signed-in user.
     def set_user

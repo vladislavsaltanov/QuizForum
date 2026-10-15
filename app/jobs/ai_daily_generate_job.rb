@@ -13,26 +13,31 @@ class AiDailyGenerateJob < ApplicationJob
       return
     end
     batch = Date.iso8601(batch.to_s)
-    if force
-      deleted = Question.ai.where(ai_batch: batch).destroy_all.size
-      Rails.logger.info("[AI] force: deleted #{deleted} questions for #{batch}.")
-    elsif Question.ai.where(ai_batch: batch).exists?
-      Rails.logger.info("[AI] pack for #{batch} already exists, skipping.")
-      return
+    # Overlapping triggers (daily, ensure, watchdog, admin button) collapse here:
+    # a running generation means skip, never a double.
+    ran = AiQuestions.with_generation_lock(batch) do
+      if force
+        deleted = Question.ai.where(ai_batch: batch).destroy_all.size
+        Rails.logger.info("[AI] force: deleted #{deleted} questions for #{batch}.")
+      elsif Question.ai.where(ai_batch: batch).exists?
+        Rails.logger.info("[AI] pack for #{batch} already exists, skipping.")
+        return
+      end
+      recent = Question.ai.order(deadline: :desc).limit(30).pluck(:title)
+      Rails.logger.info("[AI] generating pack for #{batch}...")
+      items = GeminiClient.new.generate_pack(recent_titles: recent)
+      if items.nil?
+        Rails.logger.error("[AI] generation failed, nothing ingested.")
+        return
+      end
+      result = AiQuestionIngest.call(items:, batch:, source: "gemini")
+      if result.errors.any?
+        Rails.logger.error("[AI] ingest rejected pack: #{result.errors.join("; ")}")
+      else
+        Rails.logger.info("[AI] ingested #{result.questions.size} questions for #{batch}.")
+      end
     end
-    recent = Question.ai.order(deadline: :desc).limit(30).pluck(:title)
-    Rails.logger.info("[AI] generating pack for #{batch}...")
-    items = GeminiClient.new.generate_pack(recent_titles: recent)
-    if items.nil?
-      Rails.logger.error("[AI] generation failed, nothing ingested.")
-      return
-    end
-    result = AiQuestionIngest.call(items:, batch:, source: "gemini")
-    if result.errors.any?
-      Rails.logger.error("[AI] ingest rejected pack: #{result.errors.join("; ")}")
-    else
-      Rails.logger.info("[AI] ingested #{result.questions.size} questions for #{batch}.")
-    end
+    Rails.logger.info("[AI] generation for #{batch} already running, skipping.") if ran == :locked
   rescue Date::Error
     nil
   end
