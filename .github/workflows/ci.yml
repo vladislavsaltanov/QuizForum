@@ -85,7 +85,7 @@ jobs:
       # (python/node/ruby/go/java/g++) except .NET: install the same
       # pinned SDK the coderunner image uses.
       - name: Set up .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.401
       - name: Run coderunner grading matrix
