@@ -151,7 +151,13 @@ class AiJobsTest < ActiveJob::TestCase
     # Raw connection = guaranteed separate session, like another worker process
     # (pool checkouts in one process can share a session, locks are reentrant there).
     key = Zlib.crc32("ai-generate-#{AiQuestions.today}")
-    raw = PG.connect(dbname: ActiveRecord::Base.connection_db_config.database)
+    # Same params as ActiveRecord (CI connects over TCP via DATABASE_URL,
+    # local dev over unix socket) — bare dbname only works on socket.
+    config = ActiveRecord::Base.connection_db_config.configuration_hash
+    raw = PG.connect(host: config[:host], port: config[:port],
+                     dbname: config[:database] || config[:dbname],
+                     user: config[:username] || config[:user],
+                     password: config[:password])
     raw.exec("SELECT pg_try_advisory_lock(#{key})")
     begin
       assert_equal :locked, AiQuestions.with_generation_lock(AiQuestions.today) { raise "must not run" }
