@@ -146,4 +146,28 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert cookies[:old_cards].blank?
     assert cookies[:old_test_wizard].blank?
   end
+
+  test "admin enqueues today's pack regen" do
+    @user.update!(admin: true)
+    assert_enqueued_with(job: AiDailyGenerateJob) do
+      post regenerate_ai_pack_profile_path
+    end
+
+    assert_redirected_to profile_path
+  end
+
+  test "non-admin is forbidden from regen" do
+    assert_no_enqueued_jobs do
+      post regenerate_ai_pack_profile_path
+    end
+
+    assert_response :forbidden
+  end
+
+  test "guest is redirected from regen" do
+    sign_out
+    post regenerate_ai_pack_profile_path
+
+    assert_redirected_to new_session_path
+  end
 end

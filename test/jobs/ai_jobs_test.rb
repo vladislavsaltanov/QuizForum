@@ -147,6 +147,44 @@ class AiJobsTest < ActiveJob::TestCase
     end
   end
 
+  test "generation lock is exclusive across PG sessions" do
+    # Raw connection = guaranteed separate session, like another worker process
+    # (pool checkouts in one process can share a session, locks are reentrant there).
+    key = Zlib.crc32("ai-generate-#{AiQuestions.today}")
+    # Same params as ActiveRecord (CI connects over TCP via DATABASE_URL,
+    # local dev over unix socket) — bare dbname only works on socket.
+    config = ActiveRecord::Base.connection_db_config.configuration_hash
+    raw = PG.connect(host: config[:host], port: config[:port],
+                     dbname: config[:database] || config[:dbname],
+                     user: config[:username] || config[:user],
+                     password: config[:password])
+    raw.exec("SELECT pg_try_advisory_lock(#{key})")
+    begin
+      assert_equal :locked, AiQuestions.with_generation_lock(AiQuestions.today) { raise "must not run" }
+    ensure
+      raw.exec("SELECT pg_advisory_unlock(#{key})")
+      raw.close
+    end
+  end
+
+  test "generate skips while another process holds the generation lock" do
+    ENV["GEMINI_API_KEY"] = "test-key"
+    GeminiClient.define_singleton_method(:new) { raise "adapter must not run while locked" }
+    original = AiQuestions.method(:with_generation_lock)
+    AiQuestions.define_singleton_method(:with_generation_lock) { |*| :locked }
+    begin
+      AiDailyGenerateJob.perform_now
+
+      assert_equal 0, Question.ai.count
+    ensure
+      AiQuestions.define_singleton_method(:with_generation_lock, original)
+      ENV.delete("GEMINI_API_KEY")
+      class << GeminiClient
+        remove_method :new
+      end
+    end
+  end
+
   private
     def generated_items
       levels = %w[легкое среднее сложное]

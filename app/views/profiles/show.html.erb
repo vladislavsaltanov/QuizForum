@@ -61,6 +61,11 @@
         <button type="submit" class="qf-apply">Выдать роль</button>
       </div>
     <% end %>
+    <%= form_with url: regenerate_ai_pack_profile_path, method: :post, class: "qf-form" do %>
+      <div class="qf-actions">
+        <button type="submit" class="qf-apply">Перегенерировать ИИ-рубрику на сегодня</button>
+      </div>
+    <% end %>
   <% end %>
 
   <footer class="qf-footer">

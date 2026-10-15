@@ -15,6 +15,9 @@ production:
   ai_pack_ensure:
     command: "AiPackEnsureJob.perform_later"
     schedule: every hour
+  ai_pack_watchdog:
+    command: "AiPackWatchdogJob.perform_later"
+    schedule: "*/10 * * * *"
 development:
   ai_daily_generate:
     command: "AiDailyGenerateJob.perform_later"
@@ -28,3 +31,6 @@ development:
   ai_pack_ensure:
     command: "AiPackEnsureJob.perform_later"
     schedule: every hour
+  ai_pack_watchdog:
+    command: "AiPackWatchdogJob.perform_later"
+    schedule: "*/10 * * * *"
